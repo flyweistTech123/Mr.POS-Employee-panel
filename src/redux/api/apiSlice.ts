@@ -56,7 +56,11 @@ export const apiSlice = createApi({
           const { data } = await queryFulfilled;
           dispatch(setCredentials({
             token: data.data.token,
-            user: data.data.user,
+            user: {
+              ...data.data.user,
+              id: data.data.user._id,
+              name: data.data.user.Name,
+            },
           }));
         } catch (error) {
           console.error('Login failed:', error);
