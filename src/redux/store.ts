@@ -1,8 +1,17 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
 import sessionStorage from 'redux-persist/lib/storage/session';
-import { combineReducers } from 'redux';
+
 import { apiSlice } from './api/apiSlice';
 import authReducer from './slice/authSlice';
 import { orderHistoryApi } from './api/orderHistoryApi';
@@ -32,7 +41,12 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(apiSlice.middleware, orderHistoryApi.middleware, quickOrderApi.middleware, userApi.middleware),
+    }).concat(
+      apiSlice.middleware,
+      orderHistoryApi.middleware,
+      quickOrderApi.middleware,
+      userApi.middleware,
+    ),
 });
 
 setupListeners(store.dispatch);
