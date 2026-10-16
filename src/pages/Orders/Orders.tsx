@@ -12,17 +12,92 @@ import { SuccessModal } from "@/components/common/SuccessModal";
 import successIcon from '@/assets/order/success_icon_large.svg';
 import { createOrder, updateOrder } from '@/api/orderApi';
 import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '@/types/order';
-import OrderSummaryModal from '@/components/common/OrderSummaryModal';
-import PaymentModal from '@/components/common/PaymentModal';
+import OrderSummaryModal from "@/components/common/OrderSummaryModal";
+import PaymentModal from "@/components/common/PaymentModal";
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 import { useWalkthroughUIStore } from '@/store/zustandStores';
-import ReadyToScanModal from '@/components/common/ReadyToScanModal';
-import ReadyToPayModal from '@/components/common/ReadyToPayModal';
-import PaymentDoneModal from '@/components/common/PaymentDoneModal';
-import { tableTrainingSteps } from '@/walkthrough/steps';
+import ReadyToScanModal from "@/components/common/ReadyToScanModal";
+import ReadyToPayModal from "@/components/common/ReadyToPayModal";
+import PaymentDoneModal from "@/components/common/PaymentDoneModal";
+import { tableTrainingSteps } from "@/walkthrough/steps";
 import { useGetAllItemsQuery, useGetAllItemTypesQuery, useGetItemTypeByIdQuery } from "@/redux/api/quickOrderSlice";
 
 const floors = ["F-01", "F-02", "F-03", "F-04", "F-05", "F-06"];
+
+// --- Types for Bar Tab ---
+interface BarTabItem {
+  id: string;
+  quantity: number;
+  name: string;
+  modifiers: string[];
+}
+
+interface BarTab {
+  id: string;
+  name: string;
+  table: string;
+  waiter: string;
+  time: string;
+  status: 'Open' | 'Closed';
+  items: BarTabItem[];
+  runningTotal: number;
+}
+
+// --- Dummy Data for Bar Tabs ---
+const initialTabs: BarTab[] = [
+  {
+    id: '1',
+    name: 'Ahmed',
+    table: 'Table #7',
+    waiter: 'Waiter - Sara',
+    time: '5 min ago',
+    status: 'Open',
+    items: [
+      { id: 'i1', quantity: 2, name: 'Whiskey on the rocks', modifiers: [] },
+      { id: 'i2', quantity: 1, name: 'Mojito - extra lime', modifiers: [] },
+      { id: 'i3', quantity: 1, name: 'Heineken', modifiers: [] },
+    ],
+    runningTotal: 52.00,
+  },
+  {
+    id: '2',
+    name: 'Sara',
+    table: 'Table #7',
+    waiter: 'Waiter - Ahmed',
+    time: '12 min ago',
+    status: 'Open',
+    items: [
+      { id: 'i4', quantity: 2, name: 'Glass of wine', modifiers: [] },
+      { id: 'i5', quantity: 1, name: 'Cheese platter', modifiers: [] },
+    ],
+    runningTotal: 67.50,
+  },
+  {
+    id: '3',
+    name: 'Group',
+    table: 'Table #9',
+    waiter: 'Waiter - Yasmine',
+    time: '18 min ago',
+    status: 'Open',
+    items: [
+      { id: 'i6', quantity: 4, name: 'Draft beer', modifiers: [] },
+      { id: 'i7', quantity: 2, name: 'Nachos - no jalapeno', modifiers: [] },
+      { id: 'i8', quantity: 1, name: 'Sparkling water', modifiers: [] },
+    ],
+    runningTotal: 89.00,
+  },
+];
+
+const modifiersList = [
+  'On the rocks',
+  'Extra lime',
+  'No ice',
+  'Double shot',
+  'Neat',
+  'Extra mint',
+  'Salt rim',
+  'Virgin',
+];
 
 const Orders: React.FC = () => {
   const {
@@ -41,6 +116,25 @@ const Orders: React.FC = () => {
     setPersons: setPersonsGlobal,
     setInOrderFlow,
   } = useOrderFlowStore();
+  
+  // Mode State: 'Food' or 'Bar'
+  const [activeMode, setActiveMode] = useState<'Food' | 'Bar'>('Food');
+  
+  // State to toggle between Bar Menu and Bar Tab view
+  const [showBarTabScreen, setShowBarTabScreen] = useState(false);
+
+  // --- Bar Tab Specific States ---
+  const [isHappyHourActive, setIsHappyHourActive] = useState(false);
+  const [showAddTabModal, setShowAddTabModal] = useState(false);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  
+  // Bar Tab Form States
+  const [clientName, setClientName] = useState('');
+  const [tableNo, setTableNo] = useState('');
+  const [drinkName, setDrinkName] = useState('');
+  const [drinksModifiers, setDrinksModifiers] = useState('');
+  // -------------------------------
+
   const [feedback, setFeedback] = useState("");
   const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
   const [showAddonsModal, setShowAddonsModal] = useState(false);
@@ -119,22 +213,6 @@ const Orders: React.FC = () => {
   // Combined error state
   const hasError = itemTypesError || itemsError || selectedItemTypeError;
 
-  console.log("[Orders render]", {
-    selectedTable,
-    currentOrder,
-    pendingCustomizedItem,
-    showOrderSentPanel,
-    showConfirmationModal,
-    showFloorPersonsPanel,
-    selectedCategory,
-    selectedItemTypeId,
-    menuItems,
-    filteredItems,
-    selectedItemType,
-    isLoading,
-    hasError,
-  });
-
   // Force enable order summary button during walkthrough
   useEffect(() => {
     if (isActive && steps[currentStep]?.selector === ".select-payment-btn") {
@@ -166,11 +244,6 @@ const Orders: React.FC = () => {
   // Auto-start order for item-first flow
   useEffect(() => {
     if (pendingCustomizedItem && selectedTable && !currentOrder) {
-      console.log("[Effect] Auto-start order (item-first flow)", {
-        pendingCustomizedItem,
-        selectedTable,
-        currentOrder,
-      });
       startOrder({ tableId: selectedTable, floor: selectedFloor, persons });
     }
   }, [pendingCustomizedItem, selectedTable, currentOrder, selectedFloor, persons]);
@@ -192,10 +265,8 @@ const Orders: React.FC = () => {
     }
   }, [location.state]);
 
-  // Dummy size check
   const itemHasSize = () => true;
 
-  // Handle right panel click (table-first flow)
   const handleRightPanelClick = () => {
     setShowFloorPersonsPanel(true);
     const walkthrough = useWalkthroughStore.getState();
@@ -205,7 +276,6 @@ const Orders: React.FC = () => {
     }
   };
 
-  // Handle item click (item-first flow)
   const handleAddToCart = (item: any) => {
     if (!currentOrder && !selectedTable && !showFloorPersonsPanel) {
       setTimeout(() => {
@@ -227,7 +297,6 @@ const Orders: React.FC = () => {
     }
   };
 
-  // Handle AddonsModal save
   const handleAddonsSave = ({ addons, note }: { addons: string[]; note: string }) => {
     if (!modalItem) return;
     const dummyAddons = [
@@ -266,7 +335,6 @@ const Orders: React.FC = () => {
     setModalSize("M");
   };
 
-  // Order summary helpers
   const orderItems = currentOrder?.items || [];
   const subtotal = orderItems.reduce((sum: number, item: any) => {
     const addOnsTotal = (item.addOns?.reduce((a: number, addon: any) => a + (addon.price || 0), 0) || 0) * (item.quantity || 1);
@@ -277,7 +345,6 @@ const Orders: React.FC = () => {
   const hasKitchenItem = orderItems.some((item: any) => item.preparationStation === "Kitchen");
   const allCounter = orderItems.length > 0 && orderItems.every((item: any) => item.preparationStation === "Counter");
 
-  // Handle order action
   const handleOrderAction = async () => {
     if (hasKitchenItem) {
       setShowConfirmationModal(true);
@@ -286,7 +353,6 @@ const Orders: React.FC = () => {
     }
   };
 
-  // Confirm order and call API
   const handleConfirmationContinue = async () => {
     if (!currentOrder) return;
     setOrderSending(true);
@@ -327,7 +393,6 @@ const Orders: React.FC = () => {
     }
   };
 
-  // Handle next order
   const handleNextOrder = () => {
     resetOrder();
     setShowOrderSentPanel(false);
@@ -340,7 +405,6 @@ const Orders: React.FC = () => {
     walkthrough.complete();
   };
 
-  // Table selection UI logic
   const handleSelectTable = () => {
     navigate("/table", { state: { persons, floor: selectedFloor } });
     const walkthrough = useWalkthroughStore.getState();
@@ -350,7 +414,6 @@ const Orders: React.FC = () => {
     }
   };
 
-  // Reset showFloorPersonsPanel after table selection
   useEffect(() => {
     if (selectedTable && showFloorPersonsPanel) {
       setShowFloorPersonsPanel(false);
@@ -362,7 +425,6 @@ const Orders: React.FC = () => {
     removeOrderItem(itemId);
   };
 
-  // Toggle allergy for an item
   const handleToggleAllergy = (itemId: string) => {
     if (!currentOrder) return;
     const item = currentOrder.items.find((i: any) => i.itemId === itemId);
@@ -370,11 +432,9 @@ const Orders: React.FC = () => {
     updateOrderItem(itemId, { allergy: !item.allergy });
   };
 
-  // Expose for walkthrough controller
   (window as any).handleSelectTable = handleSelectTable;
   (window as any).handleRightPanelClick = handleRightPanelClick;
 
-  // Walkthrough step check
   useEffect(() => {
     const walkthrough = useWalkthroughStore.getState();
     const step = walkthrough.steps[walkthrough.currentStep];
@@ -384,11 +444,10 @@ const Orders: React.FC = () => {
       filteredItems.length > 0 &&
       document.querySelector(".order-item-first")
     ) {
-      // No-op: controller will show the step
+      // No-op
     }
   }, [filteredItems]);
 
-  // Order summary clickability
   useEffect(() => {
     const step = steps[currentStep];
     if (isActive && step && step.selector === '.order-summary-panel') {
@@ -398,7 +457,6 @@ const Orders: React.FC = () => {
     }
   }, [steps, currentStep, isActive]);
 
-  // Payment flow timeouts
   useEffect(() => {
     if (showReadyToScan) {
       const t = setTimeout(() => {
@@ -420,7 +478,6 @@ const Orders: React.FC = () => {
     }
   }, [showReadyToPay, next]);
 
-  // Payment done modal close
   const handlePaymentDoneClose = () => {
     setShowPaymentOptions(false);
     setShowOrderSentPanel(true);
@@ -428,7 +485,6 @@ const Orders: React.FC = () => {
     navigate('/orders');
   };
 
-  // Walkthrough completion
   const { completed, activeTraining, startTraining, reset } = useWalkthroughStore();
   useEffect(() => {
     if (completed && activeTraining === "order") {
@@ -440,23 +496,410 @@ const Orders: React.FC = () => {
     }
   }, [completed, activeTraining, startTraining, reset, navigate]);
 
+  // --- RENDER BAR TAB SCREEN ---
+  if (activeMode === 'Bar' && showBarTabScreen) {
+    return (
+      <div className="min-h-screen bg-[#F8F8F8] p-8 font-sans text-gray-800 relative">
+        
+        {/* Custom Scrollbar Styles */}
+        <style>{`
+          .hover-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+          .hover-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .hover-scrollbar::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 10px; transition: background-color 0.2s ease; }
+          .hover-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #cbd5e1; }
+          .hover-scrollbar:hover::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+          .hover-scrollbar { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+          .hover-scrollbar:hover { scrollbar-color: #cbd5e1 transparent; }
+        `}</style>
+
+        {/* --- Header Section --- */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          
+          {/* Breadcrumb Title */}
+          <div className="flex items-center gap-2 text-2xl font-bold">
+            <button 
+              onClick={() => setShowBarTabScreen(false)} 
+              className="hover:text-[#8E24AA] transition-colors text-gray-900"
+            >
+              Bar Management
+            </button>
+            <span className="text-gray-400 font-light text-xl">{'>'}</span>
+            <span className="text-gray-900">Bar tab</span>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            
+            {/* Happy Hour Switch - FIXED WIDTH WITH PROPER SPACING */}
+            <div 
+              className={`flex items-center justify-between px-4 py-2 rounded-full shadow-sm cursor-pointer transition-colors duration-300 w-[175px] ${isHappyHourActive ? 'bg-[#00C853]' : 'bg-[#FF3B30]'}`}
+              onClick={() => setIsHappyHourActive(!isHappyHourActive)}
+            >
+              {/* Switch Track */}
+              <div className="relative w-10 h-5 bg-white rounded-full flex-shrink-0 shadow-inner">
+                {/* Sliding Knob */}
+                <div 
+                  className={`absolute w-4 h-4 rounded-full bg-[#8E24AA] shadow-md transform transition-transform duration-300 top-0.5 ${
+                    isHappyHourActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                  }`}
+                ></div>
+              </div>
+              
+              {/* Label */}
+              <span className="text-[11px] font-bold text-white leading-none whitespace-nowrap">
+                {isHappyHourActive ? 'Happy Hour Active' : 'Happy Hour Inactive'}
+              </span>
+            </div>
+
+            {/* Open New Tab Button -> Opens Add New Tab Modal */}
+            <button 
+              onClick={() => setShowAddTabModal(true)}
+              className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm hover:opacity-90 transition-all flex items-center gap-1 whitespace-nowrap"
+            >
+              + Open New Tab
+            </button>
+          </div>
+        </div>
+
+        {/* --- Bar Tabs Grid --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8 max-h-[60vh] overflow-y-auto pr-2 hover-scrollbar">
+          {initialTabs.map((tab) => (
+            <div key={tab.id} className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+              
+              {/* Card Header */}
+              <div className="p-4 pb-2">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {tab.name} - {tab.table}
+                  </h3>
+                  <span className="text-[9px] font-bold text-[#E53935] bg-[#FFEBEE] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    {tab.status}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium">
+                  {tab.waiter} <span className="mx-1">•</span> {tab.time}
+                </p>
+              </div>
+
+              {/* Card Items List */}
+              <div className="px-4 flex-1 min-h-[100px] mb-2">
+                <ul className="space-y-1.5">
+                  {tab.items.map((item) => (
+                    <li key={item.id} className="text-xs text-gray-700">
+                      <span className="font-bold">{item.quantity}x</span> {item.name}
+                      {item.modifiers.length > 0 && (
+                        <span className="text-gray-400"> - {item.modifiers.join(', ')}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Card Footer */}
+              <div className="p-4 pt-2 border-t border-gray-50">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs text-gray-500 font-medium">Running total</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    ${tab.runningTotal.toFixed(2)}
+                  </span>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setShowAddItemModal(true)}
+                    className="flex-1 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white py-1.5 rounded-md text-xs font-bold shadow-sm hover:opacity-90 transition-all"
+                  >
+                    + Add Item
+                  </button>
+                  <button className="flex-1 bg-white border border-gray-200 text-gray-700 py-1.5 rounded-md text-xs font-bold hover:bg-gray-50 transition-all">
+                    Close tab
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* --- Quick Entry Modifiers Section --- */}
+        <div className="border border-gray-300 rounded-xl p-4 bg-white/40">
+          <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">
+            Drinks Modifiers - Quick Entry
+          </h4>
+          
+          <div className="flex flex-wrap gap-2 mb-3 max-h-[120px] overflow-y-auto pr-2 hover-scrollbar">
+            {modifiersList.map((mod, index) => {
+              const isHighlighted = index < 3;
+              return (
+                <button
+                  key={mod}
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    isHighlighted
+                      ? 'bg-[#F3E5F5] text-[#8E24AA] border border-[#E1BEE7]'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {mod}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-[10px] text-gray-400 font-medium">
+            Active modifiers highlighted in dark color - Happy hour 10% discount auto-applied to drinks until 8:00 PM
+          </p>
+        </div>
+
+        {/* ========================================================= */}
+        {/* MODAL 1: ADD NEW TAB (Exact Figma Design)                 */}
+        {/* ========================================================= */}
+        {showAddTabModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+              
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] p-5 text-white relative">
+                <h2 className="text-xl font-bold mb-1">Add New Tab</h2>
+                <p className="text-xs text-white/80">Lorem ipsum is simply dummy text of the printing and typesetting industry.</p>
+                <button 
+                  onClick={() => setShowAddTabModal(false)}
+                  className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6">
+                <h3 className="text-sm font-bold text-gray-800 mb-4">Basic Information</h3>
+                
+                {/* Row 1: Client Name & Table No */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Client Name <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g., Ahmad Aminoff" 
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Table No <span className="text-red-500">*</span></label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g., #7" 
+                      value={tableNo}
+                      onChange={(e) => setTableNo(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA]"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Drink's Name & Drinks Modifiers */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Drink's Name <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="e.g., Corona" 
+                        value={drinkName}
+                        onChange={(e) => setDrinkName(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA] pr-8"
+                      />
+                      <span className="absolute right-3 top-2 text-[#8E24AA] font-bold text-lg cursor-pointer">+</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Drinks Modifiers</label>
+                    <div className="relative">
+                      <select 
+                        value={drinksModifiers}
+                        onChange={(e) => setDrinksModifiers(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA] appearance-none bg-white"
+                      >
+                        <option value="">Select modifiers</option>
+                        <option value="on-the-rocks">On the rocks</option>
+                        <option value="extra-lime">Extra lime</option>
+                        <option value="no-ice">No ice</option>
+                      </select>
+                      <span className="absolute right-3 top-2.5 text-gray-400 pointer-events-none">▼</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Centered Add Item Button */}
+                <div className="flex justify-center mb-2">
+                  <button className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white px-6 py-2 rounded-lg text-xs font-bold shadow-sm hover:opacity-90 transition-all">
+                    + Add Item
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t border-gray-200 p-4 flex gap-3">
+                <button 
+                  onClick={() => setShowAddTabModal(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button className="flex-1 bg-[#8E24AA] text-white py-2 rounded-lg text-sm font-bold hover:bg-[#7B1FA2] transition-all shadow-md">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODAL 2: ADD NEW ITEM                                      */}
+        {/* ========================================================= */}
+        {showAddItemModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+              
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] p-5 text-white relative">
+                <h2 className="text-xl font-bold mb-1">Add New Item</h2>
+                <p className="text-xs text-white/80">Lorem ipsum is simply dummy text of the printing and typesetting industry.</p>
+                <button 
+                  onClick={() => setShowAddItemModal(false)}
+                  className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6">
+                <h3 className="text-sm font-bold text-gray-800 mb-4">Basic Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {/* Drinks Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Drink's Name <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="e.g., Corona" 
+                        value={drinkName}
+                        onChange={(e) => setDrinkName(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA] pr-8"
+                      />
+                      <span className="absolute right-3 top-2 text-[#8E24AA] font-bold text-lg cursor-pointer">+</span>
+                    </div>
+                  </div>
+                  {/* Drinks Modifiers */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Drinks Modifiers</label>
+                    <div className="relative">
+                      <select 
+                        value={drinksModifiers}
+                        onChange={(e) => setDrinksModifiers(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#8E24AA] focus:ring-1 focus:ring-[#8E24AA] appearance-none bg-white"
+                      >
+                        <option value="">Select modifiers</option>
+                        <option value="on-the-rocks">On the rocks</option>
+                        <option value="extra-lime">Extra lime</option>
+                        <option value="no-ice">No ice</option>
+                      </select>
+                      <span className="absolute right-3 top-2.5 text-gray-400 pointer-events-none">▼</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Centered Add Item Button */}
+                <div className="flex justify-center mb-2">
+                  <button className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white px-6 py-2 rounded-lg text-xs font-bold shadow-sm hover:opacity-90 transition-all">
+                    + Add Item
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t border-gray-200 p-4 flex gap-3">
+                <button 
+                  onClick={() => setShowAddItemModal(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-bold hover:bg-gray-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button className="flex-1 bg-[#8E24AA] text-white py-2 rounded-lg text-sm font-bold hover:bg-[#7B1FA2] transition-all shadow-md">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
+  // --- RENDER MAIN FOOD/BAR MENU SCREEN ---
   return (
-    <div className="flex flex-col mb-20 py-4 sm:p-8 bg-[#fafafa] max-w-screen">
-      <h1 className="text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-4">
-        Quick Orders
-      </h1>
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 h-auto lg:h-[70vh] items-stretch">
-        {/* Left: Menu Items Grid */}
-        <div className="flex-1 bg-white rounded-3xl shadow-lg p-3 sm:p-6 overflow-y-auto relative">
-          {/* Category Filter Bar */}
-          <div className="flex gap-2 mb-4 sm:mb-6 overflow-x-scroll bg-[#F1F1F1] rounded-full p-1">
+    <div className="flex flex-col min-h-screen p-6 bg-[#F8F8F8]">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-black">
+          {activeMode === 'Food' ? 'Quick Orders' : 'Bar Management'}
+        </h1>
+        
+        <div className="flex items-center gap-4">
+          {/* Open Bar Tab Button - Only visible in Bar mode */}
+          {activeMode === 'Bar' && (
+            <button 
+              onClick={() => setShowBarTabScreen(true)}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white font-semibold text-sm shadow-md hover:opacity-90 transition-all"
+            >
+              <span className="text-lg leading-none">+</span> Open Bar Tab
+            </button>
+          )}
+
+          {/* Mode Toggle - Exact Figma Style */}
+          <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-100">
+            <button 
+              onClick={() => {
+                setActiveMode('Food');
+                setShowBarTabScreen(false);
+              }}
+              className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${
+                activeMode === 'Food' 
+                  ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" 
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              Food
+            </button>
+            <button 
+              onClick={() => setActiveMode('Bar')}
+              className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${
+                activeMode === 'Bar' 
+                  ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" 
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              Bar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
+        {/* Left Panel: Menu Items */}
+        <div className="flex-1 bg-white rounded-[32px] shadow-sm p-6 flex flex-col overflow-hidden">
+          
+          {/* Category Filter Bar - EXACT FIGMA DESIGN */}
+          <div className="flex gap-1 mb-5 overflow-x-auto pb-1 scrollbar-hide bg-[#F5F5F5] rounded-full p-1.5 w-fit">
             {categories.map((cat) => (
               <button
                 key={cat.value}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-1 rounded-full font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-medium transition-all whitespace-nowrap text-xs ${
                   selectedCategory === cat.value
-                    ? "bg-white shadow text-black"
-                    : "bg-transparent text-gray-500 hover:bg-gray-100"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "bg-transparent text-gray-500 hover:bg-white/50"
                 } ${cat.value === "all" ? "all-items-tab" : ""}`}
                 onClick={() => {
                   setSelectedCategory(cat.value);
@@ -470,55 +913,63 @@ const Orders: React.FC = () => {
                   }
                 }}
               >
-                {cat.icon && <span className="text-xl">{cat.icon}</span>}
+                {cat.icon && <span className="text-sm">{cat.icon}</span>}
                 {cat.label}
               </button>
             ))}
           </div>
-          {/* Items Grid */}
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="w-12 h-12 border-4 border-t-4 border-gray-200 border-t-[#6A1B9A] rounded-full animate-spin"></div>
-            </div>
-          ) : hasError || filteredItems.length === 0 ? (
-            <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 text-center text-gray-400">
-              No items found.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
-              {filteredItems.map((item: any, idx: number) => (
-                <div
-                  key={item.itemId + idx}
-                  className={`w-[125px] min-h-[140px] bg-white rounded-xl shadow-[0_0_10px_2px_rgba(0,0,0,0.1)] flex flex-col items-center justify-between p-2 cursor-pointer border border-gray-100 group min-w-[125px] mx-auto${idx === 0 ? ' order-item-first' : ''}${idx === 1 ? ' order-item-second' : ''}${idx === 2 ? ' order-item-third' : ''}`}
-                  onClick={() => {
-                    const walkthrough = useWalkthroughStore.getState();
-                    const step = walkthrough.steps[walkthrough.currentStep];
-                    if (
-                      walkthrough.isActive &&
-                      (step?.selector === ".order-item-first" || step?.selector === ".order-item-second" || step?.selector === ".order-item-third")
-                    ) {
-                      addItemToOrder({ ...item, quantity: 1 });
-                      walkthrough.next();
-                      return;
-                    }
-                    handleAddToCart(item);
-                  }}
-                >
-                  <img
-                    src={item.image || "https://via.placeholder.com/81x67?text=Item"}
-                    alt={item.name}
-                    className="w-[81px] h-[67px] object-contain mt-2"
-                  />
-                  <div className="text-[14px] font-medium text-center mt-2 line-clamp-2">
-                    {item.name}
+
+          {/* Items Grid - EXACT FIGMA CARD DESIGN */}
+          <div className="flex-1 overflow-y-auto pr-1">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="w-10 h-10 border-4 border-t-4 border-gray-200 border-t-[#6A1B9A] rounded-full animate-spin"></div>
+              </div>
+            ) : hasError || filteredItems.length === 0 ? (
+              <div className="flex justify-center items-center h-full text-gray-400 text-sm">
+                No items found.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {filteredItems.map((item: any, idx: number) => (
+                  <div
+                    key={item.itemId + idx}
+                    className={`bg-white rounded-2xl p-2 flex flex-col items-center cursor-pointer border border-gray-100 hover:shadow-md transition-all duration-200 group min-h-[140px] justify-between ${
+                      idx === 0 ? ' order-item-first' : ''
+                    }${idx === 1 ? ' order-item-second' : ''}${idx === 2 ? ' order-item-third' : ''}`}
+                    onClick={() => {
+                      const walkthrough = useWalkthroughStore.getState();
+                      const step = walkthrough.steps[walkthrough.currentStep];
+                      if (
+                        walkthrough.isActive &&
+                        (step?.selector === ".order-item-first" || step?.selector === ".order-item-second" || step?.selector === ".order-item-third")
+                      ) {
+                        addItemToOrder({ ...item, quantity: 1 });
+                        walkthrough.next();
+                        return;
+                      }
+                      handleAddToCart(item);
+                    }}
+                  >
+                    <div className="w-full flex items-center justify-center mb-1">
+                      <img
+                        src={item.image || "https://via.placeholder.com/81x67?text=Item"}
+                        alt={item.name}
+                        className="w-16 h-16 object-contain"
+                      />
+                    </div>
+                    <div className="text-[11px] font-semibold text-center text-gray-800 leading-tight line-clamp-2 mb-1">
+                      {item.name}
+                    </div>
+                    <div className="text-[11px] font-bold text-gray-600">
+                      {item.price} XOF
+                    </div>
                   </div>
-                  <div className="text-[12px] font-semibold text-black mt-1">
-                    {item.price} XOF
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+
           {feedback && (
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-2 rounded-full shadow-lg z-50 transition-all animate-bounce">
               {feedback}
@@ -532,9 +983,10 @@ const Orders: React.FC = () => {
             </div>
           )}
         </div>
-        {/* Right: Table/Order Panel */}
+
+        {/* Right Panel: Order/Table Selection */}
         <div
-          className="w-full lg:w-96 bg-white rounded-3xl shadow-lg flex flex-col items-center justify-center text-center min-h-[300px] sm:min-h-[400px] overflow-y-auto mt-4 lg:mt-0"
+          className="w-full lg:w-[400px] bg-white rounded-[32px] shadow-sm flex flex-col items-center justify-center text-center overflow-hidden relative"
           onClick={handleRightPanelClick}
           style={{
             cursor:
@@ -549,29 +1001,32 @@ const Orders: React.FC = () => {
         >
           {/* Order Sent Panel */}
           {showOrderSentPanel && (
-            <div className="w-full h-full flex flex-col justify-between overflow-scroll order-sent-panel">
-              <div className="bg-[#EDEDED] rounded-t-2xl p-4 w-full text-left">
-                <div className="text-lg font-bold">#{currentOrder ? (currentOrder as any).orderId || (Math.random()*1000).toFixed(0) : (Math.random()*1000).toFixed(0)}</div>
-                <div className="flex justify-between">
-                  <div className="text-xs font-semibold">Order Created</div>
-                  <div className="text-xs font-semibold text-right">
+            <div className="w-full h-full flex flex-col justify-between overflow-hidden order-sent-panel bg-white">
+              <div className="bg-[#F5F5F5] rounded-t-[32px] p-6 w-full text-left">
+                <div className="text-xl font-bold text-gray-800">#{currentOrder ? (currentOrder as any).orderId || (Math.random()*1000).toFixed(0) : (Math.random()*1000).toFixed(0)}</div>
+                <div className="flex justify-between mt-1">
+                  <div className="text-xs font-medium text-gray-500">Order Created</div>
+                  <div className="text-xs font-medium text-gray-500 text-right">
                     Table - {currentOrder?.tableId.replace("t-", "")}
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="rounded-full p-6 mb-4">
-                  <img src={successIcon} alt="success" />
+              <div className="flex flex-col items-center justify-center flex-1 py-8">
+                <div className="rounded-full p-6 mb-6">
+                  <img src={successIcon} alt="success" className="w-24 h-24" />
                 </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Sent!</h2>
+                <p className="text-gray-500 text-sm px-8">Your order has been sent to the kitchen successfully.</p>
               </div>
               <button
-                className="w-full py-3 rounded-b-2xl text-lg font-semibold text-white bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"
+                className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
                 onClick={handleNextOrder}
               >
                 Next Order
               </button>
             </div>
           )}
+
           {/* Confirmation Modal */}
           <SuccessModal
             open={showConfirmationModal}
@@ -580,31 +1035,26 @@ const Orders: React.FC = () => {
             buttonText={orderSending ? "Sending..." : "Continue"}
             onButtonClick={handleConfirmationContinue}
           />
+
           {/* Floor/persons selection UI */}
           {!selectedTable &&
             !currentOrder &&
             showFloorPersonsPanel &&
             !showOrderSentPanel &&
             !showConfirmationModal && (
-              <div className="w-full h-full flex flex-col justify-between overflow-scroll person-floor-panel">
-                <div
-                  className="rounded-t-2xl p-4 text-black text-left"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, rgba(106, 27, 154, 0.5) 0%, rgba(211, 47, 47, 0.5) 100%)",
-                  }}
-                >
-                  <div className="text-lg font-bold">Floor Map</div>
-                  <div className="text-xs font-normal">
+              <div className="w-full h-full flex flex-col justify-between overflow-hidden person-floor-panel bg-white">
+                <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 text-left">
+                  <div className="text-xl font-bold text-gray-800">Floor Map</div>
+                  <div className="text-xs font-medium text-gray-600 mt-1">
                     Select Floor and Persons
                   </div>
                 </div>
-                <div className="">
-                  <div className="p-6">
-                    <div className="font-semibold mb-6 text-start">Select Persons:</div>
-                    <div className="flex items-center justify-center gap-2">
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="mb-8">
+                    <div className="font-semibold text-gray-700 mb-4 text-start">Select Persons:</div>
+                    <div className="flex items-center justify-center gap-4">
                       <button
-                        className="w-10 h-10 rounded-l-lg bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white text-2xl flex items-center justify-center"
+                        className="w-10 h-10 rounded-lg bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white text-xl flex items-center justify-center shadow-md"
                         onClick={() => {
                           setPersons((p) => {
                             const newVal = Math.max(1, p - 1);
@@ -615,11 +1065,11 @@ const Orders: React.FC = () => {
                       >
                         –
                       </button>
-                      <div className="w-16 h-10 flex items-center justify-center border-t border-b border-gray-200 text-lg font-bold">
+                      <div className="w-16 h-10 flex items-center justify-center border border-gray-200 rounded-lg text-lg font-bold text-gray-800">
                         {persons}
                       </div>
                       <button
-                        className="w-10 h-10 rounded-r-lg bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white text-2xl flex items-center justify-center"
+                        className="w-10 h-10 rounded-lg bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white text-xl flex items-center justify-center shadow-md"
                         onClick={() => {
                           setPersons((p) => {
                             const newVal = Math.min(20, p + 1);
@@ -632,16 +1082,16 @@ const Orders: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="mb-6 p-6">
-                    <div className="font-semibold mb-6 text-start">Select Floor:</div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  <div className="mb-8">
+                    <div className="font-semibold text-gray-700 mb-4 text-start">Select Floor:</div>
+                    <div className="grid grid-cols-3 gap-3">
                       {floors.map((floor) => (
                         <button
                           key={floor}
-                          className={`py-2 sm:py-3 rounded-lg text-base font-medium shadow-sm transition-all ${
+                          className={`py-3 rounded-xl text-sm font-medium transition-all ${
                             selectedFloor === floor
-                              ? "bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white"
-                              : "bg-[#f7f2fa]"
+                              ? "bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white shadow-md"
+                              : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                           }`}
                           onClick={() => {
                             setSelectedFloor(floor);
@@ -653,80 +1103,74 @@ const Orders: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                  <button
-                    className="select-table-panel w-full py-3 mt-2 rounded-b-lg text-lg font-semibold text-white bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"
-                    onClick={() => {
-                      const walkthrough = useWalkthroughStore.getState();
-                      const step = walkthrough.steps[walkthrough.currentStep];
-                      if (step?.selector === ".person-floor-panel" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
-                        walkthrough.next();
-                      }
-                      handleSelectTable();
-                    }}
-                  >
-                    Select Table
-                  </button>
                 </div>
+                <button
+                  className="select-table-panel w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
+                  onClick={() => {
+                    const walkthrough = useWalkthroughStore.getState();
+                    const step = walkthrough.steps[walkthrough.currentStep];
+                    if (step?.selector === ".person-floor-panel" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
+                      walkthrough.next();
+                    }
+                    handleSelectTable();
+                  }}
+                >
+                  Select Table
+                </button>
               </div>
             )}
+
           {/* Initial State: Prompt to select table */}
           {!selectedTable &&
             !currentOrder &&
             !showOrderSentPanel &&
             !showConfirmationModal &&
             !showFloorPersonsPanel && (
-              <div className="flex flex-col items-center justify-center h-full w-full select-table-prompt" onClick={handleRightPanelClick}>
-                <div className="text-2xl font-bold text-[#00000099] mb-2">
+              <div className="flex flex-col items-center justify-center h-full w-full select-table-prompt p-8" onClick={handleRightPanelClick}>
+                <div className="text-2xl font-bold text-gray-400 mb-2 text-center leading-relaxed">
                   Tap to Select Table
                 </div>
-                <div className="text-2xl font-bold text-[#00000099] mb-2">
+                <div className="text-2xl font-bold text-gray-400 mb-2 text-center leading-relaxed">
                   &amp;
                   <br />
                   Start Order
                 </div>
               </div>
             )}
+
           {/* Table selected, but order not started */}
           {selectedTable &&
             !currentOrder &&
             !pendingCustomizedItem &&
             !showOrderSentPanel &&
             !showConfirmationModal && (
-              <div className="w-full h-full flex flex-col justify-between overflow-scroll">
-                <div
-                  className="rounded-t-2xl p-4 text-black text-left"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, rgba(106, 27, 154, 0.5) 0%, rgba(211, 47, 47, 0.5) 100%)",
-                  }}
-                >
-                  <div className="text-2xl font-bold">Start Order</div>
-                  <div className="text-xs font-normal">
+              <div className="w-full h-full flex flex-col justify-between overflow-hidden">
+                <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 text-left">
+                  <div className="text-2xl font-bold text-gray-800">Start Order</div>
+                  <div className="text-xs font-medium text-gray-600 mt-1">
                     Floor, Table, Person Display
                   </div>
                 </div>
-                <div className="flex flex-col items-center justify-between gap-4 py-8 px-4">
-                  <div className="flex w-1/2 gap-2 text-lg">
-                    <img src={personIcon} alt="person icon" />
-                    Persons: <span className="font-bold">{persons.toString().padStart(2, "0")}</span>
+                <div className="flex flex-col items-center justify-center flex-1 gap-6 p-6">
+                  <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                    <img src={personIcon} alt="person icon" className="w-6 h-6" />
+                    <span>Persons:</span>
+                    <span className="font-bold ml-auto">{persons.toString().padStart(2, "0")}</span>
                   </div>
-                  <div className="flex w-1/2 gap-2 text-lg">
-                    <img src={floorIcon} alt="floor icon" />
-                    Floor: <span className="font-bold">{(selectedFloor ?? "F-01").replace("F-", "")}</span>
+                  <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                    <img src={floorIcon} alt="floor icon" className="w-6 h-6" />
+                    <span>Floor:</span>
+                    <span className="font-bold ml-auto">{(selectedFloor ?? "F-01").replace("F-", "")}</span>
                   </div>
-                  <div className="flex w-1/2 gap-2 text-lg">
-                    <img src={tableIcon} alt="table icon" />
-                    Table: <span className="font-bold">{(selectedTable ?? "").replace("t-", "")}</span>
+                  <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                    <img src={tableIcon} alt="table icon" className="w-6 h-6" />
+                    <span>Table:</span>
+                    <span className="font-bold ml-auto">{(selectedTable ?? "").replace("t-", "")}</span>
                   </div>
                 </div>
                 <button
-                  className="w-full py-3 rounded-b-2xl text-lg font-semibold text-white bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"
+                  className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
                   onClick={() => {
-                    console.log("[Button] Start Order clicked", {
-                      selectedTable,
-                      selectedFloor,
-                      persons,
-                    });
                     startOrder({
                       tableId: selectedTable,
                       floor: selectedFloor,
@@ -738,164 +1182,148 @@ const Orders: React.FC = () => {
                 </button>
               </div>
             )}
+
           {/* Order Summary Panel */}
           {(currentOrder && ((currentOrder.items && currentOrder.items.length > 0) || showSummaryPanel) && !showOrderSentPanel && !showConfirmationModal) && (
-            <div className="order-summary-panel w-full h-full flex flex-col justify-between overflow-scroll" style={{ pointerEvents: orderSummaryClickable ? 'auto' : 'none', opacity: orderSummaryClickable ? 1 : 0.6 }}>
-              <div
-                className="rounded-t-2xl py-4 px-7 text-black text-left"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(106, 27, 154, 0.5) 0%, rgba(211, 47, 47, 0.5) 100%)",
-                }}
-              >
-                <div className="text-2xl font-bold">Order Summary</div>
-                <div className="text-base font-medium">
+            <div className="order-summary-panel w-full h-full flex flex-col justify-between overflow-hidden bg-white" style={{ pointerEvents: orderSummaryClickable ? 'auto' : 'none', opacity: orderSummaryClickable ? 1 : 0.6 }}>
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 py-5 px-6 text-left">
+                <div className="text-xl font-bold text-gray-800">Order Summary</div>
+                <div className="text-sm font-medium text-gray-600 mt-1">
                   Table - {currentOrder.tableId.replace("t-", "")}
                 </div>
               </div>
-              <div className="flex flex-col gap-2 py-4 px-4 flex-1 overflow-y-auto">
-                <div className="flex font-medium text-base border-b border-black pb-2">
-                  <div className="w-12">Qty</div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex font-medium text-xs text-gray-500 border-b border-gray-200 pb-2 mb-2">
+                  <div className="w-10">Qty</div>
                   <div className="flex-1">Item</div>
-                  <div className="w-20">Size</div>
-                  <div className="w-20 text-right">Total</div>
+                  <div className="w-16 text-right">Total</div>
                 </div>
                 {orderItems.map((item: any, idx: number) => (
                   <div
                     key={item.itemId + idx}
-                    className="flex justify-between text-base border-b border-gray-100 group"
+                    className="flex justify-between text-sm py-3 border-b border-gray-50 group last:border-0"
                   >
-                    <div className="w-12">
-                      {item.quantity || 1} x{item.size || "L"}
+                    <div className="w-10 font-medium text-gray-700">
+                      {item.quantity || 1} x
                     </div>
-                    <div className="flex-1 flex flex-col items-start">
-                      <span className="font-semibold text-sm">{item.name}</span>
+                    <div className="flex-1 flex flex-col items-start pr-2">
+                      <span className="font-semibold text-gray-800 text-sm">{item.name}</span>
+                      <span className="text-[10px] text-gray-400">Size: {item.size || "L"}</span>
                       {item.addOns && item.addOns.length > 0 && (
                         <>
-                          <div className="text-[10px] text-[#00000099] text-wrap text-start">
+                          <div className="text-[10px] text-gray-500 text-wrap text-start mt-0.5">
                             {item.addOns.map((a: any) => a.name).join(", ")}
                           </div>
                           {(() => {
                             const addOnTotal = item.addOns.reduce((sum: number, a: any) => sum + (a.price || 0), 0) * (item.quantity || 1);
                             return addOnTotal > 0 ? (
-                              <div className="text-[10px] text-[#D32F2F] font-semibold mt-0.5">+{addOnTotal} XOF</div>
+                              <div className="text-[10px] text-[#E53935] font-semibold mt-0.5">+{addOnTotal} XOF</div>
                             ) : null;
                           })()}
                         </>
                       )}
                       {item.notes && (
-                        <div className="text-[10px] text-[#00000099] text-wrap text-start">
-                          {item.notes}
+                        <div className="text-[10px] text-gray-500 text-wrap text-start mt-0.5 italic">
+                          "{item.notes}"
                         </div>
                       )}
                     </div>
-                    <div className="w-20 text-right font-bold">
-                      <button
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all mb-1 ${
-                          item.allergy
-                            ? "bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white shadow"
-                            : "bg-[#F6E6F8] text-[#303030] border border-[#E0E0E0]"
-                        }`}
-                        onClick={() => handleToggleAllergy(item.itemId)}
-                      >
-                        Allergy
-                      </button>
-                    </div>
-                    <div className="flex flex-col justify-between items-end h-full ml-auto" style={{ minHeight: 60 }}>
-                      <div className="w-20 text-right text-[10px] font-semibold mb-auto">
-                        {item.price} XOF
+                    <div className="flex flex-col items-end justify-between min-h-[50px]">
+                      <div className="font-bold text-gray-800 text-sm">
+                        {item.price * (item.quantity || 1)} XOF
                       </div>
-                      <button
-                        className="w-8 h-8 flex items-baseline justify-end mt-auto opacity-80 hover:opacity-100"
-                        onClick={() => handleDeleteItem(item.itemId)}
-                        aria-label="Delete item"
-                      >
-                        <img src={TrashIcon} alt="Delete" className="w-5 h-5" />
-                      </button>
+                      <div className="flex gap-2 mt-auto">
+                        <button
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                            item.allergy
+                              ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm"
+                              : "bg-gray-100 text-gray-500 border border-gray-200"
+                          }`}
+                          onClick={() => handleToggleAllergy(item.itemId)}
+                        >
+                          Allergy
+                        </button>
+                        <button
+                          className="w-5 h-5 flex items-center justify-center opacity-60 hover:opacity-100"
+                          onClick={() => handleDeleteItem(item.itemId)}
+                          aria-label="Delete item"
+                        >
+                          <img src={TrashIcon} alt="Delete" className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-dashed border-gray-300"></div>
-              <div
-                className="p-4"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(106, 27, 154, 0.1) 0%, rgba(211, 47, 47, 0.1) 100%)",
-                }}
-              >
-                <div className="flex text-xs justify-between text-[#5A5A5A] mb-1">
+              <div className="bg-gray-50 p-4 border-t border-gray-100">
+                <div className="flex text-xs justify-between text-gray-500 mb-2">
                   <span>Tax 6%</span>
                   <span>{tax.toLocaleString()} XOF</span>
                 </div>
-                <div className="flex justify-between font-bold text-xl text-[#303030]">
-                  <span>
-                    Subtotal <span className="font-normal text-sm">(Incl. tax)</span>
-                  </span>
-                  <span className="text-[#303030] font-medium">
-                    {total.toLocaleString()} XOF
-                  </span>
+                <div className="flex justify-between items-center font-bold text-lg text-gray-800">
+                  <span>Subtotal</span>
+                  <span className="text-[#8E24AA]">{total.toLocaleString()} XOF</span>
                 </div>
               </div>
-              {orderItems.length > 0 &&
-                orderItems.some((item: any) => item.itemType !== "Beverage") && (
+              <div className="flex flex-col">
+                {orderItems.length > 0 &&
+                  orderItems.some((item: any) => item.itemType !== "Beverage") && (
+                    <button
+                      className="w-full py-3 text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all"
+                      onClick={handleOrderAction}
+                    >
+                      Send to Kitchen
+                    </button>
+                  )}
+                {orderItems.length > 0 && (
                   <button
-                    className="w-full py-2 text-lg font-semibold bg-green-500 text-white shadow hover:opacity-90 transition-all"
-                    onClick={handleOrderAction}
+                    className="select-payment-btn w-full py-4 text-base font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white hover:opacity-90 transition-all"
+                    onClick={() => {
+                      setShowOrderSummaryModal(true);
+                      const walkthrough = useWalkthroughStore.getState();
+                      const step = walkthrough.steps[walkthrough.currentStep];
+                      if (step?.selector === ".select-payment-btn" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
+                        walkthrough.next();
+                      }
+                    }}
+                    disabled={!orderSummaryClickable}
+                    style={{ pointerEvents: orderSummaryClickable ? 'auto' : 'none', opacity: orderSummaryClickable ? 1 : 0.6 }}
                   >
-                    Send to Kitchen
+                    Select Payment Option
                   </button>
                 )}
-              {orderItems.length > 0 && (
-                <button
-                  className="select-payment-btn w-full py-3 text-lg font-bold bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white rounded-b-2xl rounded-t-none shadow hover:opacity-90 transition-all"
-                  onClick={() => {
-                    setShowOrderSummaryModal(true);
-                    const walkthrough = useWalkthroughStore.getState();
-                    const step = walkthrough.steps[walkthrough.currentStep];
-                    if (step?.selector === ".select-payment-btn" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
-                      walkthrough.next();
-                    }
-                  }}
-                  disabled={!orderSummaryClickable}
-                  style={{ pointerEvents: orderSummaryClickable ? 'auto' : 'none', opacity: orderSummaryClickable ? 1 : 0.6 }}
-                >
-                  Select Payment Option
-                </button>
-              )}
+              </div>
             </div>
           )}
-          {/* Start Order Panel */}
+
+          {/* Start Order Panel (when order is empty) */}
           {currentOrder && currentOrder.items && currentOrder.items.length === 0 && !showOrderSentPanel && !showConfirmationModal && !showSummaryPanel && (
-            <div className="w-full h-full flex flex-col justify-between overflow-scroll">
-              <div
-                className="rounded-t-2xl p-4 text-black text-left"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(106, 27, 154, 0.5) 0%, rgba(211, 47, 47, 0.5) 100%)",
-                }}
-              >
-                <div className="text-2xl font-bold">Start Order</div>
-                <div className="text-xs font-normal">
+            <div className="w-full h-full flex flex-col justify-between overflow-hidden">
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 text-left">
+                <div className="text-2xl font-bold text-gray-800">Start Order</div>
+                <div className="text-xs font-medium text-gray-600 mt-1">
                   Floor, Table, Person Display
                 </div>
               </div>
-              <div className="flex flex-col items-center justify-between gap-4 py-8 px-4">
-                <div className="flex w-1/2 gap-2 text-lg">
-                  <img src={personIcon} alt="person icon" />
-                  Persons: <span className="font-bold">{persons.toString().padStart(2, "0")}</span>
+              <div className="flex flex-col items-center justify-center flex-1 gap-6 p-6">
+                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                  <img src={personIcon} alt="person icon" className="w-6 h-6" />
+                  <span>Persons:</span>
+                  <span className="font-bold ml-auto">{persons.toString().padStart(2, "0")}</span>
                 </div>
-                <div className="flex w-1/2 gap-2 text-lg">
-                  <img src={floorIcon} alt="floor icon" />
-                  Floor: <span className="font-bold">{(selectedFloor ?? "F-01").replace("F-", "")}</span>
+                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                  <img src={floorIcon} alt="floor icon" className="w-6 h-6" />
+                  <span>Floor:</span>
+                  <span className="font-bold ml-auto">{(selectedFloor ?? "F-01").replace("F-", "")}</span>
                 </div>
-                <div className="flex w-1/2 gap-2 text-lg">
-                  <img src={tableIcon} alt="table icon" />
-                  Table: <span className="font-bold">{(selectedTable ?? "").replace("t-", "")}</span>
+                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
+                  <img src={tableIcon} alt="table icon" className="w-6 h-6" />
+                  <span>Table:</span>
+                  <span className="font-bold ml-auto">{(selectedTable ?? "").replace("t-", "")}</span>
                 </div>
               </div>
               <button
-                className="w-full py-3 rounded-b-2xl text-lg font-semibold text-white bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"
+                className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
                 onClick={() => {
                   setShowSummaryPanel(true);
                 }}
@@ -906,6 +1334,7 @@ const Orders: React.FC = () => {
           )}
         </div>
       </div>
+
       {/* Modals */}
       <ItemDetailsModal
         open={showItemDetailsModal}

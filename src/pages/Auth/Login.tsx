@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import toast, { Toaster } from 'react-hot-toast';
 import {
   useLoginEmployeeMutation,
   useVerifyEmployeeOtpMutation,
   useResendEmployeeOtpMutation,
-} from '../../api/apiSlice';
-import { useDispatch } from 'react-redux';
+} from '@/api/apiSlice';
 import { setCredentials } from '@/redux/slice/authSlice';
-import toast, { Toaster } from 'react-hot-toast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import LeftPanel from '@/components/common/LeftPanel';
 
@@ -20,6 +20,29 @@ import AppleIconImg from '@/assets/auth/apple.svg';
 
 type Tab = 'Restaurant' | 'Employee' | 'Admin';
 type Step = 'credentials' | 'otp';
+
+const OTP_LENGTH = 8; // backend requires exactly 8 digits
+
+const extractErrorMessage = (err: any, fallback: string): string => {
+  const data = err?.data;
+  if (!data) return fallback;
+  if (typeof data === 'string') return data;
+  if (typeof data?.message === 'string') return data.message;
+  if (typeof data?.detail === 'string') return data.detail;
+  if (Array.isArray(data?.non_field_errors) && data.non_field_errors[0]) {
+    return data.non_field_errors[0];
+  }
+  // Handle DRF-style { errors: [{ msg, path }] }
+  if (Array.isArray(data?.errors) && data.errors[0]?.msg) {
+    return data.errors[0].msg;
+  }
+  for (const key of Object.keys(data)) {
+    const val = (data as any)[key];
+    if (Array.isArray(val) && val[0]) return `${key}: ${val[0]}`;
+    if (typeof val === 'string') return `${key}: ${val}`;
+  }
+  return fallback;
+};
 
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Employee');
@@ -52,15 +75,25 @@ const LoginPage: React.FC = () => {
 
   // OTP countdown
   useEffect(() => {
-    if (step === 'otp' && expiresIn > 0) {
-      timerRef.current = setInterval(() => {
-        setExpiresIn((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    }
+    if (step !== 'otp') return;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setExpiresIn((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
     };
-  }, [step, expiresIn]);
+  }, [step]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -68,14 +101,14 @@ const LoginPage: React.FC = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // STEP 1: Submit credentials → request OTP
+  /* STEP 1: submit credentials → request OTP */
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
     try {
       const result = await loginEmployee({
-        email: employeeId,
+        employee_login_code: employeeId,
         password,
       }).unwrap();
 
@@ -98,20 +131,22 @@ const LoginPage: React.FC = () => {
         });
       }
     } catch (err: any) {
-      toast.error(err?.data?.message || 'Login failed. Please try again.', {
-        duration: 4000,
-        position: 'top-right',
-      });
+      console.error('Login error:', err?.status, err?.data, err);
+      toast.error(
+        extractErrorMessage(err, 'Login failed. Please try again.'),
+        { duration: 5000, position: 'top-right' },
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // STEP 2: Verify OTP → set credentials
+  /* STEP 2: verify OTP → set credentials */
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (otp.length !== 6) {
-      toast.error('Please enter a 6-digit OTP.', {
+
+    if (otp.length !== OTP_LENGTH) {
+      toast.error(`Please enter the ${OTP_LENGTH}-digit OTP.`, {
         duration: 4000,
         position: 'top-right',
       });
@@ -125,12 +160,18 @@ const LoginPage: React.FC = () => {
         otp,
       }).unwrap();
 
+      // If you want the slice's onQueryStarted to be the single source of
+      // truth for auth state, remove the next dispatch block. Both work.
       dispatch(
-        setCredentials({
-          token: result.data.token,
-          user: result.data.user,
-        }),
-      );
+  setCredentials({
+    token: data.data.token,
+    user: {
+      ...data.data.user,
+      id: data.data.user._id,
+      name: data.data.user.Name,
+    },
+  }),
+);
 
       toast.success('Login successful!', {
         duration: 4000,
@@ -139,29 +180,31 @@ const LoginPage: React.FC = () => {
 
       navigate('/');
     } catch (err: any) {
+      console.error('OTP verify error:', err?.status, err?.data, err);
       toast.error(
-        err?.data?.message || 'Invalid or expired OTP. Please try again.',
-        { duration: 4000, position: 'top-right' },
+        extractErrorMessage(err, 'Invalid or expired OTP. Please try again.'),
+        { duration: 5000, position: 'top-right' },
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Resend OTP
+  /* Resend OTP */
   const handleResendOtp = async () => {
     if (resendLoading || expiresIn > 0) return;
     setResendLoading(true);
 
     try {
       const result = await resendEmployeeOtp({
-        email: employeeId,
+        employee_login_code: employeeId,
         password,
       }).unwrap();
 
       if (result.data?.requires_otp) {
         setChallengeId(result.data.challenge_id);
         setMaskedEmail(result.data.email);
+        setEmployeeLoginCode(result.data.employee_login_code);
         setExpiresIn(result.data.expires_in_seconds);
         setOtp('');
 
@@ -171,10 +214,11 @@ const LoginPage: React.FC = () => {
         });
       }
     } catch (err: any) {
-      toast.error(err?.data?.message || 'Failed to resend OTP.', {
-        duration: 4000,
-        position: 'top-right',
-      });
+      console.error('Resend OTP error:', err?.status, err?.data, err);
+      toast.error(
+        extractErrorMessage(err, 'Failed to resend OTP.'),
+        { duration: 5000, position: 'top-right' },
+      );
     } finally {
       setResendLoading(false);
     }
@@ -204,7 +248,12 @@ const LoginPage: React.FC = () => {
     setOtp('');
     setChallengeId('');
     setMaskedEmail('');
+    setEmployeeLoginCode('');
     setExpiresIn(0);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
   return (
@@ -228,12 +277,11 @@ const LoginPage: React.FC = () => {
             </h3>
             <p className="text-sm text-[#000000CC] mt-1 font-normal">
               {step === 'otp'
-                ? `Enter the 6-digit code sent to ${maskedEmail}`
+                ? `Enter the ${OTP_LENGTH}-digit code sent to ${maskedEmail}`
                 : 'Login to access your Triaxx Account'}
             </p>
           </div>
 
-          {/* Tabs (only on credentials step) */}
           {step === 'credentials' && (
             <div className="flex justify-center space-x-2 sm:space-x-6 my-6 lg:my-8 border-b border-gray-200">
               {(['Restaurant', 'Employee', 'Admin'] as const).map((tab) => (
@@ -355,12 +403,14 @@ const LoginPage: React.FC = () => {
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  maxLength={6}
+                  maxLength={OTP_LENGTH}
                   value={otp}
                   onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
+                    setOtp(
+                      e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH),
+                    )
                   }
-                  placeholder="------"
+                  placeholder={'-'.repeat(OTP_LENGTH)}
                   className="w-full px-4 py-3 text-center tracking-[0.5em] text-lg bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white placeholder-gray-400"
                   required
                 />
@@ -384,7 +434,7 @@ const LoginPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={isLoading || otp.length !== 6}
+                disabled={isLoading || otp.length !== OTP_LENGTH}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70"
               >
                 {isLoading ? 'Verifying...' : 'Verify OTP'}
@@ -407,7 +457,7 @@ const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Sign up + Social (only on credentials step, Employee tab) */}
+          {/* Sign up + Social */}
           {activeTab === 'Employee' && step === 'credentials' && (
             <>
               <p className="mt-6 text-sm text-center text-gray-700">

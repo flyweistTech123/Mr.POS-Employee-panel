@@ -1,45 +1,97 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import LeftPanel from "@/components/common/LeftPanel";
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
+import LeftPanel from '@/components/common/LeftPanel';
+import {
+  useForgetPasswordSendOtpMutation,
+  useForgetPasswordResendOtpMutation,
+} from '@/api/apiSlice';
 
-// Placeholder asset paths - replace with your actual paths
-import TriaxxLogoImg from "@/assets/tiaxx_logo.svg";
+import TriaxxLogoImg from '@/assets/tiaxx_logo.svg';
+
+const extractErrorMessage = (err: any, fallback: string): string => {
+  const data = err?.data;
+  if (!data) return fallback;
+  if (typeof data === 'string') return data;
+  if (typeof data?.message === 'string') return data.message;
+  if (typeof data?.detail === 'string') return data.detail;
+  if (Array.isArray(data?.non_field_errors) && data.non_field_errors[0]) {
+    return data.non_field_errors[0];
+  }
+  for (const key of Object.keys(data)) {
+    const val = (data as any)[key];
+    if (Array.isArray(val) && val[0]) return `${key}: ${val[0]}`;
+    if (typeof val === 'string') return `${key}: ${val}`;
+  }
+  return fallback;
+};
 
 const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const [sendOtp] = useForgetPasswordSendOtpMutation();
+  const [resendOtp] = useForgetPasswordResendOtpMutation();
 
   const handleResetRequest = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
+
     try {
-      // Replace with your actual API call to send OTP
-      console.log("Password reset requested for:", email);
-      setIsLoading(false);
+      const result = await sendOtp({ email }).unwrap();
+      toast.success(result.message || 'OTP sent to your email.', {
+        duration: 4000,
+        position: 'top-right',
+      });
       setEmailSubmitted(true);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred."
+    } catch (err: any) {
+      console.error('Send OTP error:', err?.status, err?.data, err);
+      const msg = extractErrorMessage(
+        err,
+        'Failed to send reset instructions. Please try again.',
       );
+      setError(msg);
+      toast.error(msg, { duration: 5000, position: 'top-right' });
+    } finally {
       setIsLoading(false);
     }
   };
 
+  const handleResend = async () => {
+    if (resending) return;
+    setResending(true);
+    setError(null);
+
+    try {
+      const result = await resendOtp({ email }).unwrap();
+      toast.success(result.message || 'OTP resent successfully.', {
+        duration: 4000,
+        position: 'top-right',
+      });
+    } catch (err: any) {
+      console.error('Resend OTP error:', err?.status, err?.data, err);
+      const msg = extractErrorMessage(err, 'Failed to resend OTP.');
+      setError(msg);
+      toast.error(msg, { duration: 5000, position: 'top-right' });
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleNavigateToVerify = () => {
-    navigate("/verify-otp", { state: { email } });
+    navigate('/verify-otp', { state: { email } });
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center gradient-background-mobile p-4 lg:p-0 lg:bg-[#F8F8F8]">
       <div className="flex w-full max-w-sm flex-col rounded-3xl bg-white p-6 shadow-2xl lg:h-screen lg:max-w-none lg:flex-row lg:p-0 lg:shadow-none lg:rounded-none">
-        {/* Left Panel */}
         <LeftPanel />
 
-        {/* Right Panel */}
         <div className="w-full lg:w-2/5 lg:p-10 xl:px-20 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-12">
             <h2 className="text-xl lg:text-2xl font-bold">Sign in</h2>
@@ -52,11 +104,11 @@ const ForgotPasswordPage: React.FC = () => {
             </h3>
             <p className="text-sm text-[#000000CC] mt-2 font-normal">
               {emailSubmitted
-                ? "An Authentication code has sent to your email"
-                : "we will send you instructions for reset in registered email"}
+                ? 'An authentication code has been sent to your email'
+                : 'We will send you instructions for reset in registered email'}
             </p>
             {emailSubmitted && (
-              <p className="font-bold text-sm text-black mt-1">{email} </p>
+              <p className="font-bold text-sm text-black mt-1">{email}</p>
             )}
           </div>
 
@@ -79,37 +131,54 @@ const ForgotPasswordPage: React.FC = () => {
                   required
                 />
               </div>
+
               {error && (
                 <p className="text-sm text-red-600 text-center">{error}</p>
               )}
+
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 disabled:opacity-70 mt-4"
               >
-                {isLoading ? "Sending..." : "Submit"}
+                {isLoading ? 'Sending...' : 'Submit'}
               </button>
             </form>
           ) : (
             <div className="mt-6 space-y-4">
+              {error && (
+                <p className="text-sm text-red-600 text-center">{error}</p>
+              )}
+
               <button
                 onClick={handleNavigateToVerify}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90"
               >
                 Verify OTP
               </button>
+
+              <button
+                onClick={handleResend}
+                disabled={resending}
+                className="w-full text-sm text-purple-600 font-medium hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                {resending
+                  ? 'Sending...'
+                  : "Didn't receive the code? Resend OTP"}
+              </button>
             </div>
           )}
 
           <Link
             to="/login"
-            className="mt-4 w-full text-center   font-semibold py-3 px-4 gradient-border hover:opacity-90"
+            className="mt-4 w-full text-center font-semibold py-3 px-4 gradient-border hover:opacity-90"
           >
             <div className="gradient-border-inner">Back</div>
           </Link>
-            </div>
-  
+        </div>
       </div>
+
+      <Toaster position="top-right" />
     </div>
   );
 };

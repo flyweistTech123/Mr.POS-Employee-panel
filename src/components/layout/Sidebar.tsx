@@ -5,8 +5,16 @@ import type { AppDispatch } from '@/redux/store';
 import { logout } from '@/redux/slice/authSlice';
 import toast from 'react-hot-toast';
 
+// React Icons
+import {
+  FiCalendar,
+  FiUserCheck,
+  FiTrendingUp,
+  FiClock,
+} from 'react-icons/fi';
+
+// Existing SVG Icons
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
-import UserIcon from '@/assets/navbar/profile_icon.svg';
 import QuickOrderIcon from '@/assets/navbar/quick_order_icon.svg';
 import TableIcon from '@/assets/navbar/table_icon.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
@@ -15,30 +23,33 @@ import TeamChatsIcon from '@/assets/navbar/headphone_icon.svg';
 import SettingIcon from '@/assets/navbar/settings_icon.svg';
 import SignOutIcon from '@/assets/navbar/logout_icon.svg';
 
+// ---------- Nav Config ----------
 const navItems = [
-  { label: 'Quick order', icon: QuickOrderIcon, path: '/orders', className: 'quick-order-btn' },
-  { label: 'Table', icon: TableIcon, path: '/table', className: 'table-btn' },
-  { label: 'Order History', icon: OrderHistoryIcon, path: '/order-history', className: 'order-history-btn' },
+  { label: 'Quick order', icon: QuickOrderIcon, path: '/orders', isSvg: true },
+  { label: 'Table', icon: TableIcon, path: '/table', isSvg: true },
+  { label: 'Order History', icon: OrderHistoryIcon, path: '/order-history', isSvg: true },
+  { label: 'Reservations', icon: FiCalendar, path: '/reservations', isSvg: false },
 ];
 
 const trainingItems = [
-  { label: 'Training', icon: TrainingIcon, path: '/training', className: '' },
-  { label: 'Team chats', icon: TeamChatsIcon, path: '/team-chats', className: 'team-chats-btn' },
+  { label: 'Training', icon: TrainingIcon, path: '/training', isSvg: true },
+  { label: 'Team chats', icon: TeamChatsIcon, path: '/team-chats', isSvg: true },
+  { label: 'Attendance', icon: FiUserCheck, path: '/attendance', isSvg: false },
+  { label: 'Sales Performance', icon: FiTrendingUp, path: '/sales-performance', isSvg: false },
+  { label: 'Work Shifts', icon: FiClock, path: '/work-shifts', isSvg: false },
 ];
 
 const bottomItems = [
-  { label: 'Setting', icon: SettingIcon, path: '/settings', className: 'settings-btn' },
-  { label: 'sign out', icon: SignOutIcon, path: '/logout', className: '' },
+  { label: 'Setting', icon: SettingIcon, path: '/settings', isSvg: true },
+  { label: 'sign out', icon: SignOutIcon, path: '/logout', isSvg: true },
 ];
 
-interface SidebarProps {
-  onLogoutClick?: () => void; // Optional prop, not used since we'll handle logout directly
-}
-
-const Sidebar: React.FC<SidebarProps> = () => {
+// ---------- Component ----------
+const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
+
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   const handleLogout = () => {
@@ -50,96 +61,122 @@ const Sidebar: React.FC<SidebarProps> = () => {
     navigate('/login');
   };
 
+  const renderIcon = (item: any, active: boolean) => {
+    const size = 20;
+    if (item.isSvg) {
+      return (
+        <img
+          src={item.icon}
+          alt={item.label}
+          className={`h-5 w-5 shrink-0 ${
+            active ? 'brightness-0 invert' : 'opacity-70'
+          }`}
+        />
+      );
+    }
+    const IconComponent = item.icon;
+    return (
+      <IconComponent
+        size={size}
+        className={`shrink-0 ${active ? 'text-white' : 'text-gray-700'}`}
+      />
+    );
+  };
+
   return (
-    <aside
-      className="hidden lg:flex flex-col h-screen w-[250px] fixed px-6 py-8 bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] items-center border-r"
-      style={{ borderRightColor: '#00000033' }}
-    >
-      {/* Logo */}
-      <div className="mb-8">
+    <aside className="hidden lg:flex flex-col h-screen w-[260px] fixed bg-[#FFF5F9] border-r border-[#0000001A]">
+      {/* ---------- Fixed Logo ---------- */}
+      <div className="px-6 pt-7 pb-6 shrink-0">
         <Link to="/">
-          <img src={TriaxxLogo} alt="TRIAXX logo" className="h-6" />
+          <img src={TriaxxLogo} alt="TRIAXX logo" className="h-8" />
         </Link>
       </div>
-      {/* User */}
-      <div className="flex gap-2 items-center bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] rounded-full px-4 py-2 mb-8">
-        <img src={UserIcon} alt="User" className="h-8 w-8 mr-3" />
-        <div className="flex flex-col text-left">
-          <span className="text-sm font-semibold leading-tight">Jackline</span>
-          <span className="text-xs text-[#7c7c7c] leading-tight">Staff</span>
+
+      {/* ---------- Scrollable Middle Section ---------- */}
+      <div className="sidebar-scroll flex-1 overflow-y-auto px-4">
+        {/* Main Nav */}
+        <nav className="flex flex-col gap-1 mb-6">
+          {navItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.label}
+                to={item.path}
+                className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
+                    : 'text-gray-700 hover:bg-[#F3E5F5]'
+                }`}
+              >
+                {renderIcon(item, active)}
+                <span className="text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Training Section */}
+        <div className="mb-2 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Training
         </div>
+        <nav className="flex flex-col gap-1 mb-6">
+          {trainingItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.label}
+                to={item.path}
+                className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
+                    : 'text-gray-700 hover:bg-[#F3E5F5]'
+                }`}
+              >
+                {renderIcon(item, active)}
+                <span className="text-sm leading-tight">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-      {/* Main nav */}
-      <nav className="flex flex-col gap-2 mb-8">
-        {navItems.map((item) => (
-          <Link
-            key={item.label}
-            to={item.path}
-            className={`flex items-center gap-3 px-5 py-2.5 rounded-full font-medium transition-all duration-150 ${isActive(item.path)
-              ? 'bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white'
-              : 'text-black hover:bg-[#f3e3ee]'
-            } ${item.className}`}
-          >
-            <img
-              src={item.icon}
-              alt={item.label}
-              className={`h-5 w-5 ${isActive(item.path) ? 'invert' : ''}`}
-            />
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-      {/* Training section */}
-      <div className="mb-2 mt-2 text-xs text-[#7c7c7c] font-semibold">Training</div>
-      <nav className="flex flex-col gap-2 mb-8">
-        {trainingItems.map((item) => (
-          <Link
-            key={item.label}
-            to={item.path}
-            className={`flex items-center gap-3 px-5 py-2.5 rounded-full font-medium transition-all duration-150 ${isActive(item.path)
-              ? 'bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white'
-              : 'text-black hover:bg-[#f3e3ee]'
-            } ${item.className}`}
-          >
-            <img
-              src={item.icon}
-              alt={item.label}
-              className={`h-5 w-5 ${isActive(item.path) ? 'invert' : ''}`}
-            />
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-      {/* Bottom section */}
-      <div className="mt-auto flex flex-col gap-2 w-full">
-        {bottomItems.map((item) =>
-          item.label === 'sign out' ? (
-            <button
-              key={item.label}
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-5 py-2.5 rounded-full font-medium text-black hover:bg-[#f3e3ee] transition-all duration-150"
-            >
-              <img src={item.icon} alt={item.label} className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
-          ) : (
+
+      {/* ---------- Fixed Bottom Section ---------- */}
+      <div className="shrink-0 px-4 pb-6 pt-2 flex flex-col gap-1">
+        {bottomItems.map((item) => {
+          const active = isActive(item.path);
+
+          if (item.label === 'sign out') {
+            return (
+              <button
+                key={item.label}
+                onClick={handleLogout}
+                className="flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium text-gray-700 hover:bg-[#F3E5F5] transition-all duration-200"
+              >
+                <img
+                  src={item.icon}
+                  alt={item.label}
+                  className="h-5 w-5 opacity-70 shrink-0"
+                />
+                <span className="text-sm">Sign out</span>
+              </button>
+            );
+          }
+
+          return (
             <Link
               key={item.label}
               to={item.path}
-              className={`flex items-center gap-3 px-5 py-2.5 rounded-full font-medium transition-all duration-150 ${isActive(item.path)
-                ? 'bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white'
-                : 'text-black hover:bg-[#f3e3ee]'
-              } ${item.className}`}
+              className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
+                active
+                  ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
+                  : 'text-gray-700 hover:bg-[#F3E5F5]'
+              }`}
             >
-              <img
-                src={item.icon}
-                alt={item.label}
-                className={`h-5 w-5 ${isActive(item.path) ? 'invert' : ''}`}
-              />
-              <span>{item.label}</span>
+              {renderIcon(item, active)}
+              <span className="text-sm">{item.label}</span>
             </Link>
-          )
-        )}
+          );
+        })}
       </div>
     </aside>
   );

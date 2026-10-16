@@ -1,12 +1,45 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/redux/store';
+import { setCredentials } from '../redux/slice/authSlice';
 
-export interface LoginEmployeeRequest {
+/* ------------------------------------------------------------------ */
+/* Types                                                              */
+/* ------------------------------------------------------------------ */
+
+interface LoginCredentials {
   email: string;
   password: string;
 }
 
-export interface LoginEmployeeResponse {
+interface User {
+  _id: string;
+  Name: string;
+  Employee_id: string;
+  email: string;
+  phone: string;
+  gender: string;
+  user_image: string;
+  OnboardingDate: string;
+  yearsWithus: number;
+  isLoginPermission: boolean;
+  Status: boolean;
+  user_id: number;
+}
+
+interface LoginResponse {
+  success: boolean;
+  message: string;
+  data: {
+    token: string;
+    user: User;
+  };
+}
+
+interface LoginEmployeeArgs {
+  employee_login_code: string;
+  password: string;
+}
+
+interface LoginEmployeeResponse {
   success: boolean;
   message: string;
   data: {
@@ -19,74 +52,157 @@ export interface LoginEmployeeResponse {
   };
 }
 
-export interface VerifyOtpRequest {
+interface VerifyOtpArgs {
   challenge_id: string;
   otp: string;
 }
 
-export interface VerifyOtpResponse {
+interface VerifyOtpResponse {
   success: boolean;
   message: string;
   data: {
     token: string;
-    user: {
-      id: string;
-      email: string;
-      name?: string;
-      role?: string;
-      [key: string]: any;
-    };
+    user: User;
   };
 }
+
+interface ResendOtpArgs {
+  employee_login_code: string;
+  password: string;
+}
+
+interface ResendOtpResponse {
+  success: boolean;
+  message: string;
+  data: LoginEmployeeResponse['data'];
+}
+
+interface ForgotPasswordArgs {
+  email: string;
+}
+
+interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+/* ------------------------------------------------------------------ */
+/* Slice                                                              */
+/* ------------------------------------------------------------------ */
 
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    // .env: VITE_API_BASE_URL=https://pos-backend-7xuw.onrender.com
+    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3006',
     prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth?.token;
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`);
-      }
+      const state = getState() as { auth: { token: string | null } };
+      const token = state.auth?.token;
+      if (token) headers.set('Authorization', `Bearer ${token}`);
       headers.set('Content-Type', 'application/json');
       return headers;
     },
   }),
-  tagTypes: ['User'],
+  tagTypes: ['User', 'Employee'],
   endpoints: (builder) => ({
-    loginEmployee: builder.mutation<LoginEmployeeResponse, LoginEmployeeRequest>({
-      query: (body) => ({
-        url: '/api/v1/user/login-employee',
-        method: 'POST',
-        body,
-      }),
-    }),
-
-    verifyEmployeeOtp: builder.mutation<VerifyOtpResponse, VerifyOtpRequest>({
-      query: (body) => ({
-        url: '/api/v1/user/verify-employee-otp',
-        method: 'POST',
-        body,
-      }),
-    }),
-
-    resendEmployeeOtp: builder.mutation<LoginEmployeeResponse, LoginEmployeeRequest>({
-      query: (body) => ({
-        url: '/api/v1/user/login-employee',
-        method: 'POST',
-        body,
-      }),
-    }),
-
-    login: builder.mutation<
-      { success: boolean; data: { token: string; user: any } },
-      LoginEmployeeRequest
-    >({
-      query: (body) => ({
+    /* -------- Generic login -------- */
+    login: builder.mutation<LoginResponse, LoginCredentials>({
+      query: (credentials) => ({
         url: '/api/v1/user/login',
         method: 'POST',
+        body: credentials,
+      }),
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            setCredentials({
+              token: data.data.token,
+              user: {
+                ...data.data.user,
+                id: data.data.user._id,
+                name: data.data.user.Name,
+              },
+            }),
+          );
+        } catch (error) {
+          console.error('Login failed:', error);
+        }
+      },
+    }),
+
+    /* -------- Employee login: step 1 (request OTP) -------- */
+    loginEmployee: builder.mutation<LoginEmployeeResponse, LoginEmployeeArgs>({
+      query: (body) => ({
+        url: '/api/v1/user/login-employee',
+        method: 'POST',
         body,
       }),
+    }),
+
+    /* -------- Employee login: step 2 (verify OTP) ✅ FIXED -------- */
+    verifyEmployeeOtp: builder.mutation<VerifyOtpResponse, VerifyOtpArgs>({
+      query: (body) => ({
+        url: '/api/v1/user/login-employee/verify-otp',
+        method: 'POST',
+        body,
+      }),
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            setCredentials({
+              token: data.data.token,
+              user: {
+                ...data.data.user,
+                id: data.data.user._id,
+                name: data.data.user.Name,
+              },
+            }),
+          );
+        } catch (error) {
+          console.error('OTP verification failed:', error);
+        }
+      },
+    }),
+
+    /* -------- Employee login: resend OTP -------- */
+    resendEmployeeOtp: builder.mutation<ResendOtpResponse, ResendOtpArgs>({
+      query: (body) => ({
+        url: '/api/v1/user/login-employee/resend-otp', // confirm with Postman
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    /* -------- Forgot password: send OTP -------- */
+    forgetPasswordSendOtp: builder.mutation<
+      ForgotPasswordResponse,
+      ForgotPasswordArgs
+    >({
+      query: (body) => ({
+        url: '/api/v1/user/forget-password/send-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    /* -------- Forgot password: resend OTP -------- */
+    forgetPasswordResendOtp: builder.mutation<
+      ForgotPasswordResponse,
+      ForgotPasswordArgs
+    >({
+      query: (body) => ({
+        url: '/api/v1/user/forget-password/resend-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    /* -------- Fetch profile -------- */
+    fetchUserProfile: builder.query<User, void>({
+      query: () => '/api/v1/user/profile',
     }),
   }),
 });
@@ -96,4 +212,7 @@ export const {
   useLoginEmployeeMutation,
   useVerifyEmployeeOtpMutation,
   useResendEmployeeOtpMutation,
+  useForgetPasswordSendOtpMutation,
+  useForgetPasswordResendOtpMutation,
+  useFetchUserProfileQuery,
 } = apiSlice;

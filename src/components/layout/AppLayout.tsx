@@ -23,16 +23,13 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 1023px)");
-  // Desktop modal states
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
   const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
-  // Mobile modal states
   const [isMobileConfirmOpen, setMobileConfirmOpen] = useState(false);
   const [isMobileSuccessOpen, setMobileSuccessOpen] = useState(false);
   const { logout } = useAuthStore();
 
   useEffect(() => {
-    // If on mobile and current route is not a valid mobile route, redirect to /orders
     if (
       isMobile &&
       !mobileRoutes.some((route) => location.pathname.startsWith(route))
@@ -42,34 +39,22 @@ const AppLayout: React.FC = () => {
   }, [location, isMobile, navigate]);
 
   const handleOpenLogoutModal = () => {
-    if (isMobile) {
-      setMobileConfirmOpen(true);
-    } else {
-      setLogoutModalOpen(true);
-    }
+    if (isMobile) setMobileConfirmOpen(true);
+    else setLogoutModalOpen(true);
   };
 
-  // --- Desktop Handlers ---
-  const handleCloseLogoutModal = () => {
-    setLogoutModalOpen(false);
-  };
+  const handleCloseLogoutModal = () => setLogoutModalOpen(false);
 
   const handleConfirmLogout = () => {
-    // Close confirmation modal, open success modal
     setLogoutModalOpen(false);
     setSuccessModalOpen(true);
-
-    // Wait 2 seconds, then close success modal and navigate
     setTimeout(() => {
       setSuccessModalOpen(false);
-      logout(); // Perform the actual sign-out
+      logout();
     }, 2000);
   };
 
-  // --- Mobile Handlers ---
-  const handleCloseMobileConfirm = () => {
-    setMobileConfirmOpen(false);
-  };
+  const handleCloseMobileConfirm = () => setMobileConfirmOpen(false);
 
   const handleConfirmMobileLogout = () => {
     setMobileConfirmOpen(false);
@@ -80,22 +65,26 @@ const AppLayout: React.FC = () => {
     setMobileSuccessOpen(false);
     logout();
   };
+
   return (
     <div className="flex bg-gray-50">
       <Sidebar onLogoutClick={handleOpenLogoutModal} />
       <Header />
-      <main className="flex flex-col w-[100vw] min-h-0 lg:pt-[112px]  xl:pt-[112px] 2xl:pt-[112px] lg:pl-[250px]  xl:pl-[250px]  2xl:pl-[250px] ">
+
+      {/* Main content: matches sidebar width via padding, not width override */}
+      <main className="flex flex-col w-full min-h-0 lg:pt-[88px] lg:pl-[260px]">
         <Outlet />
       </main>
+
       <MobileNavBar />
-      {/* Desktop Modals */}
+
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={handleCloseLogoutModal}
         onConfirm={handleConfirmLogout}
       />
       <SignOutSuccessModal isOpen={isSuccessModalOpen} />
-      {/* Mobile Modals */}
+
       <MobileLogoutConfirmation
         isOpen={isMobileConfirmOpen}
         onClose={handleCloseMobileConfirm}
