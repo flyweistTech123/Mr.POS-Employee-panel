@@ -265,7 +265,7 @@ const LoginPage: React.FC = () => {
       <div className="flex w-full max-w-sm flex-col rounded-3xl bg-white p-6 shadow-2xl lg:h-screen lg:max-w-none lg:flex-row lg:p-0 lg:shadow-none lg:rounded-none">
         <LeftPanel />
 
-        <div className="w-full lg:w-2/5 lg:p-10 xl:px-20 flex flex-col justify-center">
+        <div className="w-full lg:w-2/5  lg:p-10 xl:px-20 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl lg:text-2xl font-bold">Sign in</h2>
             <img src={TriaxxLogoImg} alt="TRIAXX Logo" className="h-6 lg:h-8" />
