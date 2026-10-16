@@ -16,8 +16,9 @@ import SupportTickets from "@/pages/Setting/SupportTickets";
 import SupportTicketDetail from "@/pages/Setting/SupportTicketDetail";
 import TeamChats from "@/pages/Chats/TeamChats";
 import ClockInOut from "@/pages/Setting/ClockInOut";
+import Sale from "@/pages/Sales/Sale";
 import TrainingPage from "@/pages/Training/TrainingPage";
-
+import AttendancePage from "@/pages/Attendance/AttendancePage";
 // Placeholder Pages (replace with your actual pages)
 // const ChatsPage = () => <div className="p-8">Chats Page</div>;
 const ProfilePage = () => <div className="p-8">Profile Page</div>;
@@ -44,12 +45,14 @@ export const ProtectedRoutes = () => (
       <Route path="settings/contact-support" element={<ContactSupport />} />
       <Route path="settings/create-ticket" element={<CreateSupportTicket />} />
       <Route path="settings/tickets" element={<SupportTickets />} />
-      <Route path="settings/clock-in-out" element={<ClockInOut/>} />
+      <Route path="settings/clock-in-out" element={<ClockInOut />} />
 
       <Route path="settings/tickets/:id" element={<SupportTicketDetail />} />
       <Route path="team-chats" element={<TeamChats />} />
+      <Route path="sales-performance" element={<Sale />} />
+      <Route path="attendance" element={<AttendancePage/>}/>
 
-      
+
 
 
 

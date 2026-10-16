@@ -6,6 +6,39 @@
   --color-primary: linear-gradient(180deg, #6a1b9a 0%, #d32f2f 100%);
   /* --color-primary: #6A1B9A; */
 }
+/* Horizontal slider for categories */
+.category-slider {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #F2F2F2;
+  border-radius: 9999px;
+  padding: 6px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+
+  /* Hide scrollbar - Firefox */
+  scrollbar-width: none;
+  /* Hide scrollbar - IE/Edge */
+  -ms-overflow-style: none;
+}
+
+/* Hide scrollbar - Chrome/Safari/Opera */
+.category-slider::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+.category-slider > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 
 @layer base {
   * {

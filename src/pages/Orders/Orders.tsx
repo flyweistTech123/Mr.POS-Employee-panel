@@ -693,31 +693,43 @@ const Orders: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
         <div className="flex-1 bg-white rounded-[32px] shadow-sm p-6 flex flex-col overflow-hidden">
           {/* Category Bar */}
-          <div className="mb-6">
-            <div className="inline-flex items-center gap-1 bg-[#F2F2F2] rounded-full p-1.5">
-              {categories.map((cat) => {
-                const isActive = selectedCategory === cat.value;
-                return (
-                  <button key={cat.value}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap text-[13px] ${
-                      isActive ? "bg-white text-gray-900 shadow-sm" : "bg-transparent text-gray-600 hover:text-gray-900"
-                    } ${cat.value === "all" ? "all-items-tab" : ""}`}
-                    onClick={() => {
-                      setSelectedCategory(cat.value);
-                      setSelectedItemTypeId(cat.value !== "all" ? cat.value : null);
-                      const walkthrough = useWalkthroughStore.getState();
-                      const step = walkthrough.steps[walkthrough.currentStep];
-                      if (!step?.advanceOn || step.advanceOn === 'both' || step.advanceOn === 'ui') {
-                        setTimeout(() => walkthrough.next(), 100);
-                      }
-                    }}>
-                    {cat.icon && <span className="text-[15px] leading-none flex items-center">{cat.icon}</span>}
-                    <span>{cat.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+       <div className="mb-6 w-full overflow-hidden">
+  <div className="category-slider">
+    {categories.map((cat) => {
+      const isActive = selectedCategory === cat.value;
+      return (
+        <button
+          key={cat.value}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-medium transition-all text-[13px] ${
+            isActive
+              ? "bg-white text-gray-900 shadow-sm"
+              : "bg-transparent text-gray-600 hover:text-gray-900"
+          } ${cat.value === "all" ? "all-items-tab" : ""}`}
+          onClick={() => {
+            setSelectedCategory(cat.value);
+            setSelectedItemTypeId(cat.value !== "all" ? cat.value : null);
+            const walkthrough = useWalkthroughStore.getState();
+            const step = walkthrough.steps[walkthrough.currentStep];
+            if (
+              !step?.advanceOn ||
+              step.advanceOn === "both" ||
+              step.advanceOn === "ui"
+            ) {
+              setTimeout(() => walkthrough.next(), 100);
+            }
+          }}
+        >
+          {cat.icon && (
+            <span className="text-[15px] leading-none flex items-center">
+              {cat.icon}
+            </span>
+          )}
+          <span>{cat.label}</span>
+        </button>
+      );
+    })}
+  </div>
+</div>
 
           {/* Items Grid */}
           <div className="flex-1 overflow-y-auto pr-1">
@@ -733,7 +745,7 @@ const Orders: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {filteredItems.map((item: any, idx: number) => (
                   <div key={item.itemId + idx}
-                    className={`bg-white rounded-2xl flex flex-col items-center cursor-pointer transition-all duration-200 min-h-[168px] justify-between py-3 px-2 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] ${
+                    className={`bg-white shadow rounded-2xl flex flex-col items-center cursor-pointer transition-all duration-200 min-h-[168px] justify-between py-3 px-2 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] ${
                       idx === 0 ? 'order-item-first' : ''
                     }${idx === 1 ? ' order-item-second' : ''}${idx === 2 ? ' order-item-third' : ''}`}
                     onClick={() => {
@@ -746,7 +758,7 @@ const Orders: React.FC = () => {
                       }
                       handleAddToCart(item);
                     }}>
-                    <div className="w-full flex items-center justify-center flex-1 mb-2">
+                    <div className="w-full flex items-center justify-center flex-1 mb-2 ">
                       <img src={item.image || "https://via.placeholder.com/100x100?text=Item"} alt={item.name} className="w-[92px] h-[92px] object-contain" />
                     </div>
                     <div className="text-[13px] font-bold text-center text-gray-900 leading-tight line-clamp-2 mb-1 px-1">{item.name}</div>
