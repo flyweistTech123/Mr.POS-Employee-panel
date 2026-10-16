@@ -45,7 +45,11 @@ const bottomItems = [
 ];
 
 // ---------- Component ----------
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onLogoutClick?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
@@ -149,7 +153,7 @@ const Sidebar: React.FC = () => {
             return (
               <button
                 key={item.label}
-                onClick={handleLogout}
+                onClick={onLogoutClick ?? handleLogout}
                 className="flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium text-gray-700 hover:bg-[#F3E5F5] transition-all duration-200"
               >
                 <img

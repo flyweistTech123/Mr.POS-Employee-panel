@@ -155,7 +155,7 @@ const LoginPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const result = await verifyEmployeeOtp({
+      const data = await verifyEmployeeOtp({
         challenge_id: challengeId,
         otp,
       }).unwrap();

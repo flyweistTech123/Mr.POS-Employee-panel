@@ -11,7 +11,7 @@ import TrashIcon from "@/assets/Trash.svg";
 import { SuccessModal } from "@/components/common/SuccessModal";
 import successIcon from '@/assets/order/success_icon_large.svg';
 import { createOrder, updateOrder } from '@/api/orderApi';
-import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '@/types/order';
+import type { OrderStatus } from '@/types/order';
 import OrderSummaryModal from "@/components/common/OrderSummaryModal";
 import PaymentModal from "@/components/common/PaymentModal";
 import { useWalkthroughStore } from '@/store/walkthroughStore';
@@ -146,16 +146,16 @@ const Orders: React.FC = () => {
   const [orderSummaryClickable, setOrderSummaryClickable] = useState(true);
 
   // ---------- API ----------
-  const { data: itemTypesData, isLoading: itemTypesLoading, error: itemTypesError } = useGetAllItemTypesQuery();
-  const { data: itemsData, isLoading: itemsLoading, error: itemsError } = useGetAllItemsQuery();
+  const { data: itemTypesData, isLoading: itemTypesLoading } = useGetAllItemTypesQuery();
+  const { data: itemsData, isLoading: itemsLoading } = useGetAllItemsQuery();
   const { data: floorsData } = useGetAllFloorsQuery();
 
   const [selectedItemTypeId, setSelectedItemTypeId] = useState<string | null>(null);
-  const { data: selectedItemType, isLoading: selectedItemTypeLoading, error: selectedItemTypeError } =
+  const { data: selectedItemType, isLoading: selectedItemTypeLoading } =
     useGetItemTypeByIdQuery(selectedItemTypeId as string, { skip: !selectedItemTypeId });
 
   // ---------- FLOORS ----------
-  const floors = useMemo(() => {
+  const floors = useMemo<string[]>(() => {
     const apiFloors = (floorsData?.data || []).map((f: any) => f.Floor_Name);
     return apiFloors.length > 0 ? apiFloors : ["F-01", "F-02", "F-03"];
   }, [floorsData]);
@@ -219,7 +219,6 @@ const Orders: React.FC = () => {
   }, [selectedCategory, apiMenuItems, apiCategoryItems]);
 
   const isLoading = itemTypesLoading || itemsLoading || selectedItemTypeLoading;
-  const hasError = itemTypesError || itemsError || selectedItemTypeError;
 
   // ---------- EFFECTS ----------
   useEffect(() => {
@@ -329,7 +328,6 @@ const Orders: React.FC = () => {
     if (!currentOrder) return;
     setOrderSending(true);
     try {
-      const now = new Date().toISOString();
       
       const mappedItems = currentOrder.items.map((item: any) => ({
         item_id: Number(item.itemId),
@@ -344,16 +342,16 @@ const Orders: React.FC = () => {
       const orderPayload = {
         items: mappedItems,
         Tax: tax,
-        Customer_id: currentOrder.customerId || 25,
+        Customer_id: (currentOrder as any).customerId || 25,
         Dining_Option: "Dine in",
         Table_id: Number(currentOrder.tableId.replace(/\D/g, '')) || 2,
-        Kitchen_id: currentOrder.kitchenId || 1,
+        Kitchen_id: (currentOrder as any).kitchenId || 1,
         Order_Status: "Preparing",
         payment_status: "Pending",
         Status: true
       };
 
-      const result = await createOrder(orderPayload);
+      const result = await createOrder(orderPayload as any);
       if (result && result.order && result.order.orderId) setCurrentOrderId(result.order.orderId);
       setShowConfirmationModal(false);
       setShowOrderSentPanel(true);

@@ -70,7 +70,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
 
 function useClickOutside<T extends HTMLElement>(
   onClose: () => void,
-): React.RefObject<T> {
+): React.RefObject<T | null> {
   const ref = useRef<T>(null);
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {

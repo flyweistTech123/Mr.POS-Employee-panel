@@ -221,10 +221,6 @@ const OrderHistory = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const navigate = useNavigate();
   const {
-    steps,
-    currentStep,
-    isActive,
-    next,
     completed,
     activeTraining,
     completedTrainings,
