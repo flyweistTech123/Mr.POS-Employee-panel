@@ -88,6 +88,74 @@ interface ForgotPasswordResponse {
 }
 
 /* ------------------------------------------------------------------ */
+/* Dashboard & Attendance Types                                       */
+/* ------------------------------------------------------------------ */
+
+export interface EmployeePerformanceResponse {
+  success: boolean;
+  message: string;
+  data: {
+    employeeDetails: {
+      Name: string;
+      image: string | null;
+      role: string;
+      clockin: string | null;
+      WorkedToday: number;
+      MinsBreak: number;
+      LeavesLeft: number;
+    };
+    AvgWorkingHrs: { day: string; serving: number; helping: number }[];
+    totalTipsEarned: {
+      totalTips: number;
+      currency: string;
+      avgTipMin: number;
+      avgTipMax: number;
+      period: string;
+      percentage: number;
+    };
+    feedbacks: any[];
+    overallFeedback: {
+      lovedIt: number;
+      good: number;
+      average: number;
+      bad: number;
+      worst: number;
+    };
+    staffBehavior: string;
+    waitingTime: string;
+  };
+}
+
+export interface DashboardStatsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    TotalOrders: number;
+    TotalSales: number;
+    NewCustomers: number;
+    RepeatCustomers: number;
+    TopSellers: any[];
+    StockAlerts: any[];
+  };
+}
+
+export interface RestaurantDashboardResponse {
+  success: boolean;
+  message: string;
+  data: {
+    TotalOrder: number;
+    TotalSale: number;
+    RepeatCustomersChart: { percentage: number[]; Days: string[] };
+    NewCustomersChart: { percentage: number[]; Days: string[] };
+    ReservationsOrderList: any[];
+    TopSellersItemList: any[];
+    StockAlertList: any[];
+    filter: string;
+    dateRange: { start: string; end: string };
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Slice                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -104,7 +172,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Employee'],
+  tagTypes: ['User', 'Employee', 'ChatList', 'ChatDetails', 'Dashboard'],
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
@@ -141,7 +209,7 @@ export const apiSlice = createApi({
       }),
     }),
 
-    /* -------- Employee login: step 2 (verify OTP) ✅ FIXED -------- */
+    /* -------- Employee login: step 2 (verify OTP) -------- */
     verifyEmployeeOtp: builder.mutation<VerifyOtpResponse, VerifyOtpArgs>({
       query: (body) => ({
         url: '/api/v1/user/login-employee/verify-otp',
@@ -170,7 +238,7 @@ export const apiSlice = createApi({
     /* -------- Employee login: resend OTP -------- */
     resendEmployeeOtp: builder.mutation<ResendOtpResponse, ResendOtpArgs>({
       query: (body) => ({
-        url: '/api/v1/user/login-employee/resend-otp', // confirm with Postman
+        url: '/api/v1/user/login-employee/resend-otp',
         method: 'POST',
         body,
       }),
@@ -204,8 +272,34 @@ export const apiSlice = createApi({
     fetchUserProfile: builder.query<User, void>({
       query: () => '/api/v1/user/profile',
     }),
+
+    /* ------------------------------------------------------------------ */
+    /* REPORTING & DASHBOARD ENDPOINTS                                    */
+    /* ------------------------------------------------------------------ */
+
+    /* -------- Employee Performance (Attendance Page) -------- */
+    getEmployeePerformance: builder.query<EmployeePerformanceResponse, string | number>({
+      query: (employeeId) => `/api/v1/restaurant/reports/employee-performance/${employeeId}`,
+      providesTags: (result, error, id) => [{ type: 'Employee', id }],
+    }),
+
+    /* -------- Dashboard Stats (Sale Page - File 2) -------- */
+    getDashboardStats: builder.query<DashboardStatsResponse, void>({
+      query: () => '/api/v1/restaurant/reports/dashboard',
+      providesTags: ['Dashboard'],
+    }),
+
+    /* -------- Restaurant Dashboard (Sale Page - File 1) -------- */
+    getRestaurantDashboard: builder.query<RestaurantDashboardResponse, { filter: string }>({
+      query: ({ filter }) => `/api/v1/restaurant/reports/restaurant-dashboard?filter=${filter}`,
+      providesTags: ['Dashboard'],
+    }),
   }),
 });
+
+/* ------------------------------------------------------------------ */
+/* Exports                                                            */
+/* ------------------------------------------------------------------ */
 
 export const {
   useLoginMutation,
@@ -215,4 +309,9 @@ export const {
   useForgetPasswordSendOtpMutation,
   useForgetPasswordResendOtpMutation,
   useFetchUserProfileQuery,
+  
+  // Newly added hooks:
+  useGetEmployeePerformanceQuery,
+  useGetDashboardStatsQuery,
+  useGetRestaurantDashboardQuery,
 } = apiSlice;

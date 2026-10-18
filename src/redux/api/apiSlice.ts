@@ -34,10 +34,8 @@ interface LoginResponse {
   };
 }
 
-/* ---- Employee auth types ---- */
-
 interface LoginEmployeeArgs {
-  employee_login_code: string; // confirm against Postman body
+  employee_login_code: string;
   password: string;
 }
 
@@ -48,7 +46,7 @@ interface LoginEmployeeResponse {
     requires_otp: boolean;
     challenge_id: string;
     employee_login_code: string;
-    email: string; // masked
+    email: string;
     expires_at: string;
     expires_in_seconds: number;
   };
@@ -94,6 +92,56 @@ interface LogoutResponse {
   message: string;
 }
 
+/* ---- NEW: Attendance / Dashboard Types ---- */
+
+export interface EmployeePerformanceResponse {
+  success: boolean;
+  message: string;
+  data: {
+    employeeDetails: {
+      Name: string;
+      image: string | null;
+      role: string;
+      clockin: string | null;
+      WorkedToday: number;
+      MinsBreak: number;
+      LeavesLeft: number;
+    };
+    AvgWorkingHrs: { day: string; serving: number; helping: number }[];
+    totalTipsEarned: {
+      totalTips: number;
+      currency: string;
+      avgTipMin: number;
+      avgTipMax: number;
+      period: string;
+      percentage: number;
+    };
+    feedbacks: any[];
+    overallFeedback: {
+      lovedIt: number;
+      good: number;
+      average: number;
+      bad: number;
+      worst: number;
+    };
+    staffBehavior: string;
+    waitingTime: string;
+  };
+}
+
+export interface DashboardResponse {
+  success: boolean;
+  message: string;
+  data: {
+    TotalOrders: number;
+    TotalSales: number;
+    NewCustomers: number;
+    RepeatCustomers: number;
+    TopSellers: any[];
+    StockAlerts: any[];
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Slice                                                              */
 /* ------------------------------------------------------------------ */
@@ -101,7 +149,6 @@ interface LogoutResponse {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    // .env: VITE_API_BASE_URL=http://localhost:3006  (no /api/v1 suffix)
     baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3006',
     prepareHeaders: (headers, { getState }) => {
       const state = getState() as { auth: { token: string | null } };
@@ -111,7 +158,8 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Employee'],
+  // ✅ Added 'Employee' and 'Dashboard' tags for cache invalidation
+  tagTypes: ['User', 'Employee', 'Dashboard'], 
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
@@ -177,7 +225,7 @@ export const apiSlice = createApi({
     /* -------- Employee login: resend OTP -------- */
     resendEmployeeOtp: builder.mutation<ResendOtpResponse, ResendOtpArgs>({
       query: (body) => ({
-        url: '/api/v1/user/resend-employee-otp', // confirm path in Postman
+        url: '/api/v1/user/resend-employee-otp',
         method: 'POST',
         body,
       }),
@@ -219,6 +267,28 @@ export const apiSlice = createApi({
         method: 'POST',
       }),
     }),
+
+    /* ------------------------------------------------------------------ */
+    /* NEW: Attendance & Dashboard Endpoints                              */
+    /* ------------------------------------------------------------------ */
+
+    // Fetch Employee Performance (Used in AttendancePage)
+    getEmployeePerformance: builder.query<EmployeePerformanceResponse, string | number>({
+      query: (employeeId) => `/api/v1/restaurant/reports/employee-performance/${employeeId}`,
+      providesTags: (result, error, id) => [{ type: 'Employee', id }],
+    }),
+
+    // Fetch Dashboard Data (Used in main Dashboard)
+    getDashboardStats: builder.query<DashboardResponse, void>({
+      query: () => '/api/v1/restaurant/reports/dashboard',
+      providesTags: ['Dashboard'],
+    }),
+
+    // Fetch Dashboard Data with Filters (e.g. this_week)
+    getRestaurantDashboard: builder.query<any, { filter: string }>({
+      query: ({ filter }) => `/api/v1/restaurant/reports/restaurant-dashboard?filter=${filter}`,
+      providesTags: ['Dashboard'],
+    }),
   }),
 });
 
@@ -231,4 +301,7 @@ export const {
   useForgetPasswordResendOtpMutation,
   useFetchUserProfileQuery,
   useLogoutUserMutation,
+  useGetEmployeePerformanceQuery,
+  useGetDashboardStatsQuery,
+  useGetRestaurantDashboardQuery,
 } = apiSlice;
