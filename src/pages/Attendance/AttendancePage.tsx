@@ -1,224 +1,756 @@
-import React from 'react';
+import React, { useMemo, useState, useRef } from 'react';
+import toast from 'react-hot-toast';
+import {
+  useGetAttendanceDashboardQuery,
+  useClockInMutation,
+  useClockOutMutation,
+  useStartBreakMutation,
+  useEndBreakMutation,
+  useGetAttendanceHistoryQuery,
+  useGetLeaveRequestsQuery,
+  useSubmitLeaveRequestMutation,
+  useCancelLeaveRequestMutation,
+  useUpdateEmergencyContactMutation,
+} from '../../redux/api/attendanceApi'; 
+
+// --- Icons ---
+const ClockIcon = ({ className = "w-8 h-8" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+);
+const CalendarIcon = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+);
+const PhoneIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+);
+const MailIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+);
+const CloseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+);
+const FileIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+);
+
+const fmtTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+
+const fmtDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '--';
 
 const AttendancePage = () => {
+  const [tab, setTab] = useState<'history' | 'leave'>('leave');
+  
+  // Modal States
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
+
+  // Form States
+  const [leaveForm, setLeaveForm] = useState({
+    leave_type: 'Sick Leave',
+    start_date: '',
+    end_date: '',
+    reason: '',
+    leave_time: 'full_day' as 'full_day' | 'half_day',
+    attachment_url: '',
+  });
+  
+  const [breakForm, setBreakForm] = useState({
+    break_type: '',
+    note: '',
+  });
+
+  // 🟢 FILE UPLOAD STATE
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Queries ---
+  const { data: dash, isLoading, isError } = useGetAttendanceDashboardQuery();
+  const { data: history } = useGetAttendanceHistoryQuery({ limit: 30 });
+  const { data: leaves } = useGetLeaveRequestsQuery();
+
+  // --- Mutations ---
+  const [clockIn, { isLoading: clockingIn }] = useClockInMutation();
+  const [clockOut, { isLoading: clockingOut }] = useClockOutMutation();
+  const [startBreak] = useStartBreakMutation();
+  const [endBreak] = useEndBreakMutation();
+  const [submitLeave, { isLoading: submittingLeave }] = useSubmitLeaveRequestMutation();
+  const [cancelLeave] = useCancelLeaveRequestMutation();
+  const [updateEmergencyContact] = useUpdateEmergencyContactMutation();
+
+  // --- Derived State ---
+  const employee = dash?.data.employee;
+  const current = dash?.data.current_attendance;
+  
+  const onBreak = useMemo(
+    () => current?.breaks?.some((b: any) => b.start_at && !b.end_at),
+    [current]
+  );
+
+  const isClockedIn = !!current && !current.clock_out;
+
+  // --- Handlers ---
+  const handlePrimaryAction = async () => {
+    if (!isClockedIn) {
+      const toastId = toast.loading('Clocking in...');
+      try {
+        await clockIn().unwrap();
+        toast.success('Successfully clocked in!', { id: toastId });
+      } catch (error: any) {
+        toast.error(error?.data?.message || 'Failed to clock in', { id: toastId });
+      }
+      return;
+    }
+
+    const toastId = toast.loading(onBreak ? 'Ending break & clocking out...' : 'Clocking out...');
+    try {
+      if (onBreak) await endBreak().unwrap(); 
+      await clockOut().unwrap(); 
+      toast.success('Successfully clocked out!', { id: toastId });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update attendance', { id: toastId });
+    }
+  };
+
+  const handleStartBreakSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!breakForm.break_type) {
+      toast.error('Please select a break type');
+      return;
+    }
+    
+    const toastId = toast.loading('Starting break...');
+    try {
+      await startBreak({ break_type: breakForm.break_type, note: breakForm.note }).unwrap();
+      toast.success('Break started', { id: toastId });
+      setIsBreakModalOpen(false);
+      setBreakForm({ break_type: '', note: '' });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to start break', { id: toastId });
+    }
+  };
+
+  const handleEndBreakClick = async () => {
+    const toastId = toast.loading('Ending break...');
+    try {
+      await endBreak().unwrap();
+      toast.success('Break ended', { id: toastId });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to end break', { id: toastId });
+    }
+  };
+
+  const handleLeaveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leaveForm.start_date || !leaveForm.end_date) {
+      toast.error('Please select start and end dates');
+      return;
+    }
+
+    const toastId = toast.loading('Submitting leave request...');
+    try {
+      await submitLeave({
+        ...leaveForm,
+        attachment_url: leaveForm.attachment_url || undefined,
+      }).unwrap();
+      
+      toast.success('Leave request submitted successfully!', { id: toastId });
+      setIsLeaveModalOpen(false);
+      
+      setLeaveForm({
+        leave_type: 'Sick Leave',
+        start_date: '',
+        end_date: '',
+        reason: '',
+        leave_time: 'full_day',
+        attachment_url: '',
+      });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to submit leave request', { id: toastId });
+    }
+  };
+
+  const handleCancelLeave = async (id: string | number) => {
+    if (!window.confirm('Are you sure you want to cancel this leave request?')) return;
+    
+    const toastId = toast.loading('Cancelling request...');
+    try {
+      await cancelLeave(id).unwrap();
+      toast.success('Leave request cancelled', { id: toastId });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to cancel leave', { id: toastId });
+    }
+  };
+
+  const handleToggleEmergencyContact = async () => {
+    const newStatus = !employee?.emergency_contact.enabled;
+    const toastId = toast.loading('Updating contact settings...');
+    
+    try {
+      await updateEmergencyContact({
+        enabled: newStatus,
+        name: employee?.emergency_contact.name ?? undefined,
+        phone: employee?.emergency_contact.phone ?? undefined,
+        email: employee?.emergency_contact.email ?? undefined,
+      }).unwrap();
+      toast.success(`Emergency contact ${newStatus ? 'enabled' : 'disabled'}`, { id: toastId });
+    } catch (error: any) {
+      toast.error('Failed to update emergency contact', { id: toastId });
+    }
+  };
+
+  // 🟢 FILE UPLOAD HANDLERS
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds the 5MB limit.');
+      return;
+    }
+    
+    setSelectedFile(file);
+  };
+
+  const handleSendFile = async () => {
+    if (!selectedFile) return;
+    
+    setIsUploading(true);
+    const toastId = toast.loading('Uploading attachment...');
+    
+    // Simulate API call for file upload
+    setTimeout(() => {
+      toast.success('Attachment sent successfully!', { id: toastId });
+      setIsUploading(false);
+      setSelectedFile(null); // Reset after success
+      if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input
+    }, 1500);
+  };
+
+  // --- Loading & Error States ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-800"></div>
+      </div>
+    );
+  }
+
+  if (isError || !employee) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 font-medium">
+        Failed to load attendance data. Please try again.
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-gray-800">
+    <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-gray-800 max-w-[1200px]  relative">
       <h1 className="text-2xl font-bold mb-6">Employee Attendance & Leave</h1>
 
-      {/* --- TOP SECTION: PROFILE CARD & CLOCK IN --- */}
+      {/* --- TOP SECTION --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         
-        {/* Profile & Status Card (Spans 2 columns) */}
-        <div className="lg:col-span-2 border border-gray-200 rounded-2xl p-6 flex flex-col justify-between">
+        {/* Profile & Status Card */}
+        <div className="lg:col-span-2 border border-gray-200 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div className="flex items-center gap-4">
               <img 
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                alt="Profile" 
-                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
+                src={employee.profile_image || "https://via.placeholder.com/150"} 
+                alt={employee.full_name} 
+                className="w-14 h-14 rounded-full object-cover"
               />
               <div>
-                <h2 className="font-semibold text-lg">Lorem Ipsum Name</h2>
-                <p className="text-gray-500 text-sm">Bartender</p>
+                <h2 className="font-semibold text-[15px]">{employee.full_name}</h2>
+                <p className="text-gray-400 text-xs mt-0.5">{employee.role}</p>
               </div>
             </div>
             
             <div className="mt-4 md:mt-0 text-left md:text-right">
               <div className="flex items-center md:justify-end gap-2 mb-1">
-                <span className="font-medium text-sm text-gray-700">Current Shift</span>
-                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  On Shift
+                <span className="font-medium text-xs text-gray-700">Current Shift</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
+                  isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isClockedIn ? 'bg-[#1EA35B]' : 'bg-gray-400'}`}></span>
+                  {isClockedIn ? 'On Shift' : 'Off Shift'}
                 </span>
               </div>
-              <p className="text-sm text-gray-500">Morning Shift 09:00 AM - 06:00 PM</p>
+              <p className="text-[11px] text-gray-500">Shift {employee.shift_timings}</p>
             </div>
           </div>
 
-          <div className="border-t border-gray-100 my-2"></div>
+          <div className="border-t border-gray-100 mb-5"></div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div className="border border-red-200 rounded-xl p-3 text-center">
-              <p className="font-semibold text-gray-900">09:14 AM</p>
-              <p className="text-xs text-gray-500">Clock in</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
+              <p className="font-semibold text-sm text-gray-900">{fmtTime(current?.clock_in)}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Clock in</p>
             </div>
-            <div className="border border-purple-200 rounded-xl p-3 text-center">
-              <p className="font-semibold text-gray-900">3hr 12min</p>
-              <p className="text-xs text-gray-500">Worked today</p>
+            <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
+              <p className="font-semibold text-sm text-gray-900">{current?.total_hours ?? '0h 0m'}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Worked today</p>
             </div>
-            <div className="bg-green-200/50 border border-green-300 rounded-xl p-3 text-center flex flex-col justify-center">
-              <p className="font-semibold text-gray-900">Start</p>
-              <p className="text-xs text-gray-900">Break</p>
-            </div>
-            <div className="border border-purple-200 rounded-xl p-3 text-center">
-              <p className="font-semibold text-gray-900">07</p>
-              <p className="text-xs text-gray-500">Leaves Left</p>
+            
+            {/* DYNAMIC BREAK BUTTON */}
+            {onBreak ? (
+              <button 
+                onClick={handleEndBreakClick}
+                className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] text-white rounded-xl p-3 text-center flex flex-col justify-center hover:opacity-90 transition-opacity shadow-sm"
+              >
+                <p className="font-semibold text-sm">End</p>
+                <p className="text-[11px] opacity-90">Break</p>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setIsBreakModalOpen(true)}
+                disabled={!isClockedIn}
+                className="bg-[#9DF89D] border border-[#86E386] text-gray-900 rounded-xl p-3 text-center flex flex-col justify-center hover:bg-[#8cf08c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <p className="font-semibold text-sm">Start</p>
+                <p className="text-[11px] mt-0.5">Break</p>
+              </button>
+            )}
+
+            <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
+              <p className="font-semibold text-sm text-gray-900">{dash?.data.leave_balance ?? 0}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Leaves Left</p>
             </div>
           </div>
         </div>
 
         {/* Clock In Card */}
-        <div className="border border-purple-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-          <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mb-4 text-purple-900">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+        <div className="border-2 border-[#f0c3d0] rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-[#fdf1f5] flex items-center justify-center mb-4 text-[#4a1526]">
+            <ClockIcon />
           </div>
-          <p className="text-gray-600 font-medium">Tuesday, Feb 1, 2025</p>
-          <p className="text-xl font-bold text-gray-900 mb-6">09:14 PM</p>
-          <button className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-800 to-pink-600 text-white font-medium hover:opacity-90 transition-opacity">
-            Clock In
+          <p className="text-gray-600 text-xs font-medium">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
+          <p className="text-lg font-bold text-gray-900 mb-6 mt-0.5">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+          <button 
+            onClick={handlePrimaryAction}
+            disabled={clockingIn || clockingOut}
+            className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+          >
+            {isClockedIn 
+              ? (onBreak ? 'End Break & Clock Out' : 'Clock Out') 
+              : 'Clock In'
+            }
           </button>
         </div>
       </div>
 
-      {/* --- BOTTOM SECTION: HISTORY, ATTACHMENTS, SIDEBAR --- */}
+      {/* --- BOTTOM SECTION --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column (History + Attachments + Approval) */}
+        {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Tabs */}
-          <div className="flex items-center gap-4">
-            <div className="bg-gray-100 rounded-full px-4 py-2 text-sm font-medium text-gray-700">Attendance History</div>
-            <div className="bg-gray-100 rounded-full px-4 py-2 text-sm font-medium text-gray-500">Leave status</div>
-            <button className="ml-auto border border-gray-300 rounded-full px-4 py-1.5 text-sm font-medium hover:bg-gray-50">
+          {/* Tabs & Apply Leave Button */}
+          <div className="flex items-center gap-3">
+            <div className="flex bg-[#f4f4f4] rounded-full p-1">
+              <button 
+                onClick={() => setTab('history')}
+                className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'history' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Attendance History
+              </button>
+              <button 
+                onClick={() => setTab('leave')}
+                className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'leave' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Leave status
+              </button>
+            </div>
+            <button 
+              onClick={() => setIsLeaveModalOpen(true)}
+              className="ml-auto bg-[#40DE53] text-white rounded-full px-6 py-2 text-[13px] font-medium hover:bg-[#36c746] transition-colors"
+            >
               Apply Leave
             </button>
           </div>
 
-          {/* Table */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <div className="bg-pink-100/50 grid grid-cols-5 p-4 text-xs font-medium text-gray-700">
-              <div>Date</div>
-              <div className="text-center">Check-in ↓</div>
-              <div className="text-center">Check-Out ↓</div>
-              <div className="text-center">Over Time/ Under Time ↓</div>
-              <div className="text-right">Total Login</div>
-            </div>
-            
-            <div className="grid grid-cols-5 p-4 text-sm text-gray-800 border-b border-gray-100 items-center">
-              <div>01 Jan 2025</div>
-              <div className="text-center">10:18</div>
-              <div className="text-center">10:18</div>
-              <div className="text-center text-green-600 font-medium">+ 2 hrs : 06 min</div>
-              <div className="text-right font-medium">4 hrs : 16 min</div>
-            </div>
-            
-            <div className="grid grid-cols-5 p-4 text-sm text-gray-800 items-center">
-              <div>01 Jan 2025</div>
-              <div className="text-center">10:18</div>
-              <div className="text-center">10:18</div>
-              <div className="text-center text-red-500 font-medium">- 2 hrs : 06 min</div>
-              <div className="text-right font-medium">4 hrs : 16 min</div>
-            </div>
-          </div>
-
-          {/* Lower Grid: Attachments + Manager Approval */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Attachment */}
-            <div className="border border-gray-200 rounded-xl p-5">
-              <h3 className="font-semibold mb-1">Attachment</h3>
-              <p className="text-xs text-gray-500 mb-4">Lorem ipsum is simply dummy text.</p>
-              
-              <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50/50">
-                <p className="text-sm font-medium text-gray-700 mb-1">Drag and drop file here</p>
-                <p className="text-xs text-gray-400 mb-3">Or</p>
-                <button className="border border-purple-800 text-purple-900 text-xs font-semibold px-4 py-1.5 rounded hover:bg-purple-50 mb-3">
-                  Browse File
-                </button>
-                <p className="text-[10px] text-gray-400">PDF, JPG, PNG (Max 5MB)</p>
+          {/* Tab Content: History */}
+          {tab === 'history' && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-[#fdf1f5] grid grid-cols-5 p-4 text-xs font-semibold text-gray-800">
+                <div>Date</div>
+                <div className="text-center">Check-in</div>
+                <div className="text-center">Check-Out</div>
+                <div className="text-center">Over Time</div>
+                <div className="text-right">Total Login</div>
               </div>
-              
-              <button className="w-full mt-4 bg-gradient-to-r from-purple-800 to-pink-600 text-white py-2 rounded-lg font-medium text-sm">
-                Send
-              </button>
+              {history?.data && history.data.length > 0 ? (
+                history.data.map((row: any) => (
+                  <div key={row._id} className="grid grid-cols-5 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center hover:bg-gray-50">
+                    <div>{fmtDate(row.date ?? row.clock_in)}</div>
+                    <div className="text-center">{fmtTime(row.clock_in)}</div>
+                    <div className="text-center">{fmtTime(row.clock_out)}</div>
+                    <div className="text-center font-medium">
+                      {row.overtime ? (
+                        <span className={row.overtime.includes('-') ? 'text-red-500' : 'text-green-600'}>{row.overtime}</span>
+                      ) : '-'}
+                    </div>
+                    <div className="text-right font-medium">{row.total_hours ?? '-'}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-gray-500 text-sm">No attendance history found.</div>
+              )}
             </div>
+          )}
 
-            {/* Manager Approval */}
-            <div className="border border-gray-200 rounded-xl p-5 flex flex-col">
-              <h3 className="font-semibold mb-1">Manager Approval</h3>
-              <p className="text-xs text-gray-500 mb-4">Needs the manager's approval</p>
-              
-              <div className="flex items-center gap-3 border border-gray-200 rounded-lg p-3 mb-4">
-                <img 
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                  alt="Manager" 
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <div>
-                  <p className="text-sm font-semibold">Michael Brown</p>
-                  <p className="text-xs text-gray-500">Restaurant Manager</p>
+          {/* Tab Content: Leave */}
+          {tab === 'leave' && (
+            <div className="space-y-6">
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-[#fdf1f5] grid grid-cols-6 p-4 text-xs font-semibold text-gray-800">
+                  <div>Date</div>
+                  <div>Type</div>
+                  <div className="text-center">Days</div>
+                  <div className="text-center">Leave Time</div>
+                  <div className="text-center">Status</div>
+                  <div className="text-right">Action</div>
+                </div>
+                
+                {leaves?.data && leaves.data.length > 0 ? (
+                  leaves.data.map((l) => (
+                    <div key={l._id} className="grid grid-cols-6 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center">
+                      <div>{fmtDate(l.start_date)} - {fmtDate(l.end_date)}</div>
+                      <div>{l.leave_type}</div>
+                      <div className="text-center">
+                         {Math.ceil((new Date(l.end_date).getTime() - new Date(l.start_date).getTime()) / (1000 * 3600 * 24)) + 1}
+                      </div>
+                      <div className="text-center capitalize">{l.leave_time.replace('_', ' ')}</div>
+                      <div className="flex justify-center">
+                        <span className={`border px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 capitalize ${
+                          l.status === 'approved' ? 'border-green-400 text-green-600' :
+                          l.status === 'rejected' ? 'border-red-400 text-red-600' :
+                          l.status === 'cancelled' ? 'border-gray-400 text-gray-600' :
+                          'border-[#a78bfa] text-[#a78bfa]'
+                        }`}>
+                          {l.status} {l.status === 'pending' && <ClockIcon className="w-3 h-3" />}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        {l.status === 'pending' && (
+                          <button
+                            onClick={() => handleCancelLeave(l._id)}
+                            className="text-gray-600 hover:text-black text-[13px]"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-gray-500 text-sm">No leave requests found.</div>
+                )}
+              </div>
+
+              {/* Lower Grid: Attachments + Manager Approval */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 🟢 ATTACHMENT CARD WITH BROWSE & SEND LOGIC */}
+                <div className="border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col">
+                  <h3 className="font-semibold text-[15px] mb-1">Attachment</h3>
+                  <p className="text-[11px] text-gray-500 mb-4">Lorem ipsum is simply dummy text.</p>
+                  
+                  <div className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${
+                    selectedFile ? 'border-[#40DE53] bg-green-50/30' : 'border-gray-200 bg-white'
+                  }`}>
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center">
+                        <div className="text-[#40DE53] mb-2"><FileIcon /></div>
+                        <p className="text-sm font-medium text-gray-800 break-all px-2">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <button 
+                          onClick={() => {
+                            setSelectedFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="text-xs text-red-500 hover:underline mt-3"
+                        >
+                          Remove File
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Drag and drop file here</p>
+                        <p className="text-xs text-gray-400 mb-3">Or</p>
+                        
+                        {/* Hidden File Input */}
+                        <input 
+                          type="file" 
+                          accept=".pdf,.jpg,.jpeg,.png" 
+                          className="hidden" 
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                        />
+                        
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="border border-[#4c1530] text-[#4c1530] text-xs font-semibold px-6 py-1.5 rounded-md hover:bg-gray-50 mb-3 transition-colors"
+                        >
+                          Browse File
+                        </button>
+                        <p className="text-[10px] text-gray-400">PDF, JPG, PNG (Max. 5MB)</p>
+                      </>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={handleSendFile}
+                    disabled={!selectedFile || isUploading}
+                    className="w-full bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isUploading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Sending...
+                      </span>
+                    ) : 'Send'}
+                  </button>
+                </div>
+
+                {/* Manager Approval */}
+                <div className="border border-gray-200 rounded-xl p-5 flex flex-col shadow-sm">
+                  <h3 className="font-semibold text-[15px] mb-1">Manager Approval</h3>
+                  <p className="text-[11px] text-gray-500 mb-4">Needs the manager's approval</p>
+                  <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-3 mb-4">
+                    <img 
+                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
+                      alt="Manager" 
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="text-[13px] font-semibold">Michael Brown</p>
+                      <p className="text-[11px] text-gray-500">Restaurant Manager</p>
+                    </div>
+                  </div>
+                  <div className="bg-[#EBFAEB] border border-[#D1F2D1] rounded-xl p-4 flex-1 flex flex-col justify-center">
+                    <p className="text-[13px] font-semibold text-gray-800 mb-1">Pending Approval</p>
+                    <p className="text-[11px] text-gray-600">Lorem ipsum is simply dummy text.</p>
+                  </div>
                 </div>
               </div>
-
-              <div className="bg-green-100/50 border border-green-200 rounded-lg p-4 flex-1">
-                <p className="text-sm font-medium text-gray-800 mb-1">Pending Approval</p>
-                <p className="text-xs text-gray-600">Lorem ipsum is simply dummy text.</p>
-              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Column (Sidebar) */}
+        {/* Right Column */}
         <div className="space-y-6">
-          
           {/* Leave Balance */}
-          <div className="border border-red-200 rounded-xl p-5">
+          <div className="border-2 border-[#f0c3d0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-pink-100 p-2 rounded-lg text-pink-700">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <div className="bg-[#fdf1f5] p-2 rounded-lg text-[#cc246d]">
+                <CalendarIcon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Leave Balance</p>
-                <p className="text-xs text-gray-500">Annual Leave Remaining</p>
+                <p className="text-[13px] font-semibold text-gray-800">Leave Balance</p>
+                <p className="text-[11px] text-gray-500">Annual Leave Remaining</p>
               </div>
             </div>
-            
-            <h2 className="text-2xl font-bold mb-2">7 days</h2>
+            <h2 className="text-xl font-bold mb-2 mt-4">{dash?.data.leave_balance ?? 0} days</h2>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-purple-900 h-2 rounded-full" style={{ width: '60%' }}></div>
+              <div 
+                className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] h-2 rounded-full" 
+                style={{ width: `${Math.min(100, ((dash?.data.leave_balance ?? 0) / (employee.total_leave_days || 1)) * 100)}%` }}
+              ></div>
             </div>
           </div>
 
           {/* Emergency Contact */}
-          <div className="border border-red-200 rounded-xl p-5">
+          <div className="border-2 border-[#f0c3d0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="bg-pink-100 p-2 rounded-lg text-pink-700">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <div className="bg-[#fdf1f5] p-2 rounded-lg text-[#cc246d]">
+                  <CalendarIcon className="w-5 h-5" />
                 </div>
-                <p className="text-sm font-semibold">Emergency Contact</p>
+                <p className="text-[13px] font-semibold text-gray-800">Emergency Contact</p>
               </div>
-              <div className="w-8 h-5 bg-pink-400 rounded-full relative cursor-pointer">
-                <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm"></div>
-              </div>
+              <button
+                onClick={handleToggleEmergencyContact}
+                className={`w-9 h-5 rounded-full relative transition-colors ${
+                  employee.emergency_contact.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
+                  employee.emergency_contact.enabled ? 'right-0.5' : 'left-0.5'
+                }`}></div>
+              </button>
             </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                <span>+1 987 654 3210</span>
+            <div className="space-y-4 text-sm mt-6">
+              <div className="flex items-center gap-4">
+                <PhoneIcon />
+                <span className="text-[13px] font-medium text-gray-800">{employee.emergency_contact.phone ?? 'No phone saved'}</span>
               </div>
-              <div className="pl-7 text-gray-500 text-xs">
-                John Doe
+              <div className="pl-8 text-gray-500 text-[11px] -mt-3">
+                {employee.emergency_contact.name ?? 'No name saved'}
               </div>
-              
-              <div className="flex items-center gap-3 text-gray-700 mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                <span className="text-xs">John.doe@example.com</span>
+              <div className="flex items-center gap-4">
+                <MailIcon />
+                <span className="text-[13px] font-medium text-gray-800 break-all">{employee.emergency_contact.email ?? 'No email saved'}</span>
               </div>
-               <div className="pl-7 text-gray-500 text-xs">
+              <div className="pl-8 text-gray-500 text-[11px] -mt-3">
                 Email
               </div>
             </div>
-
-            <button className="w-full mt-5 border border-purple-800 text-purple-900 py-2 rounded-lg font-medium text-sm hover:bg-purple-50 transition-colors">
+            <button className="w-full mt-6 border border-[#4c1530] text-[#4c1530] py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors">
               Edit Contact
             </button>
           </div>
-
         </div>
       </div>
+
+      {/* --- START BREAK MODAL --- */}
+      {isBreakModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-[500px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Start Break</h2>
+              <button onClick={() => setIsBreakModalOpen(false)} className="text-gray-500 hover:text-gray-800">
+                <CloseIcon />
+              </button>
+            </div>
+            <form onSubmit={handleStartBreakSubmit}>
+              <div className="mb-5">
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Break Type</label>
+                <select 
+                  value={breakForm.break_type}
+                  onChange={(e) => setBreakForm({ ...breakForm, break_type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
+                >
+                  <option value="" disabled>Select Break Type</option>
+                  <option value="Lunch Break">Lunch Break</option>
+                  <option value="Tea Break">Tea Break</option>
+                  <option value="Personal Break">Personal Break</option>
+                </select>
+              </div>
+              <div className="mb-8">
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Note (optional)</label>
+                <textarea 
+                  value={breakForm.note}
+                  onChange={(e) => setBreakForm({ ...breakForm, note: e.target.value })}
+                  placeholder="..."
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-600 outline-none focus:border-[#d9467b] resize-none"
+                ></textarea>
+              </div>
+              <div className="flex justify-center">
+                <button type="submit" className="bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white px-12 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity">
+                  Start Break
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- APPLY LEAVE MODAL --- */}
+      {isLeaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-[550px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Requesting Time Off</h2>
+              <button onClick={() => setIsLeaveModalOpen(false)} className="text-gray-500 hover:text-gray-800">
+                <CloseIcon />
+              </button>
+            </div>
+            <form onSubmit={handleLeaveSubmit} className="space-y-5">
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Type</label>
+                <select 
+                  value={leaveForm.leave_type}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
+                >
+                  <option>Sick Leave</option>
+                  <option>Annual Leave</option>
+                  <option>Casual Leave</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Start Date</label>
+                  <div className="relative">
+                    <input 
+                      type="date" 
+                      required
+                      value={leaveForm.start_date}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">End Date</label>
+                  <div className="relative">
+                    <input 
+                      type="date" 
+                      required
+                      value={leaveForm.end_date}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Reason</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="..."
+                  value={leaveForm.reason}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-3">Leave Time</label>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-[120px] bg-white border border-gray-200 rounded-full py-2 text-center text-[13px] font-medium text-gray-700 shadow-sm">
+                    Selected Dates
+                  </div>
+                  <div className="w-[1px] h-6 bg-gray-300"></div>
+                  <button 
+                    type="button" 
+                    onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'half_day' })}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'half_day' ? 'bg-[#40DE53] text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                  >
+                    Half Day
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'full_day' })}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'full_day' ? 'bg-[#40DE53] text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                  >
+                    Full Day
+                  </button>
+                </div>
+              </div>
+              <div className="pt-4">
+                <button 
+                  type="submit" 
+                  disabled={submittingLeave}
+                  className="w-full md:w-auto mx-auto block bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white px-10 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {submittingLeave ? 'Applying...' : 'Apply Leave'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
