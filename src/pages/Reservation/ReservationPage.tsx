@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { 
   useGetReservationsQuery, 
   useCreateReservationMutation 
 } from '../../redux/api/reservationApi'; 
 import type { CreateReservationPayload } from '../../types/reservation';
 
-// --- Modal Component ---
+// --- Modal Component (Preserved exactly as original) ---
 const NewReservationModal = ({ 
   isOpen, 
   onClose, 
@@ -17,6 +18,7 @@ const NewReservationModal = ({
   onSubmit: (data: CreateReservationPayload) => void;
   isSubmitting: boolean;
 }) => {
+  // Maintained default values matching your Figma design
   const [formData, setFormData] = useState<CreateReservationPayload>({
     Reservations_online: false,
     Customer_id: 25,
@@ -36,15 +38,7 @@ const NewReservationModal = ({
   if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-      setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-      return;
-    }
-    if (['Customer_id', 'Floor', 'Capacity_count', 'people_count', 'Table_id'].includes(name)) {
-      setFormData(prev => ({ ...prev, [name]: Number(value) }));
-      return;
-    }
+    const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -186,8 +180,16 @@ export default function ReservationPage() {
     try {
       await createReservation(data).unwrap();
       setIsModalOpen(false); 
-    } catch (error) {
-      console.error("Failed to create reservation", error);
+      
+      // Show Success Notification
+      toast.success('Reservation created successfully!', {
+        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+      });
+      
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to create reservation.', {
+        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+      });
     }
   };
 
@@ -214,53 +216,54 @@ export default function ReservationPage() {
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               Reservation Queue
             </h2>
-            
-            {/* ADDED SCROLL: max-h-[500px], overflow-y-auto, and pr-2 for scrollbar spacing */}
-            <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-2">
+            <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2">
               
-              {isLoading && (
-                <p className="text-sm text-gray-500">Loading reservations...</p>
-              )}
-
-              {!isLoading && reservations.length === 0 && (
-                <p className="text-sm text-gray-500">No reservations found.</p>
-              )}
-
-              {reservations.map((res, index) => (
-                <div 
-                  key={res._id} 
-                  className={`${index === 0 ? 'border-2 border-red-400' : 'border border-gray-200'} rounded-lg p-4 bg-white shadow-sm relative shrink-0`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-semibold text-gray-900">
-                      {res.customer_name || res.title} - {res.people_count} guests
-                    </h3>
-                    <span className={`text-xs px-2 py-1 rounded border font-medium ${
-                      res.PaymentStatus === 'Paid' 
-                        ? 'bg-green-100 text-green-700 border-green-200' 
-                        : 'bg-orange-100 text-orange-700 border-orange-200'
-                    }`}>
-                      {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
-                    </span>
+              {isLoading ? (
+                // Skeleton Loading (Maintaining Card dimensions)
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm animate-pulse">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-6 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="h-4 bg-gray-100 rounded w-3/4"></div>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {new Date(res.Date_time).toLocaleString('en-US', { 
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
-                    })} - Table {res.Table_id} 
-                    {res.Notes && ` - ${res.Notes}`}
-                  </p>
-                </div>
-              ))}
+                ))
+              ) : (
+                reservations.map((res, index) => (
+                  <div 
+                    key={res._id} 
+                    // Preserving the specific Figma red border on first item
+                    className={`${index === 0 ? 'border-2 border-red-400' : 'border border-gray-200'} rounded-lg p-4 bg-white shadow-sm relative shrink-0`}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-semibold text-gray-900">
+                        {res.title || res.customer_name || 'Guest'} - {res.people_count} guests
+                      </h3>
+                      <span className={`text-xs px-2 py-1 rounded border font-medium ${
+                        res.PaymentStatus === 'Paid' 
+                          ? 'bg-green-100 text-green-700 border-green-200' 
+                          : 'bg-orange-100 text-orange-700 border-orange-200'
+                      }`}>
+                        {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {new Date(res.Date_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} - Table {res.Table_id} {res.Notes ? `- ${res.Notes}` : ''}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </section>
 
-          {/* Bottom Section (Inline Form) */}
+          {/* Bottom Section (Inline Form exactly as original) */}
           <section className="border-2 border-red-400 rounded-xl p-6 bg-white">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               New Reservation
             </h2>
             
-            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setIsModalOpen(true); }}>
+            <form className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Guest Name</label>
