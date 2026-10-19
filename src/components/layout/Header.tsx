@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 
 import { useStore } from '@/store/zustandStores';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 import type { RootState } from '@/redux/store';
+
 
 import HamburgerIcon from '@/assets/navbar/hamburger_menu.svg';
 import SearchIcon from '@/assets/navbar/search_icon.svg';
@@ -16,18 +17,39 @@ import NotificationIcon from '@/assets/header/notification_icon.svg';
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface Language {
+export interface Language {
   code: 'en' | 'fr' | 'hi';
   label: string;
   emoji: string;
 }
 
-interface Notification {
+export interface Notification {
   id: string;
   title: string;
   body: string;
   time: string;
   read: boolean;
+}
+
+export interface HeaderUser {
+  user_id?: number;
+  name?: string;
+  Name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  user_image?: string | null;
+  profilePic?: string | null;
+  Role_id?: number;
+  role_name?: string;
+  Responsibility_id?: number;
+  Responsibility_name?: string;
+  Language_id?: number;
+  Language_name?: string;
+  Country_id?: number;
+  Country_name?: string;
+  timezone?: string;
+  isLoginPermission?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -40,6 +62,16 @@ const LANGUAGES: Language[] = [
   { code: 'hi', label: 'Hindi', emoji: '🇮🇳' },
 ];
 
+const LANGUAGE_STORAGE_KEY = 'app.language';
+
+/** Map backend `Language_id` -> frontend language code. */
+const BACKEND_LANGUAGE_MAP: Record<number, Language['code']> = {
+  1: 'fr',
+  2: 'en',
+  3: 'hi',
+};
+
+// TODO: replace with real API (`/notifications`) once endpoint exists.
 const MOCK_NOTIFICATIONS: Notification[] = [
   {
     id: '1',
@@ -65,28 +97,64 @@ const MOCK_NOTIFICATIONS: Notification[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Hook: close dropdown on outside click / Escape                     */
+/* Hooks                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Calls `onClose` when a click lands outside `ref` or Escape is pressed.
+ * The callback is stored in a ref so the effect never re-registers listeners.
+ */
 function useClickOutside<T extends HTMLElement>(
   onClose: () => void,
+  isOpen: boolean,
 ): React.RefObject<T | null> {
   const ref = useRef<T>(null);
+  const cbRef = useRef(onClose);
+
   useEffect(() => {
+    cbRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return; // don't listen when closed
+
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        cbRef.current();
+      }
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') cbRef.current();
     };
+
     document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('mousedown', handleClick);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [onClose]);
+  }, [isOpen]);
+
   return ref;
+}
+
+/** Reads the initial language from localStorage, falling back to the user's backend language, then English. */
+function resolveInitialLanguage(user: HeaderUser | null): Language {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as
+      | Language['code']
+      | null;
+    const match = LANGUAGES.find((l) => l.code === stored);
+    if (match) return match;
+  }
+
+  if (user?.Language_id != null) {
+    const code = BACKEND_LANGUAGE_MAP[user.Language_id];
+    const match = LANGUAGES.find((l) => l.code === code);
+    if (match) return match;
+  }
+
+  return LANGUAGES[0];
 }
 
 /* ------------------------------------------------------------------ */
@@ -94,67 +162,197 @@ function useClickOutside<T extends HTMLElement>(
 /* ------------------------------------------------------------------ */
 
 const Header: React.FC = () => {
-  const user = useStore((state) => state.user);
-  const authUser = useSelector((s: RootState) => s.auth.user);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const displayName =
-    authUser?.name || authUser?.Name || user?.name || 'Guest';
+  const zustandUser = useStore((state) => state.user);
+  const authUser = useSelector(
+    (s: RootState) => s.auth.user as HeaderUser | null,
+  );
+  const nextWalkthroughStep = useWalkthroughStore((s) => s.next);
+
+  /* ---------------- Derived user ---------------- */
+  const displayName = useMemo(() => {
+    return (
+      authUser?.name ||
+      authUser?.Name ||
+      zustandUser?.name ||
+      'Guest'
+    );
+  }, [authUser, zustandUser]);
+
   const displayAvatar =
-    authUser?.user_image || user?.profilePic || undefined;
+    authUser?.user_image || zustandUser?.profilePic || undefined;
+
+  const avatarInitial = displayName.charAt(0).toUpperCase();
 
   /* ---------------- Language ---------------- */
-  const [language, setLanguage] = useState<Language>(LANGUAGES[0]);
+  const [language, setLanguage] = useState<Language>(() =>
+    resolveInitialLanguage(authUser),
+  );
   const [langOpen, setLangOpen] = useState(false);
-  const langRef = useClickOutside<HTMLDivElement>(() => setLangOpen(false));
 
-  const handleSelectLanguage = (lang: Language) => {
-    setLanguage(lang);
-    setLangOpen(false);
-    document.documentElement.lang = lang.code;
-    toast.success(`Language: ${lang.label}`, {
-      duration: 2000,
-      position: 'top-right',
-    });
-  };
+  const closeLang = useCallback(() => setLangOpen(false), []);
+  const langRef = useClickOutside<HTMLDivElement>(closeLang, langOpen);
+
+  // Sync language to the document + localStorage whenever it changes.
+  useEffect(() => {
+    document.documentElement.lang = language.code;
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, language.code);
+    } catch {
+      /* localStorage may be unavailable (private mode / SSR) */
+    }
+  }, [language]);
+
+  const handleSelectLanguage = useCallback(
+    (lang: Language) => {
+      setLanguage(lang);
+      setLangOpen(false);
+      toast.success(`Language: ${lang.label}`, {
+        duration: 2000,
+        position: 'top-right',
+      });
+    },
+    [],
+  );
 
   /* ---------------- Notifications ---------------- */
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [notifOpen, setNotifOpen] = useState(false);
-  const notifRef = useClickOutside<HTMLDivElement>(() => setNotifOpen(false));
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const closeNotif = useCallback(() => setNotifOpen(false), []);
+  const notifRef = useClickOutside<HTMLDivElement>(closeNotif, notifOpen);
 
-  const markAllRead = () =>
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  const markAllRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    // TODO: dispatch(markAllNotificationsReadAsync())
+  }, []);
 
-  const handleNotificationClick = (n: Notification) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === n.id ? { ...item, read: true } : item)),
-    );
-    setNotifOpen(false);
-    navigate('/notifications');
-  };
+  const handleNotificationClick = useCallback(
+    (n: Notification) => {
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === n.id ? { ...item, read: true } : item,
+        ),
+      );
+      setNotifOpen(false);
+      // TODO: dispatch(markNotificationReadAsync(n.id))
+      navigate('/notifications');
+    },
+    [navigate],
+  );
 
   /* ---------------- Profile ---------------- */
   const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useClickOutside<HTMLDivElement>(() =>
-    setProfileOpen(false),
+
+  const closeProfile = useCallback(() => setProfileOpen(false), []);
+  const profileRef = useClickOutside<HTMLDivElement>(
+    closeProfile,
+    profileOpen,
   );
 
+  const handleProfileToggle = useCallback(() => {
+    nextWalkthroughStep();
+    setProfileOpen((v) => !v);
+  }, [nextWalkthroughStep]);
+
+  const handleNavigate = useCallback(
+    (path: string) => {
+      setProfileOpen(false);
+      navigate(path);
+    },
+    [navigate],
+  );
+
+ 
+
+  /* ---------------- Search ---------------- */
+  const [query, setQuery] = useState('');
+
+  const handleSearchSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmed = query.trim();
+      if (!trimmed) return;
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    },
+    [navigate, query],
+  );
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') handleSearchSubmit(e);
+    },
+    [handleSearchSubmit],
+  );
+
+  const clearSearch = useCallback(() => setQuery(''), []);
+
+  /* ---------------- Render ---------------- */
   return (
-   <header className="fixed top-0 left-[260px] right-0 z-40 hidden lg:flex items-center justify-between px-8 py-4 bg-white border-r border-[#00000033] shadow-[0px_9px_26px_0px_#0000000D]">
+    <header
+      className="fixed top-0 right-0 z-40 hidden lg:flex items-center justify-between px-8 py-4 bg-white border-r border-[#00000033] shadow-[0px_9px_26px_0px_#0000000D]"
+      style={{ left: 'var(--sidebar-width, 260px)' }}
+    >
       {/* Left side: Search bar */}
-      <div className="flex items-center gap-4 px-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] w-full max-w-sm">
-        <img src={HamburgerIcon} alt="Menu" className="h-5 w-5 text-gray-500" />
+      <form
+        onSubmit={handleSearchSubmit}
+        role="search"
+        className="flex items-center gap-4 px-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] w-full max-w-sm"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            /* TODO: toggle mobile sidebar */
+          }}
+          aria-label="Toggle sidebar"
+          className="flex-shrink-0"
+        >
+          <img
+            src={HamburgerIcon}
+            alt=""
+            aria-hidden="true"
+            className="h-5 w-5"
+          />
+        </button>
+
         <input
           type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           placeholder="Search"
+          aria-label="Search"
           className="bg-transparent focus:outline-none w-full text-gray-800 placeholder-gray-500 font-medium"
         />
-        <img src={SearchIcon} alt="Search" className="h-5 w-5 text-gray-500" />
-      </div>
+
+        {query ? (
+          <button
+            type="button"
+            onClick={clearSearch}
+            aria-label="Clear search"
+            className="text-gray-500 hover:text-gray-700 text-sm"
+          >
+            ✕
+          </button>
+        ) : null}
+
+        <button type="submit" aria-label="Submit search" className="flex-shrink-0">
+          <img
+            src={SearchIcon}
+            alt=""
+            aria-hidden="true"
+            className="h-5 w-5"
+          />
+        </button>
+      </form>
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-4">
@@ -163,13 +361,19 @@ const Header: React.FC = () => {
           <button
             type="button"
             onClick={() => setLangOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={langOpen}
+            aria-label={`Change language (current: ${language.label})`}
             className="flex items-center gap-3 px-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] cursor-pointer hover:opacity-90"
           >
             <span className="font-medium">{language.label}</span>
-            <span className="text-lg leading-none">{language.emoji}</span>
+            <span className="text-lg leading-none" aria-hidden="true">
+              {language.emoji}
+            </span>
             <img
               src={DownArrowIcon}
               alt=""
+              aria-hidden="true"
               className={`h-3 w-3 transition-transform ${
                 langOpen ? 'rotate-180' : ''
               }`}
@@ -177,11 +381,16 @@ const Header: React.FC = () => {
           </button>
 
           {langOpen && (
-            <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50">
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50"
+            >
               {LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   type="button"
+                  role="menuitemradio"
+                  aria-checked={lang.code === language.code}
                   onClick={() => handleSelectLanguage(lang)}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 ${
                     lang.code === language.code
@@ -189,7 +398,9 @@ const Header: React.FC = () => {
                       : ''
                   }`}
                 >
-                  <span className="text-lg leading-none">{lang.emoji}</span>
+                  <span className="text-lg leading-none" aria-hidden="true">
+                    {lang.emoji}
+                  </span>
                   <span>{lang.label}</span>
                 </button>
               ))}
@@ -202,22 +413,31 @@ const Header: React.FC = () => {
           <button
             type="button"
             onClick={() => setNotifOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={notifOpen}
+            aria-label={`Notifications${
+              unreadCount > 0 ? ` (${unreadCount} unread)` : ''
+            }`}
             className="relative cursor-pointer p-2 hover:opacity-80"
           >
             <img
               src={NotificationIcon}
-              alt="Notifications"
+              alt=""
+              aria-hidden="true"
               className="h-6 w-6"
             />
             {unreadCount > 0 && (
-              <div className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
-                {unreadCount}
-              </div>
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50">
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50"
+            >
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <span className="font-semibold text-sm">Notifications</span>
                 {unreadCount > 0 && (
@@ -241,6 +461,7 @@ const Header: React.FC = () => {
                     <button
                       key={n.id}
                       type="button"
+                      role="menuitem"
                       onClick={() => handleNotificationClick(n)}
                       className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 ${
                         n.read ? '' : 'bg-purple-50/40'
@@ -248,7 +469,10 @@ const Header: React.FC = () => {
                     >
                       <div className="flex items-start gap-3">
                         {!n.read && (
-                          <span className="mt-1.5 w-2 h-2 rounded-full bg-purple-500 flex-shrink-0" />
+                          <span
+                            className="mt-1.5 w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"
+                            aria-hidden="true"
+                          />
                         )}
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-800">
@@ -287,27 +511,31 @@ const Header: React.FC = () => {
         <div className="relative" ref={profileRef}>
           <button
             type="button"
-            onClick={() => {
-              useWalkthroughStore.getState().next();
-              setProfileOpen((v) => !v);
-            }}
+            onClick={handleProfileToggle}
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+            aria-label={`Open profile menu for ${displayName}`}
             className="profile-btn flex items-center gap-3 pl-2 pr-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] cursor-pointer hover:opacity-90"
           >
             {displayAvatar ? (
               <img
                 src={displayAvatar}
-                alt="User Avatar"
+                alt={`${displayName}'s avatar`}
                 className="h-8 w-8 rounded-full bg-white p-1 object-cover"
               />
             ) : (
-              <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-purple-700">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
+              <span
+                className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-purple-700"
+                aria-hidden="true"
+              >
+                {avatarInitial}
+              </span>
             )}
             <span className="font-medium">{displayName}</span>
             <img
               src={DownArrowIcon}
               alt=""
+              aria-hidden="true"
               className={`h-3 w-3 transition-transform ${
                 profileOpen ? 'rotate-180' : ''
               }`}
@@ -315,27 +543,28 @@ const Header: React.FC = () => {
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50">
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-50"
+            >
               <button
                 type="button"
-                onClick={() => {
-                  setProfileOpen(false);
-                  navigate('/profile');
-                }}
+                role="menuitem"
+                onClick={() => handleNavigate('/profile')}
                 className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50"
               >
                 View Profile
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setProfileOpen(false);
-                  navigate('/settings');
-                }}
+                role="menuitem"
+                onClick={() => handleNavigate('/settings')}
                 className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50"
               >
                 Settings
               </button>
+              <div className="border-t border-gray-100" />
+              
             </div>
           )}
         </div>

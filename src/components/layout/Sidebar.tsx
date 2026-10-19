@@ -1,10 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '@/redux/store';
 import { persistor } from '@/redux/store';
 import { logout } from '@/redux/slice/authSlice';
 import toast from 'react-hot-toast';
+
+// Import Zustand store to clear its state and cookie
+// ⚠️ UPDATE THIS PATH to match where your zustandStores file is!
+import { useUserStore } from '@/store/zustandStores'; 
 
 // RTK Query API slices — reset caches on logout
 import { apiSlice } from '@/redux/api/apiSlice';
@@ -13,12 +17,7 @@ import { quickOrderApi } from '@/redux/api/quickOrderSlice';
 import { userApi } from '@/redux/api/userApi';
 
 // React Icons
-import {
-  FiCalendar,
-  FiUserCheck,
-  FiTrendingUp,
-  FiClock,
-} from 'react-icons/fi';
+import { FiCalendar, FiUserCheck, FiTrendingUp, FiClock } from 'react-icons/fi';
 
 // Existing SVG Icons
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
@@ -58,56 +57,98 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const zustandLogout = useUserStore((state) => state.logout);
+
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  // ---------- Complete logout ----------
+  // ---------- Complete Logout ----------
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
 
-    try {
-      // 1) (Optional) best-effort server-side invalidation
-      // try { await api.post('/auth/logout'); } catch { /* ignore */ }
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://vercel-mr-clement-pos-backend.vercel.app';
 
-      // 2) Clear Redux auth state (reducer returns initialState)
+    try {
+      // 1) Server-side invalidation (Optional)
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        await fetch(`${API_BASE_URL}/api/v1/user/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+        });
+      } catch (serverErr) {
+        console.warn('Server logout failed:', serverErr);
+      }
+
+      // 2) 🚨 BULLETPROOF FIX: Override setItem to block React/Persist from writing the token back to storage during logout.
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        // Block specific keys from being saved
+        if (
+          key === 'token' || 
+          key === 'tokenExp' || 
+          key === 'user' || 
+          key === 'refreshToken' || 
+          key.includes('persist:')
+        ) {
+          return; 
+        }
+        return originalSetItem.apply(this, [key, value]);
+      };
+
+      // 3) Surgically remove the exact keys you saw in DevTools
+      const keysToRemove = [
+        'token', 
+        'tokenExp', 
+        'user', 
+        'refreshToken', 
+        'admin_language', 
+        'selectedCurrency',
+        'persist:root'
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+
+      // 4) Clear Zustand state
+      zustandLogout();
+
+      // 5) Clear Redux Auth state
       dispatch(logout());
 
-      // 3) Reset ALL RTK Query caches so the next user sees no stale data
+      // 6) Reset ALL RTK Query caches
       dispatch(apiSlice.util.resetApiState());
       dispatch(orderHistoryApi.util.resetApiState());
       dispatch(quickOrderApi.util.resetApiState());
       dispatch(userApi.util.resetApiState());
 
-      // 4) Flush + purge persisted storage (sessionStorage, key: persist:root)
-      await persistor.flush();
+      // 7) Purge Redux Persist
       await persistor.purge();
 
-      // 5) Clear stray client-side tokens (interceptors may read these)
-      //    Do NOT call sessionStorage.clear() — redux-persist uses sessionStorage.
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('refreshToken');
+      // 8) Clear cookies just in case
+      document.cookie = "authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // 6) Feedback + redirect
-      toast.success('Logged out successfully!', {
-        duration: 4000,
-        position: 'top-right',
-      });
+      // 9) Show Toast and Hard Redirect
+      toast.success('Logged out successfully!', { duration: 3000, position: 'top-right' });
+      
+      // Hard redirect forces a full page reload, clearing all React memory
+      window.location.href = '/login';
 
-      navigate('/login', { replace: true });
     } catch (err) {
-      toast.error('Logout failed. Please try again.', {
-        position: 'top-right',
-      });
-    } finally {
+      console.error('Logout error:', err);
+      toast.error('Logout failed. Please try again.', { position: 'top-right' });
       setIsLoggingOut(false);
     }
-  }, [dispatch, navigate, isLoggingOut]);
+  }, [dispatch, zustandLogout, isLoggingOut]);
 
   const renderIcon = (item: any, active: boolean) => {
     const size = 20;

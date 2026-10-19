@@ -8,6 +8,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import chefImg from '@/assets/chef.svg';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 import { useAuthStore } from "@/store/zustandStores";
+import { useChangePasswordMutation } from '@/redux/api/settingsApi';
+import toast from "react-hot-toast";
 
 interface User {
   _id: string;
@@ -26,6 +28,9 @@ interface User {
   user_image: string;
   OnboardingDate: string;
   yearsWithus: number;
+  shift_timings?: string;
+  total_leave_days?: number;
+  leave_left_days?: number;
 }
 
 interface ProfileDesktopProps {
@@ -44,11 +49,15 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
   const location = useLocation();
   const { isActive, activeTraining, steps, currentStep, complete } = useWalkthroughStore();
 
+  const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
+
   const [selectedTab, setSelectedTab] = useState<
     null | "work" | "personal" | "security" | "sign-out"
   >(null);
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
   const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
+  
+  // Password states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showReNewPassword, setShowReNewPassword] = useState(false);
@@ -116,6 +125,29 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
     }, 2000);
   };
 
+  const handleSavePassword = async () => {
+    if (newPassword !== reNewPassword) {
+      toast.error("New passwords do not match!");
+      return;
+    }
+
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: reNewPassword,
+      }).unwrap();
+      
+      toast.success("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setReNewPassword("");
+    } catch (error: any) {
+      console.error("Failed to change password", error);
+      toast.error(error?.data?.message || "Failed to change password. Please check your current password.");
+    }
+  };
+
   return (
     <div className={`pt-10 px-10 profile-highlight relative`}>
       <div className="flex justify-between items-center mb-8">
@@ -134,46 +166,35 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
         <div className="flex gap-3">
           <button
             className="px-4 py-2 rounded-lg font-medium text-white profile-work-tab"
-            style={{
-              background: tabGradient,
-              opacity: selectedTab === "work" ? 1 : 0.4,
-            }}
+            style={{ background: tabGradient, opacity: selectedTab === "work" ? 1 : 0.4 }}
             onClick={() => setSelectedTab("work")}
           >
             Work Summary
           </button>
           <button
             className="px-4 py-2 rounded-lg font-medium text-white profile-personal-tab"
-            style={{
-              background: tabGradient,
-              opacity: selectedTab === "personal" ? 1 : 0.4,
-            }}
+            style={{ background: tabGradient, opacity: selectedTab === "personal" ? 1 : 0.4 }}
             onClick={() => setSelectedTab("personal")}
           >
             Personal
           </button>
           <button
             className={`px-4 py-2 rounded-lg font-medium text-white profile-security-tab ${selectedTab === 'security' ? 'selected' : ''}`}
-            style={{
-              background: tabGradient,
-              opacity: selectedTab === "security" ? 1 : 0.4,
-            }}
+            style={{ background: tabGradient, opacity: selectedTab === "security" ? 1 : 0.4 }}
             onClick={() => setSelectedTab("security")}
           >
             Security
           </button>
           <button
             className="px-4 py-2 rounded-lg font-medium text-white profile-sign-out-tab"
-            style={{
-              background: tabGradient,
-              opacity: selectedTab === "sign-out" ? 1 : 0.4,
-            }}
+            style={{ background: tabGradient, opacity: selectedTab === "sign-out" ? 1 : 0.4 }}
             onClick={handleSignOutClick}
           >
             Sign out
           </button>
         </div>
       </div>
+
       {selectedTab === null && (
         <>
           <div className="font-semibold text-lg mb-4">Employee Details</div>
@@ -194,59 +215,37 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
               <div className="grid grid-cols-2 gap-6 w-full">
                 <div>
                   <div className="font-bold text-gray-700 mb-1">Role</div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
-                    {user?.Role_id.role_name}
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                    {user?.Role_id?.role_name || 'N/A'}
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-gray-700 mb-1">
-                    Responsibility
-                  </div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
-                    {user?.Responsibility_id.Responsibility_name}
+                  <div className="font-bold text-gray-700 mb-1">Responsibility</div>
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                    {user?.Responsibility_id?.Responsibility_name || 'N/A'}
                   </div>
                 </div>
                 <div>
                   <div className="font-bold text-gray-700 mb-1">Name</div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                     {user?.Name}
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-gray-700 mb-1">
-                    Employee id
-                  </div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
+                  <div className="font-bold text-gray-700 mb-1">Employee id</div>
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                     {user?.Employee_id}
                   </div>
                 </div>
                 <div>
                   <div className="font-bold text-gray-700 mb-1">Email</div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                     {user?.email}
                   </div>
                 </div>
                 <div>
                   <div className="font-bold text-gray-700 mb-1">Phone</div>
-                  <div
-                    className="rounded-lg px-4 py-2"
-                    style={{ background: fieldGradient }}
-                  >
+                  <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                     {user?.phone}
                   </div>
                 </div>
@@ -255,7 +254,9 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
           </div>
         </>
       )}
+      
       {selectedTab === "work" && <div className="profile-work-tab"><WorkSummary layout="desktop" /></div>}
+      
       {selectedTab === "personal" && (
         <>
           <div className="font-semibold text-lg mb-4 text-[#888]">
@@ -264,59 +265,42 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
           <div className="grid grid-cols-3 gap-6 w-full mb-8">
             <div>
               <div className="font-bold text-gray-700 mb-1">Employee id</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
-                {user?.Employee_id}
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.Employee_id || 'N/A'}
               </div>
             </div>
             <div>
               <div className="font-bold text-gray-700 mb-1">Role</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
-                {user?.Role_id.role_name}
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.Role_id?.role_name || 'N/A'}
               </div>
             </div>
             <div>
               <div className="font-bold text-gray-700 mb-1">Responsibility</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
-                {user?.Responsibility_id.Responsibility_name}
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.Responsibility_id?.Responsibility_name || 'N/A'}
               </div>
             </div>
             <div>
               <div className="font-bold text-gray-700 mb-1">Name</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                 {user?.Name}
               </div>
             </div>
             <div>
               <div className="font-bold text-gray-700 mb-1">Email</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                 {user?.email}
               </div>
             </div>
             <div>
               <div className="font-bold text-gray-700 mb-1">Phone</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                 {user?.phone}
               </div>
             </div>
           </div>
+
           <div className="font-semibold text-lg mb-4 text-[#888]">
             Work Details
           </div>
@@ -325,25 +309,38 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
               <div className="font-bold text-gray-700 mb-1">
                 Onboarding Date
               </div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
                 {user?.OnboardingDate}
               </div>
             </div>
             <div>
-              <div className="font-bold text-gray-700 mb-1">Years with us</div>
-              <div
-                className="rounded-lg px-4 py-2"
-                style={{ background: fieldGradient }}
-              >
-                {user?.yearsWithus} Years
+              <div className="font-bold text-gray-700 mb-1">year's with us</div>
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.yearsWithus} Year's
+              </div>
+            </div>
+            <div>
+              <div className="font-bold text-gray-700 mb-1">Shift Timings</div>
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.shift_timings || 'N/A'}
+              </div>
+            </div>
+            <div>
+              <div className="font-bold text-gray-700 mb-1">Total Leave</div>
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.total_leave_days ? `${user.total_leave_days} Day's` : "0 Day's"}
+              </div>
+            </div>
+            <div>
+              <div className="font-bold text-gray-700 mb-1">Leave Left</div>
+              <div className="rounded-lg px-4 py-2" style={{ background: fieldGradient }}>
+                {user?.leave_left_days ? `${user.leave_left_days} Day's` : "0 Day's"}
               </div>
             </div>
           </div>
         </>
       )}
+
       {selectedTab === "security" && (
         <div className="mt-8 profile-security-tab">
           <div className="font-semibold text-xl mb-6">Privacy and Password</div>
@@ -376,15 +373,17 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
                 </span>
               </div>
             </div>
+            
             <div className="flex items-center gap-4 mb-4">
               <button
                 className="px-6 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] shadow"
                 style={{ minWidth: "170px" }}
-                onClick={() => navigate('/forgot-password')}
+                onClick={() => toast.error("Please enter your current password below to change it.")}
               >
                 Forget Password
               </button>
             </div>
+            
             <div className="mb-4">
               <div className="font-bold text-gray-700 mb-1">
                 Enter New Password
@@ -404,6 +403,7 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
                 </span>
               </div>
             </div>
+            
             <div className="mb-4">
               <div className="font-bold text-gray-700 mb-1">
                 Re-enter New Password
@@ -424,16 +424,19 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
               </div>
             </div>
           </div>
+          
           <button
-            className="w-full mt-8 py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] disabled:opacity-50"
+            onClick={handleSavePassword}
+            className="w-full mt-8 py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] disabled:opacity-50 transition-all"
             disabled={
-              !(currentPassword && newPassword && newPassword === reNewPassword)
+              isChangingPassword || !(currentPassword && newPassword && newPassword === reNewPassword)
             }
           >
-            Save Password
+            {isChangingPassword ? "Saving..." : "Save Password"}
           </button>
         </div>
       )}
+
       {isActive && activeTraining === 'profile' && steps[currentStep]?.selector === '.profile-training-tooltip' && (
         <img
           src={chefImg}
@@ -448,6 +451,7 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({ forceSecurityTab, force
           }}
         />
       )}
+      
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={handleCloseLogoutModal}

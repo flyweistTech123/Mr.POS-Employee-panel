@@ -23,6 +23,8 @@ import lockIcon from '@/assets/profile/finger-scan.svg';
 import eyeIcon from '@/assets/eye_icon.svg';
 import { useNavigate } from "react-router-dom";
 import { useWalkthroughStore } from "@/store/walkthroughStore";
+import { useChangePasswordMutation } from '@/redux/api/settingsApi';
+import toast from 'react-hot-toast';
 
 interface User {
   _id: string;
@@ -41,6 +43,9 @@ interface User {
   user_image: string;
   OnboardingDate: string;
   yearsWithus: number;
+  shift_timings?: string;
+  total_leave_days?: number;
+  leave_left_days?: number;
 }
 
 interface ProfileMobileProps {
@@ -111,7 +116,7 @@ const PersonalMobile = ({ onBack, user }: { onBack: () => void; user?: User }) =
             <span className="absolute left-3 top-1/2 -translate-y-1/2">
               <img src={rolesIcon} alt="role" className="w-5 h-5" />
             </span>
-            <input className="rounded-lg border border-[#E0E0E0] pl-10 pr-2 py-2 bg-white w-full" value={user?.Role_id.role_name} readOnly />
+            <input className="rounded-lg border border-[#E0E0E0] pl-10 pr-2 py-2 bg-white w-full" value={user?.Role_id?.role_name || 'N/A'} readOnly />
           </div>
         </div>
         <div className="font-semibold text-base mt-6">Work Details</div>
@@ -121,6 +126,15 @@ const PersonalMobile = ({ onBack, user }: { onBack: () => void; user?: User }) =
           <input className="rounded-lg border border-[#E0E0E0] px-4 py-2 bg-white" value={user?.OnboardingDate} readOnly />
           <label className="text-xs font-semibold text-[#00000099]">Experience</label>
           <input className="rounded-lg border border-[#E0E0E0] px-4 py-2 bg-white" value={`${user?.yearsWithus} years`} readOnly />
+          
+          <label className="text-xs font-semibold text-[#00000099]">Shift Timings</label>
+          <input className="rounded-lg border border-[#E0E0E0] px-4 py-2 bg-white" value={user?.shift_timings || 'N/A'} readOnly />
+          
+          <label className="text-xs font-semibold text-[#00000099]">Total Leave</label>
+          <input className="rounded-lg border border-[#E0E0E0] px-4 py-2 bg-white" value={`${user?.total_leave_days || 0} Days`} readOnly />
+          
+          <label className="text-xs font-semibold text-[#00000099]">Leave Left</label>
+          <input className="rounded-lg border border-[#E0E0E0] px-4 py-2 bg-white" value={`${user?.leave_left_days || 0} Days`} readOnly />
         </div>
       </div>
     </div>
@@ -167,10 +181,36 @@ const ChangePasswordMobile = ({ onBack, user }: { onBack: () => void; user?: Use
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const canSave = currentPassword && newPassword && newPassword === confirmPassword;
   const navigate = useNavigate();
   const [showOtpSent, setShowOtpSent] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
+
+  const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
+  const canSave = currentPassword && newPassword && newPassword === confirmPassword && !isChangingPassword;
+
+  const handleSave = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match!");
+      return;
+    }
+
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      }).unwrap();
+      
+      toast.success("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      onBack();
+    } catch (error: any) {
+      console.error("Failed to change password", error);
+      toast.error(error?.data?.message || "Failed to change password. Please check your current password.");
+    }
+  };
 
   return (
     <div className="w-full min-h-screen bg-[#F9F6FB] pb-8">
@@ -191,7 +231,12 @@ const ChangePasswordMobile = ({ onBack, user }: { onBack: () => void; user?: Use
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1">
             <label className="text-sm font-semibold text-[#222]">Current Password</label>
-            <button className="text-xs font-semibold text-[#D32F2F]" onClick={() => setShowOtpSent(true)}>Forget Password</button>
+            <button 
+              className="text-xs font-semibold text-[#D32F2F]" 
+              onClick={() => toast.error("Please enter your current password below.")}
+            >
+              Forget Password
+            </button>
           </div>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2">
@@ -246,23 +291,13 @@ const ChangePasswordMobile = ({ onBack, user }: { onBack: () => void; user?: Use
           </div>
         </div>
         <button
+          onClick={handleSave}
           className="w-full py-3 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] disabled:opacity-50"
           disabled={!canSave}
         >
-          Update Password
+          {isChangingPassword ? "Updating..." : "Update Password"}
         </button>
       </div>
-      {showOtpSent && (
-        <OtpSentModal
-          email={user?.email ?? ""}
-          onVerify={() => { setShowOtpSent(false); setShowOtpInput(true); }}
-        />
-      )}
-      {showOtpInput && (
-        <OtpInputModal
-          onContinue={() => { setShowOtpInput(false); onBack(); }}
-        />
-      )}
     </div>
   );
 };
@@ -351,7 +386,7 @@ export const ProfileMobile: React.FC<ProfileMobileProps> = ({ forceSecurityTab, 
       <div className="flex flex-col items-center mt-12">
         <span className="text-xl font-bold text-[#0B0B0B]">{user?.Name}</span>
         <span className="text-[#0B0B0B] font-normal text-sm flex items-center gap-1">
-          {user?.Role_id.role_name}
+          {user?.Role_id?.role_name || 'N/A'}
           <span className="ml-1 w-4 h-4 inline-block align-middle">
             <img src={rightTick} alt="rightTick" />
           </span>
@@ -426,7 +461,7 @@ export const ProfileMobile: React.FC<ProfileMobileProps> = ({ forceSecurityTab, 
             <div className="flex items-center gap-6 text-[#6A1B9A]">
               <img src={rolesIcon} alt="roles" className="w-5 h-5" />
               <span className="text-sm text-[#00000099]">
-                {user?.Responsibility_id.Responsibility_name}
+                {user?.Responsibility_id?.Responsibility_name || 'N/A'}
               </span>
             </div>
             <img src={rightArrow} alt="rightArrow" />

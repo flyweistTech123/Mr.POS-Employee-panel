@@ -1,28 +1,75 @@
 import React, { useState } from 'react';
+import { 
+  useGetReservationsQuery, 
+  useCreateReservationMutation 
+} from '../../redux/api/reservationApi'; 
+import type { CreateReservationPayload } from '../../types/reservation';
 
 // --- Modal Component ---
-const NewReservationModal = ({ isOpen, onClose }) => {
+const NewReservationModal = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  isSubmitting 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSubmit: (data: CreateReservationPayload) => void;
+  isSubmitting: boolean;
+}) => {
+  const [formData, setFormData] = useState<CreateReservationPayload>({
+    Reservations_online: false,
+    Customer_id: 25,
+    slots: "Dinner",
+    slots_time: "07:30 PM - 09:00 PM",
+    title: "Mohammed Al-Farsi", 
+    Floor: 1,
+    Capacity_count: 4,
+    people_count: 4,
+    PaymentStatus: "UnPaid",
+    Table_id: 2,
+    Date_time: "2026-04-15T19:30:00.000Z", 
+    Notes: "Allergies: nuts",
+    Status: true
+  });
+
   if (!isOpen) return null;
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+      return;
+    }
+    if (['Customer_id', 'Floor', 'Capacity_count', 'people_count', 'Table_id'].includes(name)) {
+      setFormData(prev => ({ ...prev, [name]: Number(value) }));
+      return;
+    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
   return (
-    // Backdrop Overlay
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      
-      {/* Modal Container */}
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100">
-        
         <div className="p-6">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
             New Reservation
           </h2>
           
-          <form className="flex flex-col gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
                 <input 
                   type="text" 
-                  defaultValue="Mohammed Al-Farsi" 
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
                 />
               </div>
@@ -60,15 +107,19 @@ const NewReservationModal = ({ isOpen, onClose }) => {
                 <label className="block text-[11px] text-gray-600 mb-1">Date & Time</label>
                 <input 
                   type="text" 
-                  defaultValue="04/15/2026, 07:30 PM" 
+                  name="Date_time"
+                  value={formData.Date_time}
+                  onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
                 />
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
                 <input 
-                  type="text" 
-                  defaultValue="4" 
+                  type="number" 
+                  name="people_count"
+                  value={formData.people_count}
+                  onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
                 />
               </div>
@@ -77,21 +128,29 @@ const NewReservationModal = ({ isOpen, onClose }) => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
-                <select className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 bg-white">
-                  <option>Table 2 - Available</option>
+                <select 
+                  name="Table_id"
+                  value={formData.Table_id}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 bg-white"
+                >
+                  <option value={2}>Table 2 - Available</option>
+                  <option value={5}>Table 5 - Available</option>
+                  <option value={7}>Table 7 - Available</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Notes</label>
                 <input 
                   type="text" 
-                  defaultValue="Allergies: nuts" 
+                  name="Notes"
+                  value={formData.Notes}
+                  onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
                 />
               </div>
             </div>
 
-            {/* Modal Action Buttons */}
             <div className="flex gap-3 mt-4">
               <button 
                 type="button" 
@@ -101,10 +160,11 @@ const NewReservationModal = ({ isOpen, onClose }) => {
                 Cancel
               </button>
               <button 
-                type="button" 
-                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity"
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                Confirm Reservation
+                {isSubmitting ? 'Confirming...' : 'Confirm Reservation'}
               </button>
             </div>
           </form>
@@ -118,6 +178,18 @@ const NewReservationModal = ({ isOpen, onClose }) => {
 // --- Main Page Component ---
 export default function ReservationPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { data: reservations = [], isLoading } = useGetReservationsQuery();
+  const [createReservation, { isLoading: isCreating }] = useCreateReservationMutation();
+
+  const handleCreateReservation = async (data: CreateReservationPayload) => {
+    try {
+      await createReservation(data).unwrap();
+      setIsModalOpen(false); 
+    } catch (error) {
+      console.error("Failed to create reservation", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white p-8 font-sans text-gray-800 relative">
@@ -142,52 +214,53 @@ export default function ReservationPage() {
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               Reservation Queue
             </h2>
-            <div className="flex flex-col gap-3">
+            
+            {/* ADDED SCROLL: max-h-[500px], overflow-y-auto, and pr-2 for scrollbar spacing */}
+            <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-2">
               
-              {/* Queue Item 1 - Selected */}
-              <div className="border-2 border-red-400 rounded-lg p-4 bg-white shadow-sm relative">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold text-gray-900">Al-Mansoori - 4 guests</h3>
-                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded border border-orange-200 font-medium">Upcoming</span>
-                </div>
-                <p className="text-sm text-gray-500">Today 7:00 PM - Table 5 - Window seat requested</p>
-              </div>
+              {isLoading && (
+                <p className="text-sm text-gray-500">Loading reservations...</p>
+              )}
 
-              {/* Queue Item 2 */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm relative">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold text-gray-900">Birthday party - 8 guests</h3>
-                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded border border-orange-200 font-medium">Upcoming</span>
-                </div>
-                <p className="text-sm text-gray-500">Today 8:00 PM - Table 7 - Cake & decoration</p>
-              </div>
+              {!isLoading && reservations.length === 0 && (
+                <p className="text-sm text-gray-500">No reservations found.</p>
+              )}
 
-              {/* Queue Item 3 */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm relative">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold text-gray-900">Johnson Group - 12 guests</h3>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-200 font-medium">Tomorrow</span>
+              {reservations.map((res, index) => (
+                <div 
+                  key={res._id} 
+                  className={`${index === 0 ? 'border-2 border-red-400' : 'border border-gray-200'} rounded-lg p-4 bg-white shadow-sm relative shrink-0`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {res.customer_name || res.title} - {res.people_count} guests
+                    </h3>
+                    <span className={`text-xs px-2 py-1 rounded border font-medium ${
+                      res.PaymentStatus === 'Paid' 
+                        ? 'bg-green-100 text-green-700 border-green-200' 
+                        : 'bg-orange-100 text-orange-700 border-orange-200'
+                    }`}>
+                      {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {new Date(res.Date_time).toLocaleString('en-US', { 
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+                    })} - Table {res.Table_id} 
+                    {res.Notes && ` - ${res.Notes}`}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500">Apr 15, 12:30 PM - Private room</p>
-              </div>
-
-              {/* Queue Item 4 */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm relative">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold text-gray-900">Johnson Group - 12 guests</h3>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 font-medium">Confirmed</span>
-                </div>
-              </div>
+              ))}
             </div>
           </section>
 
-          {/* Bottom Section (Inline Form as shown in first screenshot) */}
+          {/* Bottom Section (Inline Form) */}
           <section className="border-2 border-red-400 rounded-xl p-6 bg-white">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               New Reservation
             </h2>
             
-            <form className="flex flex-col gap-4">
+            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setIsModalOpen(true); }}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Guest Name</label>
@@ -234,7 +307,7 @@ export default function ReservationPage() {
                 </div>
               </div>
 
-              <button type="button" className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-700 text-white py-3 rounded-md font-medium shadow-sm hover:opacity-90 transition-opacity">
+              <button type="button" onClick={() => setIsModalOpen(true)} className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-700 text-white py-3 rounded-md font-medium shadow-sm hover:opacity-90 transition-opacity">
                 Confirm Reservation
               </button>
             </form>
@@ -306,10 +379,11 @@ export default function ReservationPage() {
         </div>
       </div>
 
-      {/* Render the Modal conditionally */}
       <NewReservationModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+        onSubmit={handleCreateReservation}
+        isSubmitting={isCreating}
       />
     </div>
   );

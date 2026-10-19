@@ -1,14 +1,14 @@
+// src/pages/Setting/AddResponseModal.tsx
 import React, { useRef, useState } from 'react';
 import uploadIcon from '@/assets/setting/upload.svg';
 
 interface AddResponseFormProps {
   onClose: () => void;
-  onSubmit: (data: { /*subject: string;*/ message: string; images: File[] }) => void;
+  onSubmit: (data: { message: string; images: File[] }) => void;
   ticketId?: string;
 }
 
 const AddResponseForm: React.FC<AddResponseFormProps> = ({ onClose, onSubmit }) => {
-  // const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,8 +21,9 @@ const AddResponseForm: React.FC<AddResponseFormProps> = ({ onClose, onSubmit }) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ /*subject,*/ message, images });
-    // setSubject('');
+    if (!message.trim()) return;
+    
+    onSubmit({ message, images });
     setMessage('');
     setImages([]);
     onClose();
@@ -32,20 +33,25 @@ const AddResponseForm: React.FC<AddResponseFormProps> = ({ onClose, onSubmit }) 
     <div className="w-full max-w-2xl ml-auto">
       {/* Header */}
       <div className="mb-8">
-        <span className="text-[#00000099] font-bold text-2xl cursor-pointer">All Ticket </span>
-        <span className="text-black font-bold text-2xl">  &gt; Add Response</span>
+        <span className="text-[#00000099] font-bold text-2xl cursor-pointer" onClick={onClose}>
+          All Ticket{" "}
+        </span>
+        <span className="text-black font-bold text-2xl">&gt; Add Response</span>
       </div>
+      
       {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
           <label className="block font-semibold mb-2">Add Response</label>
           <textarea
             className="w-full border rounded-md px-4 py-3 min-h-[120px] text-black placeholder-black focus:outline-none"
-            placeholder={"Explain here..."}
+            placeholder="Explain here..."
             value={message}
-            onChange={e => setMessage(e.target.value)}
+            onChange={(e) => setMessage(e.target.value)}
+            required
           />
         </div>
+        
         <div className="mb-8">
           <label className="block font-semibold mb-2">Images Uploaded</label>
           <div className="flex items-center gap-2">
@@ -76,18 +82,20 @@ const AddResponseForm: React.FC<AddResponseFormProps> = ({ onClose, onSubmit }) 
             )}
           </div>
         </div>
+
         <div className="flex justify-center mt-8">
           <button
             type="submit"
-            className="px-12 py-2 rounded-lg font-semibold text-white text-lg bg-gradient-to-r from-[#D32F2F] to-[#6A1B9A] shadow"
+            className="px-12 py-2 rounded-lg font-semibold text-white text-lg bg-gradient-to-r from-[#D32F2F] to-[#6A1B9A] shadow hover:opacity-90"
           >
             Submit Response
           </button>
         </div>
+        
         <div className="flex justify-center mt-4">
           <button
             type="button"
-            className="text-[#6A1B9A]  font-semibold"
+            className="text-[#6A1B9A] font-semibold hover:underline"
             onClick={onClose}
           >
             Cancel
@@ -98,4 +106,4 @@ const AddResponseForm: React.FC<AddResponseFormProps> = ({ onClose, onSubmit }) 
   );
 };
 
-export default AddResponseForm; 
+export default AddResponseForm;

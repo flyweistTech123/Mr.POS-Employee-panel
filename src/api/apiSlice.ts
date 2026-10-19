@@ -172,7 +172,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Employee', 'ChatList', 'ChatDetails', 'Dashboard'],
+  tagTypes: ['User', 'Employee', 'ChatList', 'ChatDetails', 'Dashboard','Reservations'],
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({

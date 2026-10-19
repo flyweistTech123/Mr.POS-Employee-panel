@@ -4,7 +4,7 @@ import { ProfileMobile } from './ProfileMobile';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 import { useNavigate } from 'react-router-dom';
-import { useGetUserByAuthQuery } from '@/redux/api/userApi';
+import { useGetProfileQuery } from '@/redux/api/settingsApi';
 import Loader from '@/components/Loader';
 
 const Profile: React.FC = () => {
@@ -12,12 +12,14 @@ const Profile: React.FC = () => {
   const { settingsHighlight, setSettingsHighlight } = useWalkthroughStore();
   const navigate = useNavigate();
   
-  const { data: userResponse, isLoading, isError } = useGetUserByAuthQuery();
+  // Fetch the data from the API
+  const { data: profileResponse, isLoading, isError } = useGetProfileQuery();
 
+  // Handle walkthrough transition
   useEffect(() => {
     if (settingsHighlight === 'profile') {
       const timer = setTimeout(() => {
-        setSettingsHighlight('notifications');
+        setSettingsHighlight('notifications-reset');
         navigate('/settings');
       }, 3000);
       return () => clearTimeout(timer);
@@ -31,11 +33,46 @@ const Profile: React.FC = () => {
     return <Loader />;
   }
 
-  if (isError) {
-    return  'Failed to load user profile'
+  if (isError || !profileResponse?.data) {
+    return (
+      <div className="p-8 text-red-500 text-center font-semibold">
+        Failed to load user profile. Please try again.
+      </div>
+    );
   }
 
-  const user = userResponse?.data;
+  const rawUser = profileResponse.data;
+
+  // 👇 MAPPING ALL FIELDS
+  const mappedUser = {
+    _id: rawUser._id,
+    Name: rawUser.full_name || `${rawUser.first_name} ${rawUser.last_name}`,
+    Employee_id: rawUser.employee_id_code || rawUser.employee_login_code,
+    email: rawUser.email,
+    phone: rawUser.phone,
+    user_image: rawUser.profile_image?.includes('example.com') 
+      ? `https://ui-avatars.com/api/?name=${encodeURIComponent(rawUser.full_name || 'User')}&background=random` 
+      : rawUser.profile_image,
+    OnboardingDate: new Date(rawUser.onboarding_date).toLocaleDateString('en-GB', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }), // Returns DD/MM/YYYY to match screenshot
+    yearsWithus: rawUser.experience_years || 0,
+
+    // Add missing fields for the UI
+    shift_timings: rawUser.shift_timings || 'N/A',
+    total_leave_days: rawUser.total_leave_days || 0,
+    leave_left_days: rawUser.leave_left_days || 0,
+
+    // Map flat strings to the nested objects the UI expects
+    Role_id: {
+      Role_id: 1,
+      role_name: rawUser.role || 'Employee',
+    },
+    Responsibility_id: {
+      Responsibility_id: 1,
+      Responsibility_name: rawUser.responsibility || 'N/A',
+    },
+  };
 
   return (
     <div 
@@ -53,13 +90,13 @@ const Profile: React.FC = () => {
         <ProfileMobile 
           forceSecurityTab={forceSecurityTab} 
           forceWorkTab={forceWorkTab}
-          user={user}
+          user={mappedUser as any}
         />
       ) : (
         <ProfileDesktop 
           forceSecurityTab={forceSecurityTab} 
           forceWorkTab={forceWorkTab}
-          user={user}
+          user={mappedUser as any}
         />
       )}
     </div>

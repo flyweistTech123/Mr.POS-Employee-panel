@@ -1,7 +1,16 @@
-// src/redux/store.ts (or wherever your store lives)
+// src/redux/store.ts
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
 import sessionStorage from 'redux-persist/lib/storage/session';
 
 import { apiSlice } from './api/apiSlice';
@@ -9,7 +18,11 @@ import authReducer from './slice/authSlice';
 import { orderHistoryApi } from './api/orderHistoryApi';
 import { quickOrderApi } from './api/quickOrderSlice';
 import { userApi } from './api/userApi';
-import chatReducer from './slice/chatSlice'; // <-- IMPORT THE SLICE
+import chatReducer from './slice/chatSlice';
+
+// 👇 Side-effect import: runs the file to inject endpoints into apiSlice,
+// but does NOT import the settingsApi variable itself.
+import './api/settingsApi';
 
 const persistConfig = {
   key: 'root',
@@ -23,7 +36,7 @@ const rootReducer = combineReducers({
   [quickOrderApi.reducerPath]: quickOrderApi.reducer,
   [userApi.reducerPath]: userApi.reducer,
   auth: authReducer,
-  chat: chatReducer, // <-- ADD IT TO THE ROOT REDUCER
+  chat: chatReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -40,7 +53,6 @@ export const store = configureStore({
       orderHistoryApi.middleware,
       quickOrderApi.middleware,
       userApi.middleware,
-      // ❌ REMOVE chatApi.middleware (You don't need it for Thunks)
     ),
 });
 

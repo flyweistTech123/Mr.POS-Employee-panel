@@ -1,63 +1,43 @@
-import React from "react";
-import mailIcon from "@/assets/setting/Mail.svg";
+// src/pages/Setting/ContactSupport.tsx
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import mailIcon from "@/assets/setting/Mail.svg";
 import FAQAccordion from "./FAQAccordion";
 import { useWalkthroughStore } from "@/store/walkthroughStore";
 import { profileTrainingSteps } from "@/walkthrough/steps";
+import { apiSlice } from "@/redux/api/apiSlice"; // Or create a separate FAQ API hook
 
-const FAQ_DATA = [
+// Note: If you have an FAQ RTK Query endpoint, use it here. 
+// For now, we'll mock the structure based on your API response.
+const FALLBACK_FAQ_DATA = [
   {
-    heading: "Orders & Reservations",
+    heading: "General",
     items: [
       {
         id: 1,
-        question:
-          "I don't need a brand strategist but I need help executing an upcoming campaign. Can we still work together?",
-        answer:
-          "Yes, we can work together on your campaign even if you don't need a brand strategist.",
-      },
-      {
-        id: 2,
-        question:
-          "I don't need a brand strategist but I need help executing an upcoming campaign. Can we still work together?",
-        answer:
-          "Yes, we can work together on your campaign even if you don't need a brand strategist.",
+        question: "How do I create a support ticket?",
+        answer: "Click the 'Create Ticket' button on this page and fill out the form.",
       },
     ],
-  },
-  {
-    heading: "Invoices & Feed Backs",
-    items: [
-      {
-        id: 3,
-        question:
-          "I don't need a brand strategist but I need help executing an upcoming campaign. Can we still work together?",
-        answer:
-          "Yes, we can work together on your campaign even if you don't need a brand strategist.",
-      },
-      {
-        id: 4,
-        question:
-          "I don't need a brand strategist but I need help executing an upcoming campaign. Can we still work together?",
-        answer:
-          "Yes, we can work together on your campaign even if you don't need a brand strategist.",
-      },
-    ],
-  },
+  }
 ];
 
 const ContactSupport: React.FC = () => {
   const navigate = useNavigate();
   const { settingsHighlight, setSettingsHighlight, startTraining } = useWalkthroughStore();
+  const [faqs, setFaqs] = useState<any[]>(FALLBACK_FAQ_DATA);
 
-  React.useEffect(() => {
+  // If you have a FAQ endpoint, fetch it here. 
+  // For now, we just use the static fallback or the empty API response.
+
+  useEffect(() => {
     if (settingsHighlight === "contact-support") {
       const timer = setTimeout(() => {
         setSettingsHighlight("");
         navigate("/");
         setTimeout(() => {
           startTraining("profile", profileTrainingSteps);
-        }, 500); // slight delay to ensure navigation
+        }, 500);
       }, 2000);
       return () => clearTimeout(timer);
     }
@@ -73,10 +53,11 @@ const ContactSupport: React.FC = () => {
         >
           Settings{" "}
         </span>
-        <span className="text-black font-bold  text-[32px]">
+        <span className="text-black font-bold text-[32px]">
           &gt; Contact Support
         </span>
       </div>
+
       {/* Main Content */}
       <div className="flex flex-col gap-8 contact-support-highlight">
         {/* Need Help Card */}
@@ -99,28 +80,31 @@ const ContactSupport: React.FC = () => {
             </div>
           </div>
         </div>
+
         {/* Support Ticket Card */}
         <div className="flex-1 max-w-[420px] border border-[#00000099] rounded-3xl p-6 flex flex-col items-center">
           <div className="font-bold text-2xl mb-6">Support Ticket</div>
           <button
-            className="w-full max-w-xs py-2 rounded-lg font-semibold text-white text-base mb-6 bg-gradient-to-t from-[#D32F2F] to-[#6A1B9A] shadow"
+            className="w-full max-w-xs py-2 rounded-lg font-semibold text-white text-base mb-6 bg-gradient-to-t from-[#D32F2F] to-[#6A1B9A] shadow hover:opacity-90"
             onClick={() => navigate("/settings/create-ticket")}
           >
             Create Ticket
           </button>
-          <div className=" gradient-border ">
-            <button className="w-[320px] max-w-xs rounded-lg font-semibold  gradient-border-inner bg-white"
-                        onClick={() => navigate("/settings/tickets")}
-
+          <div className="gradient-border">
+            <button
+              className="w-[320px] max-w-xs rounded-lg font-semibold gradient-border-inner bg-white hover:bg-gray-50 transition-colors"
+              onClick={() => navigate("/settings/tickets")}
             >
               View Raised Ticket
             </button>
           </div>
         </div>
+
         {/* FAQ Section */}
         <div className="mt-12">
           <div className="text-3xl font-bold mb-8">FAQ's</div>
-          <FAQAccordion sections={FAQ_DATA} />
+          {/* You can replace FALLBACK_FAQ_DATA with actual API data */}
+          <FAQAccordion sections={faqs} />
         </div>
       </div>
     </div>

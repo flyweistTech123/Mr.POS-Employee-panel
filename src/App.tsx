@@ -9,7 +9,7 @@ import { WalkthroughController } from "./components/WalkthroughController";
 import { useWalkthroughStore } from "@/store/walkthroughStore";
 // import { HTML5toTouch } from 'react-dnd-multi-backend';
 // import MultiBackend from 'react-dnd-multi-backend';
-
+import { Toaster } from 'react-hot-toast';
 const HTML5toTouchWithAutoScroll = {
   backends: [
     {
@@ -31,6 +31,7 @@ function App() {
   const trainingInstanceId = useWalkthroughStore((s) => s.trainingInstanceId);
   return (
     <BrowserRouter>
+     <Toaster position="top-right" reverseOrder={false} />
       <DndProvider options={HTML5toTouchWithAutoScroll}>
         <WalkthroughController key={trainingInstanceId} />
       <IndexRoutes />

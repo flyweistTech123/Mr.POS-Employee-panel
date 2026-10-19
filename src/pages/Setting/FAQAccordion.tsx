@@ -1,3 +1,4 @@
+// src/pages/Setting/FAQAccordion.tsx
 import React, { useState } from 'react';
 
 interface FAQItem {
@@ -13,11 +14,13 @@ interface FAQSection {
 
 const FAQAccordion: React.FC<{ sections: FAQSection[] }> = ({ sections }) => {
   const [openIds, setOpenIds] = useState<number[]>([]);
+  
   const toggleAccordion = (id: number) => {
     setOpenIds((prev) =>
       prev.includes(id) ? prev.filter((openId) => openId !== id) : [...prev, id]
     );
   };
+
   return (
     <div className="w-full">
       {sections.map((section) => (
@@ -32,9 +35,7 @@ const FAQAccordion: React.FC<{ sections: FAQSection[] }> = ({ sections }) => {
                   className="flex flex-col"
                   style={isOpen ? { background: '#F8EAEE' } : { background: '#F9F9F9' }}
                 >
-                  <div
-                    className={`flex items-center px-8 py-6 rounded-md transition cursor-pointer`}
-                  >
+                  <div className={`flex items-center px-8 py-6 rounded-md transition cursor-pointer`}>
                     <div className="flex items-center gap-6 w-full">
                       <div className="text-3xl font-bold text-[#9D96A8] w-12 text-center select-none">
                         {String(idx + 1).padStart(2, '0')}
@@ -43,7 +44,7 @@ const FAQAccordion: React.FC<{ sections: FAQSection[] }> = ({ sections }) => {
                         {item.question}
                       </div>
                       <button
-                        className={`w-10 h-10 flex items-center font-extralight justify-center rounded-full ${!isOpen ? 'bg-[#F8EAEE]' : 'bg-white'} text-2xl font-bold  focus:outline-none transition-colors`}
+                        className={`w-10 h-10 flex items-center font-extralight justify-center rounded-full ${!isOpen ? 'bg-[#F8EAEE]' : 'bg-white'} text-2xl font-bold focus:outline-none transition-colors`}
                         tabIndex={-1}
                         type="button"
                         onClick={() => toggleAccordion(item.id)}
@@ -75,4 +76,4 @@ const FAQAccordion: React.FC<{ sections: FAQSection[] }> = ({ sections }) => {
   );
 };
 
-export default FAQAccordion; 
+export default FAQAccordion;

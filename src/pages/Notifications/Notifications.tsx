@@ -1,26 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useUserStore } from "@/store/zustandStores";
 import userAvatar from "@/assets/profile/user.svg";
-import { getCurrentEmployeeNotifications } from "@/api/employeeApi";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import backIcon from "@/assets/back.svg"; // Adjust path if needed
-// import notificationIcon from "@/assets/profile/notification_light.svg"; // Adjust path if needed
+import backIcon from "@/assets/back.svg";
 import { useNavigate } from "react-router-dom";
-// import { useWalkthroughStore } from '@/store/walkthroughStore';
+import { useGetNotificationsQuery } from "@/redux/api/settingsApi";
+import Loader from "@/components/Loader";
+import toast from "react-hot-toast";
+import { useWalkthroughStore } from "@/store/walkthroughStore";
 
 function formatTime(dateStr: string) {
+  if (!dateStr) return "";
   const date = new Date(dateStr);
   let hours = date.getHours();
   const minutes = date.getMinutes();
   const ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
+  hours = hours ? hours : 12;
   const minutesStr = minutes < 10 ? "0" + minutes : minutes;
   return `${hours}:${minutesStr} ${ampm}`;
 }
 
 function getNotificationGroup(dateStr: string) {
+  if (!dateStr) return null;
   const now = new Date();
   const date = new Date(dateStr);
   const isToday =
@@ -48,12 +50,12 @@ function getNotificationGroup(dateStr: string) {
 function groupNotifications(notifications: any[]) {
   const groups: { [key: string]: any[] } = {};
   notifications.forEach((notif) => {
-    const group = getNotificationGroup(notif.createdAt);
+    const group = getNotificationGroup(notif.createdAt || notif.CreateAt); // Fallback if API uses CreateAt
     if (!group) return;
     if (!groups[group]) groups[group] = [];
     groups[group].push(notif);
   });
-  // Only include groups that have notifications, in the correct order
+  
   const order = [
     "Today",
     "Yesterday",
@@ -63,47 +65,48 @@ function groupNotifications(notifications: any[]) {
     "a week ago",
     "a month ago",
   ];
+  
   return order
     .filter((g) => groups[g])
     .map((g) => ({ group: g, notifications: groups[g] }));
 }
 
 const NotificationList: React.FC = () => {
-  const fetchUserNotifications = useUserStore((s) => s.fetchUserNotifications);
-  const markNotificationAsRead = useUserStore((s) => s.markNotificationAsRead);
-  type Notification = Awaited<
-    ReturnType<typeof getCurrentEmployeeNotifications>
-  >[number];
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  // 👈 Use RTK Query instead of Zustand
+  const { data: response, isLoading, isError } = useGetNotificationsQuery({ limit: 50 });
+  
   const isMobile = useMediaQuery("(max-width: 640px)");
   const navigate = useNavigate();
-  // const { settingsHighlight, setSettingsHighlight } = useWalkthroughStore();
+  const { settingsHighlight, setSettingsHighlight } = useWalkthroughStore();
 
+  // Walkthrough logic
   useEffect(() => {
-    fetchUserNotifications().then((data) => {
-      setNotifications(data as Notification[]);
-      setLoading(false);
-    });
-  }, [fetchUserNotifications]);
+    if (settingsHighlight === 'notifications') {
+      const timer = setTimeout(() => {
+        setSettingsHighlight('notifications-reset');
+        navigate('/settings');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [settingsHighlight, setSettingsHighlight, navigate]);
 
-  // useEffect(() => {
-  //   if (settingsHighlight === 'notifications') {
-  //     const timer = setTimeout(() => {
-  //       setSettingsHighlight('notifications-reset');
-  //       navigate('/settings');
-  //     }, 3000);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [settingsHighlight, setSettingsHighlight, navigate]);
+  // Handle API Error
+  useEffect(() => {
+    if (isError) {
+      toast.error("Failed to load notifications.");
+    }
+  }, [isError]);
 
   const onBack = () => {
     navigate(-1);
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (isLoading) return <div className="p-8 flex justify-center"><Loader /></div>;
 
+  const notifications = response?.data || [];
+
+  // Since we don't have a backend endpoint to mark as read, 
+  // we can handle "isRead" locally if needed, or just omit it.
   const grouped = groupNotifications(notifications);
 
   return (
@@ -128,78 +131,79 @@ const NotificationList: React.FC = () => {
                 Notifications
               </span>
             </div>
-            {/* <img
-              src={notificationIcon}
-              alt="notif"
-              className="w-8 h-8"
-              onClick={() => navigate("/notifications")}
-            /> */}
           </div>
         </div>
       ) : (
         <h1 className="text-2xl font-bold mb-8">Notifications</h1>
       )}
+
       <div
         className={
           isMobile ? "flex flex-col gap-2 p-4 pt-2 pb-4" : "flex flex-col gap-6"
         }
       >
-        {grouped.map(({ group, notifications }) => (
-          <React.Fragment key={group}>
-            <div className="text-lg font-bold text-gray-800 mt-6 mb-2 ">
-              {group}
-            </div>
-            {notifications.map((notif) => {
-              const timeLabel =
-                group === "Today" ? formatTime(notif.createdAt) : group;
-              return (
-                <div
-                  key={notif.id}
-                  className={
-                    isMobile
-                      ? "flex items-start gap-3  rounded-lg shadow  py-2 px-1 cursor-pointer "
-                      : "flex items-start gap-4 bg-white rounded-xl shadow-md px-6 py-4 cursor-pointer hover:shadow-lg transition-all"
-                  }
-                  style={{ opacity: notif.isRead ? 0.6 : 1 }}
-                  onClick={() => markNotificationAsRead(notif.id)}
-                >
-                  <img
-                    src={userAvatar}
-                    alt="avatar"
+        {grouped.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">
+            No notifications found.
+          </div>
+        ) : (
+          grouped.map(({ group, notifications }) => (
+            <React.Fragment key={group}>
+              <div className="text-lg font-bold text-gray-800 mt-6 mb-2 ">
+                {group}
+              </div>
+              {notifications.map((notif) => {
+                const timeLabel =
+                  group === "Today" ? formatTime(notif.createdAt || notif.CreateAt) : group;
+                return (
+                  <div
+                    key={notif.id || notif._id}
                     className={
                       isMobile
-                        ? "w-8 h-8 rounded-full object-cover mt-1"
-                        : "w-12 h-12 rounded-full object-cover mt-1"
+                        ? "flex items-start gap-3 rounded-lg shadow py-2 px-1 cursor-pointer"
+                        : "flex items-start gap-4 bg-white rounded-xl shadow-md px-6 py-4 cursor-pointer hover:shadow-lg transition-all"
                     }
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div
+                    // Removing opacity logic since we don't have markAsRead API
+                    style={{ opacity: notif.isRead ? 0.6 : 1 }}
+                  >
+                    <img
+                      src={notif.image || userAvatar}
+                      alt="avatar"
                       className={
                         isMobile
-                          ? "flex items-center gap-2 text-sm"
-                          : "flex flex-wrap items-center gap-2 text-base"
+                          ? "w-8 h-8 rounded-full object-cover mt-1"
+                          : "w-12 h-12 rounded-full object-cover mt-1"
                       }
-                    >
-                      <span className="font-semibold text-black">
-                        {notif.title}
-                      </span>
-                    </div>
-                    <div
-                      className={
-                        isMobile ? "text-xs text-gray-600" : "text-gray-600"
-                      }
-                    >
-                      {notif.message}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {timeLabel}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className={
+                          isMobile
+                            ? "flex items-center gap-2 text-sm"
+                            : "flex flex-wrap items-center gap-2 text-base"
+                        }
+                      >
+                        <span className="font-semibold text-black">
+                          {notif.title || notif.Title || "Notification"}
+                        </span>
+                      </div>
+                      <div
+                        className={
+                          isMobile ? "text-xs text-gray-600" : "text-gray-600"
+                        }
+                      >
+                        {notif.message || notif.Message || notif.body}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {timeLabel}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </React.Fragment>
-        ))}
+                );
+              })}
+            </React.Fragment>
+          ))
+        )}
       </div>
     </div>
   );

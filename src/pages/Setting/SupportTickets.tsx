@@ -1,57 +1,45 @@
-import React, { useEffect } from "react";
-import { useSupportTicketListStore } from "@/store/zustandStores";
-import ongoingIcon from "@/assets/setting/sms-tracking-gray.svg";
-import ongoingIconLight from "@/assets/setting/sms-tracking.svg";
-
-import resolvedIcon from "@/assets/setting/sms-star.svg";
-import allIcon from "@/assets/setting/all-sms-gray.svg";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useGetSupportTicketsQuery } from "@/redux/api/settingsApi";
+import Loader from "@/components/Loader";
+import ongoingIconLight from "@/assets/setting/sms-tracking.svg";
+import allIcon from "@/assets/setting/all-sms-gray.svg";
+import resolvedIcon from "@/assets/setting/sms-star.svg";
 
 const tabConfig = [
   { key: "all", label: "All Tickets", color: "text-[#007AFF]", icon: allIcon },
-  {
-    key: "ongoing",
-    label: "On-Going",
-    color: "text-[#F8A534]",
-    icon: ongoingIcon,
-  },
-  {
-    key: "resolved",
-    label: "Resolved",
-    color: "text-[#34C759]",
-    icon: resolvedIcon,
-  },
+  { key: "ongoing", label: "On-Going", color: "text-[#F8A534]", icon: ongoingIconLight },
+  { key: "resolved", label: "Resolved", color: "text-[#34C759]", icon: resolvedIcon },
 ];
 
-const statusColor = {
-  ongoing: "bg-[#F8A534]",
-  resolved: "bg-[#34C759]",
-  all: "bg-[#007AFF]",
-};
-
-const statusBtnColor = {
-  ongoing: "bg-[#F8A534] text-white",
-  resolved: "bg-[#34C759] text-white",
-  all: "bg-[#007AFF] text-white",
-};
-
 const SupportTickets: React.FC = () => {
-  const {
-    tickets,
-    loading,
-    error,
-    filter,
-    period,
-    search,
-    fetchTickets,
-    setFilter,
-    setPeriod,
-    setSearch,
-  } = useSupportTicketListStore();
   const navigate = useNavigate();
-  useEffect(() => {
-    fetchTickets();
-  }, [filter, period, search, fetchTickets]);
+  const { data: response, isLoading, isError } = useGetSupportTicketsQuery();
+  
+  const [filter, setFilter] = useState<"all" | "ongoing" | "resolved">("all");
+  const [search, setSearch] = useState("");
+
+  if (isLoading) return <div className="p-10"><Loader /></div>;
+  if (isError || !response?.data) return <div className="p-10 text-red-500">Failed to load tickets.</div>;
+
+  // Map API data to UI format
+  const tickets = response.data.map((t: any) => ({
+    id: t.support_ticket_id,
+    ticketNumber: t.support_ticket_id,
+    subject: t.SupportTicketType?.name || "Support Request",
+    message: t.question,
+    postedAt: new Date(t.CreateAt).toLocaleDateString(),
+    businessName: t.Customer?.Name || t.CreateBy?.Name || "Unknown",
+    avatar: "https://ui-avatars.com/api/?name=" + (t.Customer?.Name || "U"), // Fallback avatar
+    status: t.Ticket_status === 'Solve' ? 'resolved' : t.Ticket_status === 'Process' ? 'ongoing' : 'all',
+  }));
+
+  // Filtering
+  const filteredTickets = tickets.filter((t: any) => {
+    const matchesFilter = filter === 'all' || t.status === filter;
+    const matchesSearch = t.message.toLowerCase().includes(search.toLowerCase()) || t.businessName.toLowerCase().includes(search.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="p-6 md:p-10 min-h-screen bg-white">
@@ -64,6 +52,7 @@ const SupportTickets: React.FC = () => {
           {tabConfig.find((t) => t.key === filter)?.label || "All Ticket"}
         </span>
       </div>
+
       {/* Search and Filter */}
       <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
         <div className="flex-1">
@@ -75,58 +64,39 @@ const SupportTickets: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div>
-          <select
-            className="border rounded-md px-4 py-2 bg-[#F9F9F9] text-black focus:outline-none"
-            value={period}
-            onChange={(e) =>
-              setPeriod(e.target.value as "week" | "day" | "month")
-            }
-          >
-            <option value="week">This Week</option>
-            <option value="day">Today</option>
-            <option value="month">This Month</option>
-          </select>
-        </div>
       </div>
+
       {/* Tabs */}
       <div className="flex gap-8 mb-8">
         {tabConfig.map((tab) => (
           <button
             key={tab.key}
             className={`flex items-center gap-2 font-semibold text-lg pb-2 transition-all ${
-              filter === tab.key ? `${tab.color} ` : "text-[#BDBDBD] "
+              filter === tab.key ? `${tab.color}` : "text-[#BDBDBD]"
             }`}
-            onClick={() => setFilter(tab.key as "all" | "ongoing" | "resolved")}
+            onClick={() => setFilter(tab.key as any)}
           >
             <img src={tab.icon} alt={tab.label} className="w-5 h-5" />
             {tab.label}
           </button>
         ))}
       </div>
+
       {/* Ticket List */}
       <div className="flex flex-col gap-6">
-        {loading ? (
-          <div className="text-center py-10">Loading tickets...</div>
-        ) : error ? (
-          <div className="text-center text-red-600 py-10">{error}</div>
-        ) : tickets.length === 0 ? (
-          <div className="text-center py-10 text-[#BDBDBD]">
-            No tickets found.
-          </div>
+        {filteredTickets.length === 0 ? (
+          <div className="text-center py-10 text-[#BDBDBD]">No tickets found.</div>
         ) : (
-          tickets.map((ticket) => (
+          filteredTickets.map((ticket: any) => (
             <div
-              key={ticket.ticketNumber}
+              key={ticket.id}
               className="rounded-2xl p-6 bg-gradient-to-br from-[#F8EAEE] via-[#F9F6FB] to-[#F8EAEE] shadow flex flex-col gap-2 relative"
             >
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`w-3 h-3 rounded-full ${
-                      statusColor[ticket.status] || "bg-[#007AFF]"
-                    }`}
-                  ></span>
+                  <span className={`w-3 h-3 rounded-full ${
+                    ticket.status === 'resolved' ? 'bg-[#34C759]' : ticket.status === 'ongoing' ? 'bg-[#F8A534]' : 'bg-[#007AFF]'
+                  }`}></span>
                   <span className="text-black font-medium text-base">
                     Ticket# {ticket.ticketNumber}
                   </span>
@@ -135,39 +105,33 @@ const SupportTickets: React.FC = () => {
                   Posted at {ticket.postedAt}
                 </div>
               </div>
+              
               <div className="font-bold text-lg mb-1">{ticket.subject}</div>
               <div className="text-black/80 text-base mb-2 line-clamp-2">
                 {ticket.message}
               </div>
+              
               <div className="flex items-center gap-2 mt-2">
-                <img
-                  src={ticket.avatar}
-                  alt="avatar"
-                  className="w-7 h-7 rounded-full"
-                />
+                <img src={ticket.avatar} alt="avatar" className="w-7 h-7 rounded-full" />
                 <span className="text-black/80 font-semibold text-base">
                   {ticket.businessName}
                 </span>
                 <span
-                  className="ml-auto text-primary-gradient font-semibold cursor-pointer"
-                  onClick={() => navigate(`/settings/tickets/${ticket?.ticketNumber}`)}
-                  
+                  className="ml-auto text-[#6A1B9A] font-semibold cursor-pointer"
+                  onClick={() => navigate(`/settings/tickets/${ticket.ticketNumber}`)}
                 >
                   Open Ticket
                 </span>
               </div>
+
               <div className="absolute top-6 right-6 flex items-center gap-2">
                 <button
-                  className={`flex items-center gap-2 px-4 py-1 rounded-lg font-semibold ${
-                    statusBtnColor[ticket.status] || "bg-[#007AFF] text-white"
+                  className={`flex items-center gap-2 px-4 py-1 rounded-lg font-semibold text-white ${
+                    ticket.status === 'resolved' ? 'bg-[#34C759]' : ticket.status === 'ongoing' ? 'bg-[#F8A534]' : 'bg-[#007AFF]'
                   }`}
                   style={{ minWidth: 110 }}
                 >
-                  <img
-                    src={ongoingIconLight}
-                    alt="status"
-                    className="w-5 h-5"
-                  />
+                  <img src={ongoingIconLight} alt="status" className="w-5 h-5" />
                   {ticket.status === "resolved" ? "Resolved" : "On-Going"}
                 </button>
               </div>

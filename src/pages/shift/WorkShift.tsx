@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { FiUsers, FiClock, FiRepeat, FiX, FiChevronDown, FiCheckCircle } from 'react-icons/fi';
+import { FiUsers, FiClock, FiRepeat, FiX, FiChevronDown, FiCheckCircle, FiLogOut } from 'react-icons/fi';
 import { 
   useGetShiftDashboardQuery, 
   useRequestShiftSwapMutation, 
-  useRespondToShiftSwapMutation 
-} from '../../redux/api/apiSlice';
+  useRespondToShiftSwapMutation,
+  useClockOutMutation
+} from '../../redux/api/shiftApiSlice'; 
 
 export default function WorkShift() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,24 +18,44 @@ export default function WorkShift() {
   // RTK Query Hooks
   const { data: apiResponse, isLoading, isError } = useGetShiftDashboardQuery();
   const [requestSwap, { isLoading: isRequesting }] = useRequestShiftSwapMutation();
-  const [respondToSwap] = useRespondToShiftSwapMutation();
+  const [respondToSwap, { isLoading: isResponding }] = useRespondToShiftSwapMutation();
+  const [clockOut, { isLoading: isClockingOut }] = useClockOutMutation();
 
   const dashboardData = apiResponse?.data;
+
+  // --- Formatting Helpers for API ISO Dates ---
+  const formatTime = (isoString: string) => {
+    if (!isoString) return '';
+    return new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (isoString: string) => {
+    if (!isoString) return '';
+    return new Date(isoString).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const calculateWorkedTime = (startIso: string) => {
+    if (!startIso) return '0hr 0min';
+    const start = new Date(startIso).getTime();
+    const now = new Date().getTime();
+    const diffMins = Math.floor((now - start) / 60000);
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hrs}hr ${mins}min`;
+  };
 
   const handleRequestSwap = async () => {
     if (!selectedCoworker || !selectedShiftToSwap) {
       alert("Please select a coworker and reason.");
       return;
     }
-
     try {
       await requestSwap({
-        requester_shift_id: selectedShiftToSwap.shift_id || Number(selectedShiftToSwap.id),
+        requester_shift_id: selectedShiftToSwap.id || selectedShiftToSwap.shift_id,
         target_employee_id: Number(selectedCoworker),
         target_shift_id: selectedShiftToSwap.target_shift_id || null,
         reason: reason
       }).unwrap();
-      
       alert('Swap request sent successfully!');
       setIsModalOpen(false);
       setSelectedCoworker('');
@@ -55,6 +76,16 @@ export default function WorkShift() {
     }
   };
 
+  const handleClockOut = async () => {
+    try {
+      await clockOut().unwrap();
+      alert('Clocked out successfully!');
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      alert('Failed to clock out.');
+    }
+  };
+
   const openSwapModal = (shift: any) => {
     setSelectedShiftToSwap(shift);
     setIsModalOpen(true);
@@ -63,7 +94,6 @@ export default function WorkShift() {
   if (isLoading) return <div className="p-8 text-center text-gray-600">Loading shift dashboard...</div>;
   if (isError) return <div className="p-8 text-center text-red-500">Failed to load shift data. Please try again.</div>;
 
-  // Data with fallbacks
   const currentShift = dashboardData?.current_shift || null;
   const upcomingShifts = dashboardData?.upcoming_shifts || [];
   const teamSchedule = dashboardData?.team_schedule || [];
@@ -101,17 +131,21 @@ export default function WorkShift() {
                         <FiCheckCircle /> Shift Active
                       </span>
                       <p className="text-[#555555] mb-1 text-[15px]">
-                        Started: <span className="text-black font-bold">{currentShift.started_at || '09:00 am'}</span>
+                        Started: <span className="text-black font-bold">{formatTime(currentShift.start_at)}</span>
                       </p>
                       <p className="text-[#555555] text-[15px]">
-                        Worked: <span className="text-black font-bold">{currentShift.worked_duration || '0hr 0min'}</span>
+                        Worked: <span className="text-black font-bold">{calculateWorkedTime(currentShift.start_at)}</span>
                       </p>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      <p className="font-bold text-[#333333] text-[13px] mb-1">Today, {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="font-bold text-[#333333] text-[13px] mb-1">{formatDate(currentShift.start_at)}</p>
                       <p className="text-lg font-extrabold text-black mb-3">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                      <button className="bg-gradient-to-r from-[#b12a68] to-[#7a1c7d] text-white font-medium py-2 px-8 rounded-lg shadow-md hover:opacity-90 transition">
-                        Clock In
+                      <button 
+                        onClick={handleClockOut}
+                        disabled={isClockingOut}
+                        className="flex items-center gap-2 bg-gradient-to-r from-[#b12a68] to-[#7a1c7d] text-white font-medium py-2 px-6 rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
+                      >
+                        {isClockingOut ? 'Clocking...' : <><FiLogOut /> Clock Out</>}
                       </button>
                     </div>
                   </div>
@@ -126,13 +160,17 @@ export default function WorkShift() {
               <h2 className="text-xl font-extrabold text-black mb-4">Up Coming Shift</h2>
               
               <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                {upcomingShifts.length > 0 ? upcomingShifts.map((shift, index) => (
+                {upcomingShifts.length > 0 ? upcomingShifts.map((shift: any, index: number) => (
                   <div key={index} className="flex-1 min-w-[30%] shrink-0 snap-start border border-gray-100 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-bold text-gray-800">{shift.day || 'Day'}</h3>
+                    <h3 className="font-bold text-gray-800">
+                      {new Date(shift.start_at).toLocaleDateString('en-US', { weekday: 'long' })}
+                    </h3>
                     <span className="bg-[#fdf2f4] text-[#c9516b] px-3 py-1 rounded-full text-xs font-medium w-fit">
-                      {shift.role || 'Role'}
+                      {shift.role || 'Shift'}
                     </span>
-                    <p className="text-sm text-gray-500">{shift.time || 'Time'}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatTime(shift.start_at)} - {formatTime(shift.end_at)}
+                    </p>
                     <button 
                       onClick={() => openSwapModal(shift)}
                       className="mt-1 w-full border border-[#f8b4c4] text-[#c9516b] font-medium py-1.5 rounded-lg text-sm hover:bg-red-50 transition"
@@ -175,10 +213,10 @@ export default function WorkShift() {
                     </p>
                     
                     <div className="flex gap-4">
-                      <button onClick={() => handleRespondToSwap(req.id, 'rejected')} className="flex-1 border border-[#f8b4c4] text-[#c9516b] font-medium py-2 rounded-lg text-sm hover:bg-red-50 transition">
+                      <button onClick={() => handleRespondToSwap(req.id, 'rejected')} disabled={isResponding} className="flex-1 border border-[#f8b4c4] text-[#c9516b] font-medium py-2 rounded-lg text-sm hover:bg-red-50 transition disabled:opacity-50">
                         Reject
                       </button>
-                      <button onClick={() => handleRespondToSwap(req.id, 'accepted')} className="flex-1 bg-[#2ecc71] text-white font-medium py-2 rounded-lg text-sm hover:bg-green-600 transition shadow-sm">
+                      <button onClick={() => handleRespondToSwap(req.id, 'accepted')} disabled={isResponding} className="flex-1 bg-[#2ecc71] text-white font-medium py-2 rounded-lg text-sm hover:bg-green-600 transition shadow-sm disabled:opacity-50">
                         Accept
                       </button>
                     </div>
@@ -238,10 +276,10 @@ export default function WorkShift() {
                 <p className="font-bold text-sm mb-4">Your Shift</p>
                 <div className="flex justify-between items-center">
                   <p className="text-gray-800 font-medium text-[15px]">
-                    {selectedShiftToSwap?.day} / {selectedShiftToSwap?.time}
+                    {new Date(selectedShiftToSwap?.start_at).toLocaleDateString('en-US', { weekday: 'long' })} / {formatTime(selectedShiftToSwap?.start_at)} - {formatTime(selectedShiftToSwap?.end_at)}
                   </p>
                   <span className="bg-[#fdf2f4] text-[#c9516b] px-4 py-1.5 rounded-full text-xs font-medium">
-                    {selectedShiftToSwap?.role}
+                    {selectedShiftToSwap?.role || 'Shift'}
                   </span>
                 </div>
               </div>
