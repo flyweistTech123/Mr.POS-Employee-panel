@@ -92,7 +92,7 @@ interface LogoutResponse {
   message: string;
 }
 
-/* ---- NEW: Attendance / Dashboard Types ---- */
+/* ---- Attendance / Dashboard Types ---- */
 
 export interface EmployeePerformanceResponse {
   success: boolean;
@@ -142,6 +142,34 @@ export interface DashboardResponse {
   };
 }
 
+/* ---- NEW: Shift Management Types ---- */
+
+export interface ShiftData {
+  current_shift: any | null;
+  upcoming_shifts: any[];
+  team_schedule: any[];
+  incoming_swap_requests: any[];
+  outgoing_swap_requests: any[];
+  coworkers: any[];
+}
+
+export interface ShiftDashboardResponse {
+  success: boolean;
+  data: ShiftData;
+}
+
+export interface SwapRequestArgs {
+  requester_shift_id: number;
+  target_employee_id: number;
+  target_shift_id?: number | null;
+  reason: string;
+}
+
+export interface RespondSwapArgs {
+  swapId: string;
+  status: 'accepted' | 'rejected';
+}
+
 /* ------------------------------------------------------------------ */
 /* Slice                                                              */
 /* ------------------------------------------------------------------ */
@@ -158,8 +186,8 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  // ✅ Added 'Employee' and 'Dashboard' tags for cache invalidation
-  tagTypes: ['User', 'Employee', 'Dashboard'], 
+  // Added 'ShiftDashboard' to the tag types
+  tagTypes: ['User', 'Employee', 'Dashboard', 'ShiftDashboard'], 
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
@@ -269,25 +297,49 @@ export const apiSlice = createApi({
     }),
 
     /* ------------------------------------------------------------------ */
-    /* NEW: Attendance & Dashboard Endpoints                              */
+    /* Attendance & Dashboard Endpoints                                   */
     /* ------------------------------------------------------------------ */
 
-    // Fetch Employee Performance (Used in AttendancePage)
     getEmployeePerformance: builder.query<EmployeePerformanceResponse, string | number>({
       query: (employeeId) => `/api/v1/restaurant/reports/employee-performance/${employeeId}`,
       providesTags: (result, error, id) => [{ type: 'Employee', id }],
     }),
 
-    // Fetch Dashboard Data (Used in main Dashboard)
     getDashboardStats: builder.query<DashboardResponse, void>({
       query: () => '/api/v1/restaurant/reports/dashboard',
       providesTags: ['Dashboard'],
     }),
 
-    // Fetch Dashboard Data with Filters (e.g. this_week)
     getRestaurantDashboard: builder.query<any, { filter: string }>({
       query: ({ filter }) => `/api/v1/restaurant/reports/restaurant-dashboard?filter=${filter}`,
       providesTags: ['Dashboard'],
+    }),
+
+    /* ------------------------------------------------------------------ */
+    /* NEW: Shift Management Endpoints                                    */
+    /* ------------------------------------------------------------------ */
+
+    getShiftDashboard: builder.query<ShiftDashboardResponse, void>({
+      query: () => '/api/v1/employee/shifts/dashboard',
+      providesTags: ['ShiftDashboard'],
+    }),
+
+    requestShiftSwap: builder.mutation<any, SwapRequestArgs>({
+      query: (body) => ({
+        url: '/api/v1/employee/shifts/swap',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['ShiftDashboard'],
+    }),
+
+    respondToShiftSwap: builder.mutation<any, RespondSwapArgs>({
+      query: ({ swapId, status }) => ({
+        url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
+        method: 'PUT',
+        body: { status },
+      }),
+      invalidatesTags: ['ShiftDashboard'],
     }),
   }),
 });
@@ -304,4 +356,8 @@ export const {
   useGetEmployeePerformanceQuery,
   useGetDashboardStatsQuery,
   useGetRestaurantDashboardQuery,
+  // Shift Hooks
+  useGetShiftDashboardQuery,
+  useRequestShiftSwapMutation,
+  useRespondToShiftSwapMutation,
 } = apiSlice;

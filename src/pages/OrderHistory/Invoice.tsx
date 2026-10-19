@@ -1,4 +1,4 @@
-import  { useState } from "react";
+import { useState } from "react";
 import { useOrderStore } from "@/store/zustandStores";
 import printIcon from "@/assets/order/Print.svg";
 import type { Order } from "@/types/order";
@@ -11,7 +11,7 @@ const Invoice = ({ onBack }: { onBack?: () => void }) => {
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
 
   return (
-    <div className="p-8 min-h-screen">
+    <div className="p-8 min-h-screen bg-[#F8F9FB] font-sans">
       <div className="flex items-center justify-between gap-6 mb-8">
         <h1 className="text-2xl font-bold text-gray-700 whitespace-nowrap">
           <span className="cursor-pointer" onClick={onBack}>
@@ -21,34 +21,34 @@ const Invoice = ({ onBack }: { onBack?: () => void }) => {
         </h1>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="bg-[#F1F1F1] p-2 rounded-full">
-              <button
-                className="px-6 py-2 rounded-full font-medium bg-white text-black flex items-center gap-2"
-                onClick={() => setShowDateDropdown((v) => !v)}
-              >
+            <div 
+              className="bg-white border border-gray-200 rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer min-w-[100px] justify-between shadow-sm"
+              onClick={() => setShowDateDropdown((v) => !v)}
+            >
+              <span className="text-[12px] font-semibold text-gray-700">
                 {dateFilter}
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+              </span>
+              <svg
+                className="w-3.5 h-3.5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
             {showDateDropdown && (
-              <div className="absolute -left-4 -mt-14 w-44 bg-white rounded-lg shadow-lg z-10 p-2">
+              <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg z-10 p-1 border border-gray-100">
                 {["Today", "Yesterday", "This week", "This Month"].map(
                   (option) => (
                     <button
                       key={option}
-                      className="block w-full text-left px-4 py-1 hover:bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F]"
+                      className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 rounded text-gray-700 font-medium"
                       onClick={() => {
                         setDateFilter(option);
                         setShowDateDropdown(false);
@@ -65,41 +65,38 @@ const Invoice = ({ onBack }: { onBack?: () => void }) => {
         </div>
       </div>
       <div
-        className="rounded-t-2xl border overflow-x-auto"
+        className="rounded-2xl border overflow-hidden shadow-sm"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(106, 27, 154, 0.1) 0%, rgba(211, 47, 47, 0.1) 100%)",
-          borderColor: "#00000033",
+          background: "#ffffff",
+          borderColor: "#E5E7EB",
         }}
       >
-        <table className="min-w-full text-left">
+        <table className="min-w-full text-left border-collapse">
           <thead>
             <tr
-              className="text-[#00000099] text-base font-semibold px-2 "
-              style={{}}
+              className="text-[#6B7280] text-[12px] uppercase tracking-wider bg-[#F9FAFB]"
             >
-              <th className="py-4 px-4">S no</th>
-              <th className="py-4 px-4">Invoice id</th>
-              <th className="py-4 px-4">Date</th>
-              <th className="py-4 px-4">Order Type</th>
-              <th className="py-4 px-4">Total amount</th>
-              <th className="py-4 px-4">Action</th>
+              <th className="py-4 px-6 font-semibold">S no</th>
+              <th className="py-4 px-6 font-semibold">Invoice id</th>
+              <th className="py-4 px-6 font-semibold">Date</th>
+              <th className="py-4 px-6 font-semibold">Order Type</th>
+              <th className="py-4 px-6 font-semibold">Total amount</th>
+              <th className="py-4 px-6 font-semibold">Action</th>
             </tr>
           </thead>
           <tbody>
             {orders.map((order, idx) => (
               <tr
                 key={order.orderId || idx}
-                className="bg-white border-b  border"
-                style={{ borderColor: "#00000033" }}
+                className="bg-white border-b border-gray-100 hover:bg-gray-50 transition-colors"
               >
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
+                <td className="py-4 px-6 text-[13px] font-medium text-gray-900">
                   {String(idx + 1).padStart(2, "0")}
                 </td>
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
+                <td className="py-4 px-6 text-[13px] font-bold text-gray-900">
                   {order.orderId}
                 </td>
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
+                <td className="py-4 px-6 text-[13px] font-medium text-gray-600">
                   {order?.createdAt
                     ? new Date(order?.createdAt).toLocaleDateString("en-GB", {
                         day: "numeric",
@@ -108,18 +105,22 @@ const Invoice = ({ onBack }: { onBack?: () => void }) => {
                       })
                     : ""}
                 </td>
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
+                <td className="py-4 px-6 text-[13px] font-medium text-gray-600">
                   {order.orderType || "Dine in"}
                 </td>
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
+                <td className="py-4 px-6 text-[13px] font-bold text-gray-900">
                   {order.pricingSummary?.totalAmount?.toLocaleString() || ""}{" "}
                   XOF
                 </td>
-                <td className="py-4 px-4 text-[16px] font-semibold text-black">
-                  <button className="flex items-center gap-1 text-black hover:text-primary-gradient" onClick={() => setPrintOrder(order)}>
+                <td className="py-4 px-6 text-[13px] font-medium">
+                  <button 
+                    className="flex items-center gap-2 text-gray-600 hover:text-[#6A1B9A] font-semibold transition-colors" 
+                    onClick={() => setPrintOrder(order)}
+                  >
                     <img
                       src={printIcon}
                       alt="print"
+                      className="w-4 h-4 opacity-70"
                     />{" "}
                     Print
                   </button>

@@ -15,36 +15,36 @@ export const orderHistoryApi = createApi({
   endpoints: (builder) => ({
     getAllOrderHistory: builder.query<any, any>({
       query: ({ page = 1, limit = 10, search = '', order_status = '', client_mobile_no = '', table_id = '', floor_id = '' }) =>
-        `/api/employee/order_history/getall?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&order_status=${encodeURIComponent(order_status)}&client_mobile_no=${encodeURIComponent(client_mobile_no)}&table_id=${encodeURIComponent(table_id)}&floor_id=${encodeURIComponent(floor_id)}`,
+        `/api/v1/restaurant/pos_order/getall?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&order_status=${encodeURIComponent(order_status)}&client_mobile_no=${encodeURIComponent(client_mobile_no)}&table_id=${encodeURIComponent(table_id)}&floor_id=${encodeURIComponent(floor_id)}`,
       transformResponse: (response: any) => response,
       providesTags: (result) =>
         result
           ? [
-              ...result.data.orders.map((order: any) => ({ type: 'OrderHistory' as const, id: order.order.order_id })),
+              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],
     }),
     getOrderHistoryByDateRange: builder.query<any, any>({
       query: ({ start_date, end_date, page = 1, limit = 10 }) =>
-        `/api/employee/order_history/getbydaterange?start_date=${start_date}&end_date=${end_date}&page=${page}&limit=${limit}`,
+        `/api/v1/restaurant/pos_order/getall?start_date=${start_date}&end_date=${end_date}&page=${page}&limit=${limit}`,
       transformResponse: (response: any) => response,
       providesTags: (result) =>
         result
           ? [
-              ...result.data.orders.map((order: any) => ({ type: 'OrderHistory' as const, id: order.order.order_id })),
+              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],
     }),
     getOrderHistoryByStatus: builder.query<any, any>({
       query: ({ status, page = 1, limit = 10 }) =>
-        `/api/employee/order_history/getbystatus/${encodeURIComponent(status)}?page=${page}&limit=${limit}`,
+        `/api/v1/restaurant/pos_order/getall?order_status=${encodeURIComponent(status)}&page=${page}&limit=${limit}`,
       transformResponse: (response: any) => response,
       providesTags: (result) =>
         result
           ? [
-              ...result.data.orders.map((order: any) => ({ type: 'OrderHistory' as const, id: order.order.order_id })),
+              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],

@@ -1,11 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
-
 export interface AuthUser {
-   id?: string;
+  id?: string;
   email: string;
   name?: string;
   role?: string;
@@ -18,19 +14,11 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
-/* ------------------------------------------------------------------ */
-/* Initial state                                                      */
-/* ------------------------------------------------------------------ */
-
 const initialState: AuthState = {
   token: null,
   user: null,
   isAuthenticated: false,
 };
-
-/* ------------------------------------------------------------------ */
-/* Slice                                                              */
-/* ------------------------------------------------------------------ */
 
 const authSlice = createSlice({
   name: 'auth',
@@ -43,23 +31,16 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.user = action.payload.user;
       state.isAuthenticated = true;
-      // redux-persist handles persistence via the store's persistConfig
     },
-
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
       state.isAuthenticated = true;
     },
-
     setUser: (state, action: PayloadAction<AuthUser | null>) => {
       state.user = action.payload;
     },
-
-    logout: (state) => {
-      state.token = null;
-      state.user = null;
-      state.isAuthenticated = false;
-    },
+    // ✅ Full reset
+    logout: () => initialState,
   },
 });
 
