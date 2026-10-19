@@ -187,7 +187,7 @@ export const apiSlice = createApi({
     },
   }),
   // Added 'ShiftDashboard' to the tag types
-  tagTypes: ['User', 'Employee', 'Dashboard', 'ShiftDashboard', 'Profile', 'WorkSummary', 'Notifications', 'SupportTickets', 'SupportReplies','Reservations'],
+  tagTypes: ['User', 'Employee', 'Dashboard', 'ShiftDashboard', 'Profile', 'WorkSummary', 'Notifications', 'SupportTickets', 'SupportReplies', 'Reservations'],
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
