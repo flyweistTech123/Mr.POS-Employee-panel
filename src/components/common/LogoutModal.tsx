@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface LogoutModalProps {
   isOpen: boolean;
@@ -15,12 +15,20 @@ const LogoutModal: React.FC<LogoutModalProps> = ({
 }) => {
   const [savePassword, setSavePassword] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) setSavePassword(false);
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleBackdropClick = () => {
+    if (!isLoading) onClose();
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
+      onClick={handleBackdropClick}
     >
       <div
         className="relative w-full max-w-xl p-16 bg-white rounded-3xl shadow-lg flex flex-col items-center justify-center"
@@ -35,7 +43,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({
             className={`w-6 h-6 mr-4 rounded-md flex items-center justify-center cursor-pointer border-2 ${
               savePassword ? 'bg-green-500 border-green-500' : 'border-gray-300'
             }`}
-            onClick={() => setSavePassword(!savePassword)}
+            onClick={() => !isLoading && setSavePassword(!savePassword)}
           >
             {savePassword && (
               <svg className="w-4 h-4 text-white fill-current" viewBox="0 0 20 20">
@@ -45,7 +53,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({
           </div>
           <span
             className="text-gray-600 select-none cursor-pointer text-lg"
-            onClick={() => setSavePassword(!savePassword)}
+            onClick={() => !isLoading && setSavePassword(!savePassword)}
           >
             Do you want to save Password
           </span>

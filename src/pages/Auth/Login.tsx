@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   useLoginEmployeeMutation,
   useVerifyEmployeeOtpMutation,
   useResendEmployeeOtpMutation,
 } from '@/api/apiSlice';
-import { setCredentials } from '@/redux/slice/authSlice';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import LeftPanel from '@/components/common/LeftPanel';
 
@@ -21,7 +19,7 @@ import AppleIconImg from '@/assets/auth/apple.svg';
 type Tab = 'Restaurant' | 'Employee' | 'Admin';
 type Step = 'credentials' | 'otp';
 
-const OTP_LENGTH = 8; // backend requires exactly 8 digits
+const OTP_LENGTH = 8;
 
 const extractErrorMessage = (err: any, fallback: string): string => {
   const data = err?.data;
@@ -32,7 +30,6 @@ const extractErrorMessage = (err: any, fallback: string): string => {
   if (Array.isArray(data?.non_field_errors) && data.non_field_errors[0]) {
     return data.non_field_errors[0];
   }
-  // Handle DRF-style { errors: [{ msg, path }] }
   if (Array.isArray(data?.errors) && data.errors[0]?.msg) {
     return data.errors[0].msg;
   }
@@ -68,7 +65,6 @@ const LoginPage: React.FC = () => {
   const [verifyEmployeeOtp] = useVerifyEmployeeOtpMutation();
   const [resendEmployeeOtp] = useResendEmployeeOtpMutation();
 
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 1023px)');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -101,7 +97,6 @@ const LoginPage: React.FC = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  /* STEP 1: submit credentials → request OTP */
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -141,7 +136,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  /* STEP 2: verify OTP → set credentials */
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -155,23 +149,10 @@ const LoginPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const data = await verifyEmployeeOtp({
+      await verifyEmployeeOtp({
         challenge_id: challengeId,
         otp,
       }).unwrap();
-
-      // If you want the slice's onQueryStarted to be the single source of
-      // truth for auth state, remove the next dispatch block. Both work.
-      dispatch(
-  setCredentials({
-    token: data.data.token,
-    user: {
-      ...data.data.user,
-      id: data.data.user._id,
-      name: data.data.user.Name,
-    },
-  }),
-);
 
       toast.success('Login successful!', {
         duration: 4000,
@@ -190,29 +171,37 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  /* Resend OTP */
   const handleResendOtp = async () => {
     if (resendLoading || expiresIn > 0) return;
-    setResendLoading(true);
+    if (!challengeId) {
+      toast.error('Session expired. Please log in again.', {
+        duration: 4000,
+        position: 'top-right',
+      });
+      backToCredentials();
+      return;
+    }
 
+    setResendLoading(true);
     try {
       const result = await resendEmployeeOtp({
-        employee_login_code: employeeId,
-        password,
+        challenge_id: challengeId,
       }).unwrap();
 
-      if (result.data?.requires_otp) {
-        setChallengeId(result.data.challenge_id);
-        setMaskedEmail(result.data.email);
+      if (result.data?.challenge_id) setChallengeId(result.data.challenge_id);
+      if (result.data?.email) setMaskedEmail(result.data.email);
+      if (result.data?.employee_login_code) {
         setEmployeeLoginCode(result.data.employee_login_code);
-        setExpiresIn(result.data.expires_in_seconds);
-        setOtp('');
-
-        toast.success('OTP resent successfully!', {
-          duration: 4000,
-          position: 'top-right',
-        });
       }
+      if (typeof result.data?.expires_in_seconds === 'number') {
+        setExpiresIn(result.data.expires_in_seconds);
+      }
+      setOtp('');
+
+      toast.success(result.message || 'OTP resent successfully!', {
+        duration: 4000,
+        position: 'top-right',
+      });
     } catch (err: any) {
       console.error('Resend OTP error:', err?.status, err?.data, err);
       toast.error(
@@ -224,20 +213,12 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = async (
-    provider: 'facebook' | 'google' | 'apple',
-  ) => {
+  const handleSocialLogin = async (provider: 'facebook' | 'google' | 'apple') => {
     setIsLoading(true);
     try {
-      toast.success(`${provider} login successful!`, {
-        duration: 4000,
-        position: 'top-right',
-      });
+      toast.success(`${provider} login successful!`, { duration: 4000 });
     } catch {
-      toast.error(`An error occurred during ${provider} login.`, {
-        duration: 4000,
-        position: 'top-right',
-      });
+      toast.error(`An error occurred during ${provider} login.`, { duration: 4000 });
     } finally {
       setIsLoading(false);
     }
@@ -265,7 +246,7 @@ const LoginPage: React.FC = () => {
       <div className="flex w-full max-w-sm flex-col rounded-3xl bg-white p-6 shadow-2xl lg:h-screen lg:max-w-none lg:flex-row lg:p-0 lg:shadow-none lg:rounded-none">
         <LeftPanel />
 
-        <div className="w-full lg:w-2/5  lg:p-10 xl:px-20 flex flex-col justify-center">
+        <div className="w-full lg:w-2/5 lg:p-10 xl:px-20 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl lg:text-2xl font-bold">Sign in</h2>
             <img src={TriaxxLogoImg} alt="TRIAXX Logo" className="h-6 lg:h-8" />
@@ -302,14 +283,10 @@ const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* CREDENTIALS STEP */}
           {activeTab === 'Employee' && step === 'credentials' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label
-                  htmlFor="employeeId"
-                  className="block text-sm font-medium mb-1"
-                >
+                <label htmlFor="employeeId" className="block text-sm font-medium mb-1">
                   Employee id
                 </label>
                 <input
@@ -367,10 +344,7 @@ const LoginPage: React.FC = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                 />
-                <label
-                  htmlFor="rememberMe"
-                  className="ml-2 block text-sm text-gray-700"
-                >
+                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
                   Remember me
                 </label>
               </div>
@@ -385,7 +359,6 @@ const LoginPage: React.FC = () => {
             </form>
           )}
 
-          {/* OTP STEP */}
           {activeTab === 'Employee' && step === 'otp' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4 mt-6">
               {employeeLoginCode && (
@@ -405,11 +378,7 @@ const LoginPage: React.FC = () => {
                   autoComplete="one-time-code"
                   maxLength={OTP_LENGTH}
                   value={otp}
-                  onChange={(e) =>
-                    setOtp(
-                      e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH),
-                    )
-                  }
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
                   placeholder={'-'.repeat(OTP_LENGTH)}
                   className="w-full px-4 py-3 text-center tracking-[0.5em] text-lg bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white placeholder-gray-400"
                   required
@@ -450,22 +419,17 @@ const LoginPage: React.FC = () => {
             </form>
           )}
 
-          {/* Other tabs placeholder */}
           {activeTab !== 'Employee' && step === 'credentials' && (
             <div className="text-center py-12 text-gray-500">
               {activeTab} login form will be here.
             </div>
           )}
 
-          {/* Sign up + Social */}
           {activeTab === 'Employee' && step === 'credentials' && (
             <>
               <p className="mt-6 text-sm text-center text-gray-700">
                 Don't have an account?{' '}
-                <a
-                  href="#"
-                  className="font-medium text-[#FF8682] hover:cursor-pointer"
-                >
+                <a href="#" className="font-medium text-[#FF8682] hover:cursor-pointer">
                   Sign up
                 </a>
               </p>

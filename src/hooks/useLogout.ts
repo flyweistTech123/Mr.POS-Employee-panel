@@ -1,73 +1,92 @@
-// src/hooks/useLogout.ts
 import { useCallback, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-
 import type { AppDispatch } from '@/redux/store';
 import { persistor } from '@/redux/store';
-import { logout } from '@/redux/slice/authSlice';
+import { logout as reduxLogout } from '@/redux/slice/authSlice';
+import { useAuthStore } from '@/store/zustandStores'; // 👈 Ensure this matches your Zustand import
+import toast from 'react-hot-toast';
 
+// RTK Query API slices
 import { apiSlice } from '@/redux/api/apiSlice';
 import { orderHistoryApi } from '@/redux/api/orderHistoryApi';
 import { quickOrderApi } from '@/redux/api/quickOrderSlice';
 import { userApi } from '@/redux/api/userApi';
 
-// ⚠️ If you call a /logout endpoint, import your api client here.
-// import api from '@/services/api';
-
 export const useLogout = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
+  const zustandLogout = useAuthStore((state) => state.logout);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(async (savePassword?: boolean) => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
 
     try {
-      // 1) Best-effort server-side invalidation — never block logout on it
-      // try {
-      //   await api.post('/auth/logout');
-      // } catch {
-      //   /* ignore */
-      // }
+      // 1) BLOCK React/Redux from writing tokens back during teardown
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (
+          key === 'token' || 
+          key === 'tokenExp' || 
+          key === 'user' || 
+          key === 'refreshToken' || 
+          key.includes('persist:')
+        ) {
+          return; // Reject the write
+        }
+        return originalSetItem.apply(this, [key, value]);
+      };
 
-      // 2) Clear Redux auth state
-      dispatch(logout());
+      // 2) Clear Zustand (removes 'authToken' cookie)
+      zustandLogout();
 
-      // 3) Reset ALL RTK Query caches (prevents data leak between users)
+      // 3) Clear Redux Auth State & RTK Query Caches
+      dispatch(reduxLogout());
       dispatch(apiSlice.util.resetApiState());
       dispatch(orderHistoryApi.util.resetApiState());
       dispatch(quickOrderApi.util.resetApiState());
       dispatch(userApi.util.resetApiState());
 
-      // 4) Flush + purge persisted storage (sessionStorage)
-      await persistor.flush();
+      // 4) Purge Redux Persist (Awaited so it finishes before redirect)
       await persistor.purge();
 
-      // 5) Clear any stray client-side tokens (in case axios interceptors use them)
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('refreshToken');
-      // Don't call sessionStorage.clear() — redux-persist uses sessionStorage
-
-      // 6) Feedback + redirect (replace: true → no back-button to protected pages)
-      toast.success('Logged out successfully!', {
-        duration: 4000,
-        position: 'top-right',
+      // 5) Wipe Local/Session Storage explicitly
+      const keysToRemove = [
+        'token', 'tokenExp', 'user', 'refreshToken', 
+        'admin_language', 'selectedCurrency', 
+        'persist:root', 'persist:auth'
+      ];
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
       });
 
-      navigate('/login', { replace: true });
+      // 6) Wipe ALL possible auth cookies (covers 'token' from authService and 'authToken' from Zustand)
+      ['token', 'authToken', 'refreshToken'].forEach(cookieName => {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+      });
+
+      // 7) Optional: Save password preference
+      if (savePassword) {
+        localStorage.setItem('rememberedEmail', 'true');
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+
+      // 8) Show Toast & Hard Redirect
+      toast.success('Logged out successfully!', { duration: 1500, position: 'top-right' });
+      
+      setTimeout(() => {
+        // Hard redirect destroys React memory completely
+        window.location.replace('/login');
+      }, 300);
+      
     } catch (err) {
-      toast.error('Logout failed. Please try again.', {
-        position: 'top-right',
-      });
-    } finally {
+      console.error('Logout failed:', err);
+      toast.error('Logout failed. Please try again.');
       setIsLoggingOut(false);
     }
-  }, [dispatch, navigate, isLoggingOut]);
+  }, [dispatch, zustandLogout, isLoggingOut]);
 
   return { handleLogout, isLoggingOut };
 };

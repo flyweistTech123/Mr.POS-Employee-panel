@@ -4,36 +4,27 @@ import Sidebar from "./Sidebar";
 import MobileNavBar from "./MobileNavBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import LogoutModal from "../common/LogoutModal";
-import SignOutSuccessModal from "../common/SignOutSuccessModal";
 import Header from "./Header";
 import MobileLogoutConfirmation from "../common/MobileLogoutConfirmation";
-import MobileLogoutSuccess from "../common/MobileLogoutSuccess";
-import { useAuthStore } from "@/store/zustandStores";
+import { useLogout } from "@/hooks/useLogout"; 
 
 const mobileRoutes = [
-  "/orders",
-  "/table",
-  "/chats",
-  "/profile",
-  "/notifications",
-  "/team-chats",
+  "/orders", "/table", "/chats", "/profile", "/notifications", "/team-chats",
 ];
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 1023px)");
+  
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
-  const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
   const [isMobileConfirmOpen, setMobileConfirmOpen] = useState(false);
-  const [isMobileSuccessOpen, setMobileSuccessOpen] = useState(false);
-  const { logout } = useAuthStore();
+  
+  // 👈 Use the unified logout hook
+  const { handleLogout, isLoggingOut } = useLogout();
 
   useEffect(() => {
-    if (
-      isMobile &&
-      !mobileRoutes.some((route) => location.pathname.startsWith(route))
-    ) {
+    if (isMobile && !mobileRoutes.some((route) => location.pathname.startsWith(route))) {
       navigate("/orders", { replace: true });
     }
   }, [location, isMobile, navigate]);
@@ -43,27 +34,14 @@ const AppLayout: React.FC = () => {
     else setLogoutModalOpen(true);
   };
 
-  const handleCloseLogoutModal = () => setLogoutModalOpen(false);
-
-  const handleConfirmLogout = () => {
+  const onConfirmLogout = async (savePassword: boolean) => {
     setLogoutModalOpen(false);
-    setSuccessModalOpen(true);
-    setTimeout(() => {
-      setSuccessModalOpen(false);
-      logout();
-    }, 2000);
+    await handleLogout(savePassword);
   };
 
-  const handleCloseMobileConfirm = () => setMobileConfirmOpen(false);
-
-  const handleConfirmMobileLogout = () => {
+  const onConfirmMobileLogout = async () => {
     setMobileConfirmOpen(false);
-    setMobileSuccessOpen(true);
-  };
-
-  const handleContinueFromSuccess = () => {
-    setMobileSuccessOpen(false);
-    logout();
+    await handleLogout();
   };
 
   return (
@@ -71,7 +49,6 @@ const AppLayout: React.FC = () => {
       <Sidebar onLogoutClick={handleOpenLogoutModal} />
       <Header />
 
-      {/* Main content: matches sidebar width via padding, not width override */}
       <main className="flex flex-col w-full min-h-0 lg:pt-[88px] lg:pl-[260px]">
         <Outlet />
       </main>
@@ -80,19 +57,15 @@ const AppLayout: React.FC = () => {
 
       <LogoutModal
         isOpen={isLogoutModalOpen}
-        onClose={handleCloseLogoutModal}
-        onConfirm={handleConfirmLogout}
+        onClose={() => !isLoggingOut && setLogoutModalOpen(false)}
+        onConfirm={onConfirmLogout}
+        isLoading={isLoggingOut}
       />
-      <SignOutSuccessModal isOpen={isSuccessModalOpen} />
 
       <MobileLogoutConfirmation
         isOpen={isMobileConfirmOpen}
-        onClose={handleCloseMobileConfirm}
-        onConfirm={handleConfirmMobileLogout}
-      />
-      <MobileLogoutSuccess
-        isOpen={isMobileSuccessOpen}
-        onContinue={handleContinueFromSuccess}
+        onClose={() => !isLoggingOut && setMobileConfirmOpen(false)}
+        onConfirm={onConfirmMobileLogout}
       />
     </div>
   );

@@ -1,13 +1,13 @@
+import api from "./axios";
+
 // src/api/chatApi.ts
-import axios from './axios'; 
+;
 
 export interface ApiMessage {
   id: string;
-  chatId: string;
-  senderId: string;
   text: string;
-  timestamp: string;
-  readBy: string[];
+  senderId: string;
+  createdAt: string;
 }
 
 export interface ApiConversation {
@@ -24,16 +24,24 @@ export interface ApiConversation {
     senderId: string;
     unread: boolean;
   };
+  messages?: ApiMessage[];
 }
 
-export const getConversations = async (params?: { search?: string; type?: string }) => {
-  // ✅ Added the /api/v1/restaurant path
-  const response = await axios.get('/api/v1/restaurant/chat/conversations/getall', { params });
-  return response.data.data; 
+export interface ConversationParams {
+  search?: string;
+  type?: string;
+}
+
+export const getConversations = async (
+  params?: ConversationParams
+): Promise<ApiConversation[]> => {
+  const { data } = await api.get<ApiConversation[]>('/conversations', { params });
+  return data;
 };
 
-export const getConversationById = async (id: string) => {
-  // ✅ Added the /api/v1/restaurant path
-  const response = await axios.get(`/api/v1/restaurant/chat/conversations/getbyid/${id}`);
-  return response.data.data;
+export const getConversationById = async (
+  id: string
+): Promise<ApiConversation> => {
+  const { data } = await api.get<ApiConversation>(`/conversations/${id}`);
+  return data;
 };

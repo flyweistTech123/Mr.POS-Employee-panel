@@ -15,9 +15,6 @@ const extractErrorMessage = (err: any, fallback: string): string => {
   if (typeof data === 'string') return data;
   if (typeof data?.message === 'string') return data.message;
   if (typeof data?.detail === 'string') return data.detail;
-  if (Array.isArray(data?.non_field_errors) && data.non_field_errors[0]) {
-    return data.non_field_errors[0];
-  }
   for (const key of Object.keys(data)) {
     const val = (data as any)[key];
     if (Array.isArray(val) && val[0]) return `${key}: ${val[0]}`;
@@ -43,18 +40,28 @@ const ForgotPasswordPage: React.FC = () => {
     setError(null);
 
     try {
-      const result = await sendOtp({ email }).unwrap();
-      toast.success(result.message || 'OTP sent to your email.', {
+      // 1. Call the API
+      const response = await sendOtp({ email }).unwrap();
+      
+      // 2. Log to console to verify what is received
+      console.log("API Response:", response);
+
+      // 3. Safely grab the message (uses fallback if response.message is missing)
+      const successMessage = response?.message || 'OTP sent successfully to your email address.';
+      
+      // 4. Show the toast
+      toast.success(successMessage, {
         duration: 4000,
         position: 'top-right',
       });
+      
+      // 5. UPDATE STATE TO SHOW SCREEN 2
+      // If this line runs, the screen WILL change.
       setEmailSubmitted(true);
+      
     } catch (err: any) {
-      console.error('Send OTP error:', err?.status, err?.data, err);
-      const msg = extractErrorMessage(
-        err,
-        'Failed to send reset instructions. Please try again.',
-      );
+      console.error('Send OTP Error:', err);
+      const msg = extractErrorMessage(err, 'Failed to send reset instructions. Please try again.');
       setError(msg);
       toast.error(msg, { duration: 5000, position: 'top-right' });
     } finally {
@@ -69,12 +76,11 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       const result = await resendOtp({ email }).unwrap();
-      toast.success(result.message || 'OTP resent successfully.', {
+      toast.success(result?.message || 'OTP resent successfully.', {
         duration: 4000,
         position: 'top-right',
       });
     } catch (err: any) {
-      console.error('Resend OTP error:', err?.status, err?.data, err);
       const msg = extractErrorMessage(err, 'Failed to resend OTP.');
       setError(msg);
       toast.error(msg, { duration: 5000, position: 'top-right' });
@@ -84,6 +90,7 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   const handleNavigateToVerify = () => {
+    // Navigate to Screen 3 and pass the email
     navigate('/verify-otp', { state: { email } });
   };
 
@@ -99,26 +106,20 @@ const ForgotPasswordPage: React.FC = () => {
           </div>
 
           <div className="text-center mb-8">
-            <h3 className="text-2xl lg:text-[32px] font-bold">
-              Forget Password
-            </h3>
+            <h3 className="text-2xl lg:text-[32px] font-bold">Forget Password</h3>
             <p className="text-sm text-[#000000CC] mt-2 font-normal">
               {emailSubmitted
                 ? 'An authentication code has been sent to your email'
                 : 'We will send you instructions for reset in registered email'}
             </p>
-            {emailSubmitted && (
-              <p className="font-bold text-sm text-black mt-1">{email}</p>
-            )}
+            {emailSubmitted && <p className="font-bold text-sm text-black mt-1">{email}</p>}
           </div>
 
+          {/* Conditionally render Screen 1 or Screen 2 based on emailSubmitted state */}
           {!emailSubmitted ? (
             <form onSubmit={handleResetRequest} className="space-y-6">
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium mb-1"
-                >
+                <label htmlFor="email" className="block text-sm font-medium mb-1">
                   Email
                 </label>
                 <input
@@ -132,23 +133,19 @@ const ForgotPasswordPage: React.FC = () => {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-red-600 text-center">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 disabled:opacity-70 mt-4"
               >
-                {isLoading ? 'Sending...' : 'Submit'}
+                {isLoading ? 'Sending...' : 'Reset Password'}
               </button>
             </form>
           ) : (
             <div className="mt-6 space-y-4">
-              {error && (
-                <p className="text-sm text-red-600 text-center">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
               <button
                 onClick={handleNavigateToVerify}
@@ -162,9 +159,7 @@ const ForgotPasswordPage: React.FC = () => {
                 disabled={resending}
                 className="w-full text-sm text-purple-600 font-medium hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                {resending
-                  ? 'Sending...'
-                  : "Didn't receive the code? Resend OTP"}
+                {resending ? 'Sending...' : "Didn't receive the code? Resend OTP"}
               </button>
             </div>
           )}

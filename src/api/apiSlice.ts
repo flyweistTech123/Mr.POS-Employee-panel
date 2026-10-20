@@ -67,18 +67,31 @@ interface VerifyOtpResponse {
 }
 
 interface ResendOtpArgs {
-  employee_login_code: string;
-  password: string;
+  challenge_id: string;
 }
 
 interface ResendOtpResponse {
   success: boolean;
   message: string;
-  data: LoginEmployeeResponse['data'];
+  data: {
+    requires_otp?: boolean;
+    challenge_id: string;
+    employee_login_code?: string;
+    email?: string;
+    expires_at?: string;
+    expires_in_seconds: number;
+  };
 }
 
 interface ForgotPasswordArgs {
   email: string;
+}
+
+// Backend requires all three fields in one request
+interface VerifyForgotOtpArgs {
+  email: string;
+  otp: string;
+  newPassword: string;
 }
 
 interface ForgotPasswordResponse {
@@ -162,7 +175,6 @@ export interface RestaurantDashboardResponse {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    // .env: VITE_API_BASE_URL=https://pos-backend-7xuw.onrender.com
     baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3006',
     prepareHeaders: (headers, { getState }) => {
       const state = getState() as { auth: { token: string | null } };
@@ -172,9 +184,8 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['User', 'Employee', 'ChatList', 'ChatDetails', 'Dashboard','Reservations'],
+  tagTypes: ['User', 'Employee', 'ChatList', 'ChatDetails', 'Dashboard', 'Reservations'],
   endpoints: (builder) => ({
-    /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
       query: (credentials) => ({
         url: '/api/v1/user/login',
@@ -187,11 +198,7 @@ export const apiSlice = createApi({
           dispatch(
             setCredentials({
               token: data.data.token,
-              user: {
-                ...data.data.user,
-                id: data.data.user._id,
-                name: data.data.user.Name,
-              },
+              user: { ...data.data.user, id: data.data.user._id, name: data.data.user.Name },
             }),
           );
         } catch (error) {
@@ -200,7 +207,6 @@ export const apiSlice = createApi({
       },
     }),
 
-    /* -------- Employee login: step 1 (request OTP) -------- */
     loginEmployee: builder.mutation<LoginEmployeeResponse, LoginEmployeeArgs>({
       query: (body) => ({
         url: '/api/v1/user/login-employee',
@@ -209,7 +215,6 @@ export const apiSlice = createApi({
       }),
     }),
 
-    /* -------- Employee login: step 2 (verify OTP) -------- */
     verifyEmployeeOtp: builder.mutation<VerifyOtpResponse, VerifyOtpArgs>({
       query: (body) => ({
         url: '/api/v1/user/login-employee/verify-otp',
@@ -222,11 +227,7 @@ export const apiSlice = createApi({
           dispatch(
             setCredentials({
               token: data.data.token,
-              user: {
-                ...data.data.user,
-                id: data.data.user._id,
-                name: data.data.user.Name,
-              },
+              user: { ...data.data.user, id: data.data.user._id, name: data.data.user.Name },
             }),
           );
         } catch (error) {
@@ -235,7 +236,6 @@ export const apiSlice = createApi({
       },
     }),
 
-    /* -------- Employee login: resend OTP -------- */
     resendEmployeeOtp: builder.mutation<ResendOtpResponse, ResendOtpArgs>({
       query: (body) => ({
         url: '/api/v1/user/login-employee/resend-otp',
@@ -244,11 +244,7 @@ export const apiSlice = createApi({
       }),
     }),
 
-    /* -------- Forgot password: send OTP -------- */
-    forgetPasswordSendOtp: builder.mutation<
-      ForgotPasswordResponse,
-      ForgotPasswordArgs
-    >({
+    forgetPasswordSendOtp: builder.mutation<ForgotPasswordResponse, ForgotPasswordArgs>({
       query: (body) => ({
         url: '/api/v1/user/forget-password/send-otp',
         method: 'POST',
@@ -256,11 +252,7 @@ export const apiSlice = createApi({
       }),
     }),
 
-    /* -------- Forgot password: resend OTP -------- */
-    forgetPasswordResendOtp: builder.mutation<
-      ForgotPasswordResponse,
-      ForgotPasswordArgs
-    >({
+    forgetPasswordResendOtp: builder.mutation<ForgotPasswordResponse, ForgotPasswordArgs>({
       query: (body) => ({
         url: '/api/v1/user/forget-password/resend-otp',
         method: 'POST',
@@ -268,38 +260,35 @@ export const apiSlice = createApi({
       }),
     }),
 
-    /* -------- Fetch profile -------- */
+    // Combines OTP verification AND password reset into one call
+    forgetPasswordVerifyOtp: builder.mutation<ForgotPasswordResponse, VerifyForgotOtpArgs>({
+      query: (body) => ({
+        url: '/api/v1/user/forget-password/verify-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+
     fetchUserProfile: builder.query<User, void>({
       query: () => '/api/v1/user/profile',
     }),
 
-    /* ------------------------------------------------------------------ */
-    /* REPORTING & DASHBOARD ENDPOINTS                                    */
-    /* ------------------------------------------------------------------ */
-
-    /* -------- Employee Performance (Attendance Page) -------- */
     getEmployeePerformance: builder.query<EmployeePerformanceResponse, string | number>({
       query: (employeeId) => `/api/v1/restaurant/reports/employee-performance/${employeeId}`,
       providesTags: (result, error, id) => [{ type: 'Employee', id }],
     }),
 
-    /* -------- Dashboard Stats (Sale Page - File 2) -------- */
     getDashboardStats: builder.query<DashboardStatsResponse, void>({
       query: () => '/api/v1/restaurant/reports/dashboard',
       providesTags: ['Dashboard'],
     }),
 
-    /* -------- Restaurant Dashboard (Sale Page - File 1) -------- */
     getRestaurantDashboard: builder.query<RestaurantDashboardResponse, { filter: string }>({
       query: ({ filter }) => `/api/v1/restaurant/reports/restaurant-dashboard?filter=${filter}`,
       providesTags: ['Dashboard'],
     }),
   }),
 });
-
-/* ------------------------------------------------------------------ */
-/* Exports                                                            */
-/* ------------------------------------------------------------------ */
 
 export const {
   useLoginMutation,
@@ -308,9 +297,8 @@ export const {
   useResendEmployeeOtpMutation,
   useForgetPasswordSendOtpMutation,
   useForgetPasswordResendOtpMutation,
+  useForgetPasswordVerifyOtpMutation,
   useFetchUserProfileQuery,
-  
-  // Newly added hooks:
   useGetEmployeePerformanceQuery,
   useGetDashboardStatsQuery,
   useGetRestaurantDashboardQuery,

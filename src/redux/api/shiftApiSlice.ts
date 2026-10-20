@@ -1,60 +1,39 @@
 import { apiSlice } from './apiSlice';
 
-// Define types for better TypeScript support
-interface ShiftDashboardResponse {
-  success: boolean;
-  data: {
-    current_shift: any | null;
-    upcoming_shifts: any[];
-    team_schedule: any[];
-    incoming_swap_requests: any[];
-    outgoing_swap_requests: any[];
-    coworkers: any[];
-  };
-}
-
-interface SwapRequestArgs {
-  requester_shift_id: number;
-  target_employee_id: number;
-  target_shift_id?: number | null;
-  reason: string;
-}
-
-interface RespondSwapArgs {
-  swapId: string;
-  status: 'accepted' | 'rejected';
-}
-
 export const shiftApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getShiftDashboard: builder.query<ShiftDashboardResponse, void>({
-      // Added /api/v1 prefix
+    getShiftDashboard: builder.query<any, void>({
       query: () => '/api/v1/employee/shifts/dashboard',
       providesTags: ['ShiftDashboard'],
     }),
-    
-    requestShiftSwap: builder.mutation<any, SwapRequestArgs>({
+
+    getCoworkerShifts: builder.query<any, number>({
+      query: (employeeId) => `/api/v1/employee/shifts/schedule?employee_id=${employeeId}`,
+    }),
+
+    requestShiftSwap: builder.mutation<any, any>({
       query: (data) => ({
-        // Added /api/v1 prefix
         url: '/api/v1/employee/shifts/swap',
         method: 'POST',
         body: data,
       }),
       invalidatesTags: ['ShiftDashboard'],
     }),
-    
-    respondToShiftSwap: builder.mutation<any, RespondSwapArgs>({
-      query: ({ swapId, status }) => ({
-        // Added /api/v1 prefix
-        url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
-        // 🟢 Changed from PUT to PATCH based on your docs
-        method: 'PATCH', 
-        body: { status },
-      }),
+
+    respondToShiftSwap: builder.mutation<any, { swapId: string; status: string }>({
+      query: ({ swapId, status }) => {
+        // 👇 THIS LOG WILL PROVE IF THE NEW CODE IS RUNNING
+        console.log("🔥 RESPONDING TO SWAP WITH METHOD: PATCH 🔥");
+        
+        return {
+          url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
+          method: 'PATCH', // Force PATCH
+          body: { status },
+        };
+      },
       invalidatesTags: ['ShiftDashboard'],
     }),
 
-    // 🟢 NEW: Added Clock Out endpoint
     clockOut: builder.mutation<any, void>({
       query: () => ({
         url: '/api/v1/employee/attendance/clock-out',
@@ -67,7 +46,8 @@ export const shiftApiSlice = apiSlice.injectEndpoints({
 
 export const {
   useGetShiftDashboardQuery,
+  useGetCoworkerShiftsQuery,
   useRequestShiftSwapMutation,
   useRespondToShiftSwapMutation,
-  useClockOutMutation, // 🟢 Exported the new hook
+  useClockOutMutation,
 } = shiftApiSlice;

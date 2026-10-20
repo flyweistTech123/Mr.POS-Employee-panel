@@ -190,7 +190,7 @@ export const apiSlice = createApi({
   tagTypes: ['User', 'Employee', 'Dashboard', 'ShiftDashboard', 'Profile', 'WorkSummary', 'Notifications', 'SupportTickets', 'SupportReplies', 'Reservations', 'ShiftDashboard',
   'AttendanceDashboard',
   'AttendanceHistory',
-  'LeaveRequests',],
+  'LeaveRequests', 'CoworkerShifts'],
   endpoints: (builder) => ({
     /* -------- Generic login -------- */
     login: builder.mutation<LoginResponse, LoginCredentials>({
