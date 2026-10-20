@@ -1,5 +1,65 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+// ==========================================
+// --- TYPES ---
+// ==========================================
+export interface BarTabItem {
+  _id: string;
+  drink_item_id: number;
+  drink_name: string;
+  unit_price: number;
+  quantity: number;
+  modifiers: string[];
+  line_total: number;
+  added_at: string;
+}
+
+export interface BarTab {
+  _id: string;
+  Bar_Tab_id: number;
+  Restaurant_id: number;
+  client_name: string;
+  table_no: string;
+  status: 'Open' | 'Closed';
+  items: BarTabItem[];
+  subtotal: number;
+  total: number;
+  currency: string;
+  payment?: { currency?: string };
+  CreateBy: number;
+  CreateAt: string;
+  UpdatedAt?: string;
+  UpdatedBy?: number;
+}
+
+export interface BarTabCreateBody {
+  client_name: string;
+  table_no: string;
+  items: {
+    drink_item_id: number;
+    quantity: number;
+    modifiers: string[];
+  }[];
+}
+
+export interface BarTabAddItemBody {
+  tabId: number;
+  drink_item_id: number;
+  quantity: number;
+  modifiers: string[];
+}
+
+export interface BarTabClosePaymentBody {
+  tabId: number;
+  Payment_Options_id: number;
+  payment_method: string;
+  payment_confirmed: boolean;
+  payment_reference?: string;
+}
+
+// ==========================================
+// --- API SLICE ---
+// ==========================================
 export const quickOrderApi = createApi({
   reducerPath: 'quickOrderApi',
   baseQuery: fetchBaseQuery({
@@ -10,58 +70,88 @@ export const quickOrderApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Order', 'OrderList', 'PaymentOptions', 'Customer'],
+  tagTypes: ['Order', 'OrderList', 'PaymentOptions', 'Customer', 'BarTabs'],
   endpoints: (builder) => ({
+    
+    // ==========================================
     // ---- CATEGORIES ----
-    getAllItemTypes: builder.query<any, void>({
-      query: () => '/api/v1/admin/items_types/getbyauth',
+    // ==========================================
+    getAllItemTypes: builder.query<any, { type?: string } | void>({
+      query: (arg) => {
+        const type = (arg as any)?.type;
+        return type
+          ? `/api/v1/admin/items_types/getbyauth?type=${encodeURIComponent(type)}`
+          : '/api/v1/admin/items_types/getbyauth';
+      },
     }),
 
+    // ==========================================
     // ---- ITEMS ----
-    getAllItems: builder.query<any, void>({
-      query: () => '/api/v1/admin/items/list?category_id=all',
+    // ==========================================
+    getAllItems: builder.query<
+      any,
+      { type?: string; category_id?: string | number; search?: string } | void
+    >({
+      query: (arg) => {
+        const params = new URLSearchParams();
+        const a = (arg as any) || {};
+        if (a.type) params.set('type', a.type);
+        params.set('category_id', a.category_id ?? 'all');
+        if (a.search) params.set('search', a.search);
+        return `/api/v1/admin/items/list?${params.toString()}`;
+      },
     }),
+    
     getItemTypeById: builder.query<any, string>({
       query: (id) => `/api/v1/admin/items/list?category_id=${id}`,
       forceRefetch: () => true,
     }),
 
-    // ---- VARIANTS ----
+    // ==========================================
+    // ---- VARIANTS & ADDONS ----
+    // ==========================================
     getAllItemVariants: builder.query<any, void>({
       query: () => '/api/v1/restaurant/item_variants/getbyauth',
     }),
-
-    // ---- ADDONS ----
+    
     getAllItemAddons: builder.query<any, void>({
       query: () => '/api/v1/restaurant/item_addons/getbyauth',
     }),
 
-    // ---- KITCHENS ----
+    // ==========================================
+    // ---- KITCHENS / FLOORS / TABLES ----
+    // ==========================================
     getAllKitchens: builder.query<any, void>({
       query: () => '/api/v1/restaurant/kitchen/getbyauth',
     }),
-
-    // ---- FLOORS / TABLES ----
+    
     getAllFloors: builder.query<any, void>({
       query: () => '/api/v1/admin/floor/getbyauth',
     }),
+    
     getAllTables: builder.query<any, void>({
       query: () => '/api/v1/admin/table/getbyauth',
     }),
+    
     getFloorWithTables: builder.query<any, string>({
       query: (id) => `/api/v1/admin/floor/getWithTables/${id}`,
     }),
+    
     getTableCurrentOrder: builder.query<any, number>({
       query: (tableId) => `/api/v1/restaurant/pos_order/table/${tableId}/current-order`,
     }),
 
+    // ==========================================
     // ---- CUSTOMERS ----
+    // ==========================================
     getAllCustomers: builder.query<any, void>({
       query: () => '/api/v1/restaurant/customer/getbyauth',
     }),
+    
     searchCustomer: builder.query<any, string>({
       query: (q) => `/api/v1/restaurant/customer/search?query=${encodeURIComponent(q)}`,
     }),
+    
     createCustomer: builder.mutation<any, Record<string, any>>({
       query: (body) => ({
         url: '/api/v1/restaurant/customer/create',
@@ -71,13 +161,17 @@ export const quickOrderApi = createApi({
       invalidatesTags: ['Customer'],
     }),
 
+    // ==========================================
     // ---- PAYMENT OPTIONS ----
+    // ==========================================
     getMyPaymentOptions: builder.query<any, void>({
       query: () => '/api/v1/restaurant/payment_options/auth/my-options',
       providesTags: ['PaymentOptions'],
     }),
 
+    // ==========================================
     // ---- POS ORDERS ----
+    // ==========================================
     createOrder: builder.mutation<any, Record<string, any>>({
       query: (body) => ({
         url: '/api/v1/restaurant/pos_order/create',
@@ -152,24 +246,81 @@ export const quickOrderApi = createApi({
       },
       providesTags: ['OrderList'],
     }),
+
+    // ==========================================
+    // ---- BAR TABS ----
+    // ==========================================
+    getAllBarTabs: builder.query<{ success: boolean; count: number; data: BarTab[] }, { status?: string } | void>({
+      query: (arg) => {
+        const status = (arg as any)?.status || 'Open';
+        return `/api/v1/restaurant/bar-tabs/getall?status=${encodeURIComponent(status)}`;
+      },
+      providesTags: ['BarTabs'],
+    }),
+
+    getBarTabById: builder.query<{ success: boolean; data: BarTab }, number | string>({
+      query: (id) => `/api/v1/restaurant/bar-tabs/getbyid/${id}`,
+      providesTags: (_r, _e, id) => [{ type: 'BarTabs', id }],
+    }),
+
+    createBarTab: builder.mutation<{ success: boolean; data: BarTab }, BarTabCreateBody>({
+      query: (body) => ({
+        url: '/api/v1/restaurant/bar-tabs/create',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['BarTabs'],
+    }),
+
+    addBarTabItem: builder.mutation<{ success: boolean; data: BarTab }, BarTabAddItemBody>({
+      query: ({ tabId, ...body }) => ({
+        url: `/api/v1/restaurant/bar-tabs/add-item/${tabId}`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_r, _e, arg) => [{ type: 'BarTabs', id: arg.tabId }, 'BarTabs'],
+    }),
+
+    closeBarTabWithPayment: builder.mutation<{ success: boolean; data: BarTab }, BarTabClosePaymentBody>({
+      query: ({ tabId, ...body }) => ({
+        url: `/api/v1/restaurant/bar-tabs/close/${tabId}/payment`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_r, _e, arg) => [{ type: 'BarTabs', id: arg.tabId }, 'BarTabs'],
+    }),
   }),
 });
 
+// ==========================================
+// --- EXPORT HOOKS ---
+// ==========================================
 export const {
+  // Categories & Items
   useGetAllItemTypesQuery,
   useGetAllItemsQuery,
   useGetItemTypeByIdQuery,
+  
+  // Variants & Addons
   useGetAllItemVariantsQuery,
   useGetAllItemAddonsQuery,
+  
+  // Kitchens & Floors
   useGetAllKitchensQuery,
   useGetAllFloorsQuery,
   useGetAllTablesQuery,
   useGetFloorWithTablesQuery,
   useGetTableCurrentOrderQuery,
+  
+  // Customers
   useGetAllCustomersQuery,
   useSearchCustomerQuery,
   useCreateCustomerMutation,
+  
+  // Payments
   useGetMyPaymentOptionsQuery,
+  
+  // POS Orders
   useCreateOrderMutation,
   useUpdateOrderMutation,
   useDeleteOrderItemMutation,
@@ -179,4 +330,11 @@ export const {
   useGetOrderByIdQuery,
   useGetOrderPdfUrlQuery,
   useGetAllOrdersQuery,
+  
+  // Bar Tabs
+  useGetAllBarTabsQuery,
+  useGetBarTabByIdQuery,
+  useCreateBarTabMutation,
+  useAddBarTabItemMutation,
+  useCloseBarTabWithPaymentMutation,
 } = quickOrderApi;
