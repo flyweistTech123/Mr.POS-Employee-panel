@@ -95,8 +95,8 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
     const q = drinkName.trim().toLowerCase();
     if (!q) return null;
     return (
-      drinkItems.find((d) => d.name.toLowerCase() === q) ||
-      drinkItems.find((d) => d.name.toLowerCase().includes(q)) ||
+      drinkItems.find((d:any) => d.name.toLowerCase() === q) ||
+      drinkItems.find((d:any) => d.name.toLowerCase().includes(q)) ||
       null
     );
   };

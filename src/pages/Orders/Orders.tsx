@@ -168,7 +168,7 @@ const Orders: React.FC = () => {
       if (apiMenuItems.length === 0 && activeMode === 'Food') return FIGMA_FALLBACK_ITEMS;
       return apiMenuItems;
     }
-    return apiMenuItems.filter(item => item.itemType === selectedCategory);
+   return apiMenuItems.filter((item: any) => item.itemType === selectedCategory);
   }, [selectedCategory, apiMenuItems, activeMode]);
 
   const isLoading = itemTypesLoading || itemsLoading;
