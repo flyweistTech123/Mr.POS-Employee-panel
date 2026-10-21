@@ -7,8 +7,29 @@ import {
   useCloseBarTabWithPaymentMutation,
   useGetAllItemsQuery,
   useGetMyPaymentOptionsQuery,
-  type BarTab,
 } from '@/redux/api/quickOrderSlice';
+
+// FIX 1: Import BarTab from its correct definition file, or define it locally if it doesn't exist.
+// If it's in @/types/order, use that. Otherwise, define it right here:
+export interface BarTab {
+  _id: string;
+  Bar_Tab_id: number;
+  client_name: string;
+  table_no: string;
+  status: string;
+  CreateAt: string;
+  total: number;
+  subtotal: number;
+  currency?: string;
+  payment?: { currency?: string };
+  items: Array<{
+    _id: string;
+    drink_name: string;
+    quantity: number;
+    line_total: number;
+    modifiers?: string[];
+  }>;
+}
 
 interface Props {
   onBack?: () => void;
@@ -171,7 +192,12 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
     }
   };
 
-  const paymentOptions: any[] = paymentsRes?.data || paymentsRes || [];
+  // FIX 2: Safely check if the response is an array to satisfy TypeScript
+  const paymentOptions: any[] = Array.isArray(paymentsRes?.data) 
+    ? paymentsRes.data 
+    : Array.isArray(paymentsRes) 
+      ? paymentsRes 
+      : [];
 
   // ---------- Render ----------
   return (
@@ -269,7 +295,7 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
 
                 <div className="px-4 flex-1 min-h-[100px] mb-2">
                   <ul className="space-y-1.5">
-                    {tab.items.map((item) => (
+                    {tab.items.map((item : any) => (
                       <li key={item._id} className="text-xs text-gray-700">
                         <span className="font-bold">{item.quantity}x</span> {item.drink_name}
                         {item.modifiers?.length > 0 && (

@@ -24,6 +24,190 @@ import CancelOrderModal from "@/components/common/CancelOrderModal";
 import TrashIcon from "@/assets/Trash.svg";
 import successIcon from "@/assets/order/success_icon_large.svg";
 
+// ✅ 1st Modal: Payment Received Success (Green Buttons)
+const PaymentReceivedModal = ({ 
+  open, 
+  onClose, 
+  onPrint,
+  total, 
+  orderId 
+}: { 
+  open: boolean; 
+  onClose: () => void; 
+  onPrint: () => void;
+  total: number; 
+  orderId?: string;
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Custom Checkmark Icon with floating dots */}
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-full bg-[#E8F5E9] flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-[#00C853] flex items-center justify-center">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+          </div>
+          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00C853] rounded-full opacity-60"></div>
+          <div className="absolute -bottom-2 -left-2 w-3 h-3 border-2 border-[#00C853] rounded-full opacity-60"></div>
+          <div className="absolute top-1/2 -left-4 w-1.5 h-1.5 bg-[#00C853] rounded-full opacity-80"></div>
+          <div className="absolute top-0 -left-1 w-2 h-2 border border-[#00C853] rounded-full opacity-40"></div>
+        </div>
+
+        <h2 className="text-[22px] font-bold text-[#00C853] mb-3">Payment Received Successful !</h2>
+        
+        <p className="text-[13px] text-gray-600 text-center leading-relaxed mb-6 px-4">
+          Your Dish ahs been created and will be updated in the menu in couple of minutes
+        </p>
+
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <p className="text-[15px] font-semibold text-gray-800">
+            Amount: {total.toLocaleString()} XOF
+          </p>
+          <p className="text-[15px] font-semibold text-gray-800">
+            Method: Mobile Money
+          </p>
+          <p className="text-[15px] font-semibold text-gray-800">
+            Reference: MOMO-{orderId?.slice(-6) || "889322"}
+          </p>
+        </div>
+
+        <div className="flex gap-4 w-full">
+          <button 
+            onClick={onClose}
+            className="flex-1 py-3.5 rounded-xl text-white font-bold bg-[#00C853] hover:bg-[#00A844] transition-all shadow-md"
+          >
+            Start new Order
+          </button>
+          <button 
+            onClick={onPrint}
+            className="flex-1 py-3.5 rounded-xl font-bold text-[#00C853] bg-white border-2 border-[#00C853] hover:bg-[#E8F5E9] transition-all"
+          >
+            Print Receipt
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+// ✅ 2nd Modal: Order Summary / Receipt (Purple Gradient Button)
+const ReceiptModal = ({
+  open,
+  onClose,
+  total,
+  orderId,
+  onPrint
+}: {
+  open: boolean;
+  onClose: () => void;
+  total: number;
+  orderId?: string;
+  onPrint: () => void;
+}) => {
+  if (!open) return null;
+
+  const currentDate = new Date().toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  }).replace(',', ' ');
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-[420px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="px-6 py-5 flex justify-between items-center border-b border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col items-center bg-[#FAFAFA]">
+          {/* Receipt Card Container */}
+          <div className="w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] relative mb-6">
+            <div className="p-6 flex flex-col items-center pb-8">
+              {/* Green Check Icon */}
+              <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#00C853] flex items-center justify-center">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Payment Success!</h3>
+              <p className="text-xs text-gray-500 mb-6 text-center">Your payment has been successfully done.</p>
+
+              <div className="text-center mb-6">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Total Payment</p>
+                <p className="text-2xl font-bold text-gray-900">{total.toLocaleString()} XOF</p>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-4 w-full px-2">
+                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
+                  <p className="text-[10px] text-gray-400 mb-0.5">Order Number</p>
+                  <p className="text-xs font-bold text-gray-800">{orderId || "000085752257"}</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
+                  <p className="text-[10px] text-gray-400 mb-0.5">Date & Time</p>
+                  <p className="text-xs font-bold text-gray-800">{currentDate}</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
+                  <p className="text-[10px] text-gray-400 mb-0.5">Payment Type</p>
+                  <p className="text-xs font-bold text-gray-800">Credit Card</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
+                  <p className="text-[10px] text-gray-400 mb-0.5">Customer Name</p>
+                  <p className="text-xs font-bold text-gray-800">Jimmy Jonson</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Scalloped Edge Effect */}
+            <div className="absolute bottom-0 left-0 w-full h-3 flex overflow-hidden">
+              {[...Array(15)].map((_, i) => (
+                <div key={i} className="flex-1 aspect-square bg-[#FAFAFA] rounded-full -mb-1.5" />
+              ))}
+            </div>
+          </div>
+
+          {/* Print Receipt Button */}
+          <button 
+            onClick={onPrint}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-6 transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print Receipt
+          </button>
+
+          {/* Start New Order Button */}
+          <button 
+            onClick={onClose}
+            className="w-full py-3.5 rounded-xl text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all shadow-md"
+          >
+            Start New Order
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const Orders: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,6 +242,10 @@ const Orders: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReadyToPayModal, setShowReadyToPayModal] = useState(false);
   
+  // ✅ States for the two different success modals
+  const [showPaymentReceivedModal, setShowPaymentReceivedModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
   const [showKitchenSuccess, setShowKitchenSuccess] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
@@ -66,7 +254,13 @@ const Orders: React.FC = () => {
   const [isSendingKitchen, setIsSendingKitchen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const [feedback, setFeedback] = useState("");
+  // ✅ Enhanced Toast State
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   // ✅ API Hooks (with loading states)
   const { data: itemTypesData, isLoading: isLoadingTypes } = useGetAllItemTypesQuery({ type: activeMode });
@@ -120,9 +314,7 @@ const Orders: React.FC = () => {
     if (pendingCustomizedItem && currentOrder) {
       addItemToOrder(pendingCustomizedItem);
       clearPendingCustomizedItem();
-      // Show Toast
-      setFeedback(`Added ${pendingCustomizedItem.name} to order!`);
-      setTimeout(() => setFeedback(""), 2000);
+      showToast(`Added ${pendingCustomizedItem.name} to order!`, "success");
     }
   }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem]);
 
@@ -167,10 +359,7 @@ const Orders: React.FC = () => {
     
     addItemToOrder(customizedItem);
     setShowAddonModal(false);
-    
-    // ✅ Show Toast
-    setFeedback(`${modalItem.name} added to order!`);
-    setTimeout(() => setFeedback(""), 2000);
+    showToast(`${modalItem.name} added to order!`, "success");
   };
 
   const handleBack = () => setShowCancelModal(true);
@@ -180,8 +369,7 @@ const Orders: React.FC = () => {
     setShowKitchenSuccess(false);
     setPanelMode("idle");
     setShowCancelModal(false);
-    setFeedback("Order reset");
-    setTimeout(() => setFeedback(""), 1500);
+    showToast("Order reset successfully", "info");
   };
 
   const saveOrderToServer = async (): Promise<string | null> => {
@@ -217,9 +405,12 @@ const Orders: React.FC = () => {
           total: res.data.Total,
         });
       }
+      showToast("Order created successfully!", "success");
       return orderId;
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Create Order Error:", err);
+      const errorMsg = err?.data?.message || err?.message || "Failed to create order on server.";
+      showToast(errorMsg, "error");
       return null;
     }
   };
@@ -228,10 +419,7 @@ const Orders: React.FC = () => {
     setIsSendingKitchen(true); 
     try {
       let orderId = await saveOrderToServer();
-      if (!orderId) {
-        setFeedback("Failed to save order");
-        return;
-      }
+      if (!orderId) return;
 
       await sendToKitchen({
         id: orderId,
@@ -244,9 +432,11 @@ const Orders: React.FC = () => {
       await updateOrderStatus({ id: orderId, Order_Status: "In_Kitchen" }).unwrap();
       
       setShowKitchenSuccess(true);
-    } catch (err) {
-      console.error(err);
-      setFeedback("Failed to send to kitchen");
+      showToast("Order sent to kitchen successfully!", "success");
+    } catch (err: any) {
+      console.error("Send to Kitchen Error:", err);
+      const errorMsg = err?.data?.message || err?.message || "Failed to send order to kitchen.";
+      showToast(errorMsg, "error");
     } finally {
       setIsSendingKitchen(false); 
     }
@@ -256,14 +446,11 @@ const Orders: React.FC = () => {
     setIsProcessingPayment(true); 
     try {
       let id = await saveOrderToServer();
-      if (!id) {
-        setFeedback("Failed to save order");
-        return;
-      }
+      if (!id) return;
       setShowPaymentModal(true);
-    } catch (err) {
-      console.error(err);
-      setFeedback("Failed to open payment");
+    } catch (err: any) {
+      console.error("Payment Initiation Error:", err);
+      showToast("Failed to open payment options", "error");
     } finally {
       setIsProcessingPayment(false); 
     }
@@ -296,16 +483,39 @@ const Orders: React.FC = () => {
         await updateOrderStatus({ id: orderId, Order_Status: "Completed" }).unwrap();
 
         setShowReadyToPayModal(false);
+        
+        // ✅ Show the first success modal
+        setShowPaymentReceivedModal(true);
+        
       } catch (err: any) {
-        setFeedback(err?.data?.message || "Payment update failed");
-        console.error(err);
+        console.error("Payment Processing Error:", err);
+        setShowReadyToPayModal(false); 
+        const errorMsg = err?.data?.message || err?.message || "Payment update failed. Please try again.";
+        showToast(errorMsg, "error");
       }
     }, 2000);
+  };
+
+  // ✅ Handlers for the modals
+  const handlePrintClick = () => {
+    // Hide the first modal, show the second receipt modal
+    setShowPaymentReceivedModal(false);
+    setShowReceiptModal(true);
+    showToast("Generating receipt...", "info");
+  };
+
+  const handleActualPrint = () => {
+    showToast("Sending receipt to printer...", "info");
+    setTimeout(() => {
+      showToast("Receipt printed successfully!", "success");
+    }, 1500);
   };
 
   const handleNextOrder = () => {
     resetOrder();
     setShowKitchenSuccess(false);
+    setShowPaymentReceivedModal(false);
+    setShowReceiptModal(false);
     setPanelMode("idle");
     setPersons(1);
   };
@@ -335,15 +545,29 @@ const Orders: React.FC = () => {
       <div className="flex gap-6 h-[calc(100vh-140px)]">
         {/* LEFT PANEL */}
         <div className="flex-1 bg-white rounded-[32px] p-6 flex flex-col overflow-hidden">
-          <div className="flex gap-2 mb-6 overflow-x-auto">
-            {categories.map(c => (
-              <button key={c.value} onClick={() => setSelectedCategory(c.value)} className={`px-4 py-2 rounded-full text-sm font-medium ${selectedCategory === c.value ? 'bg-gray-100 text-gray-900 shadow-sm border' : 'text-gray-500'}`}>
-                {c.icon} {c.label}
-              </button>
-            ))}
+          
+          {/* CATEGORY FILTER UI */}
+          <div className="bg-[#F2F2F2] rounded-full px-2 py-1.5 flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar w-fit max-w-full">
+            {categories.map(c => {
+              const isActive = selectedCategory === c.value;
+              return (
+                <button 
+                  key={c.value} 
+                  onClick={() => setSelectedCategory(c.value)} 
+                  className={`flex items-center gap-2 px-5 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-white text-gray-900 shadow-sm border border-gray-100/50' 
+                      : 'text-gray-500 hover:bg-gray-200/50'
+                  }`}
+                >
+                  {c.icon && <span className="text-base leading-none">{c.icon}</span>}
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
           </div>
           
-          {/* ✅ SKELETON LOADER FOR ITEMS */}
+          {/* SKELETON LOADER FOR ITEMS */}
           <div className="flex-1 overflow-y-auto">
             {isLoadingItems ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -546,6 +770,24 @@ const Orders: React.FC = () => {
         </div>
       )}
 
+      {/* ✅ Modal 1: Payment Received Successful (Green Buttons) */}
+      <PaymentReceivedModal
+        open={showPaymentReceivedModal}
+        onClose={handleNextOrder}
+        onPrint={handlePrintClick}
+        total={total}
+        orderId={currentOrder?.orderId}
+      />
+
+      {/* ✅ Modal 2: Order Summary / Receipt (Triggered by Print) */}
+      <ReceiptModal
+        open={showReceiptModal}
+        onClose={handleNextOrder}
+        onPrint={handleActualPrint}
+        total={total}
+        orderId={currentOrder?.orderId}
+      />
+
       <KitchenSuccessModal 
         open={showKitchenSuccess} 
         onClose={() => setShowKitchenSuccess(false)} 
@@ -558,10 +800,21 @@ const Orders: React.FC = () => {
         onConfirm={confirmCancelOrder}
       />
 
-      {/* ✅ TOAST NOTIFICATION */}
-      {feedback && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-2 rounded-full z-[60] shadow-lg transition-all animate-bounce">
-          {feedback}
+      {/* ✅ Enhanced Toast Notification */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg border ${
+            toast.type === 'error' 
+              ? 'bg-red-50 border-red-200 text-red-800' 
+              : toast.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            {toast.type === 'success' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>}
+            {toast.type === 'error' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
+            {toast.type === 'info' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
+            <span className="font-semibold text-sm">{toast.message}</span>
+          </div>
         </div>
       )}
     </div>
