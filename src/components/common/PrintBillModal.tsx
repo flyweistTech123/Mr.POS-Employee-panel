@@ -15,8 +15,8 @@ const BillContent: React.FC<{ order: Order | null; forPrint?: boolean }> = ({ or
   if (!order) return null;
   const receipt = {
     orderNumber: order.orderId,
-    date: new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    time: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    date: new Date(order.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: new Date(order.createdAt ?? Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     paymentType: order.paymentDetails?.method || '',
     customerName: order.customerInfo?.name || '',
     total: order.pricingSummary.totalAmount,

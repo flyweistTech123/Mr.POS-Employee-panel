@@ -17,6 +17,8 @@ export type PaymentMethod =
   | 'DebitCard' 
   | 'Split';
 
+export type PaymentStatus = 'Paid' | 'Unpaid' | 'Pending' | 'Failed' | 'Success' | 'Refunded';
+
 export interface PaymentOptionItem {
   Payment_Options_id: number;
   option: string;
@@ -38,6 +40,8 @@ export interface PaymentOptionsResponse {
 // --- 2. CART & UI ITEMS ---
 // ==========================================
 
+export type PreparationStation = "Kitchen" | "Counter" | "Bar";
+
 export interface OrderItem {
   itemId: string;
   name: string;
@@ -46,8 +50,10 @@ export interface OrderItem {
   size?: string | null;
   notes?: string;
   addOns?: { id: string; name: string; price: number }[];
-  preparationStation?: "Kitchen" | "Counter" | "Bar";
+  preparationStation?: PreparationStation;
   categoryName?: string;
+  description?: string;
+  itemType?: string;
   image?: string | null;
   serverItemId?: string;
   serverItemStatus?: string;
@@ -267,6 +273,13 @@ export interface Order {
   pricingSummary?: any;
   paymentDetails?: any;
   customerInfo?: any;
+  status?: string;
+  orderType?: string;
+  tableInfo?: { tableId: string; floor?: string; status?: string };
+  waiterName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  statusHistory?: { status: string; at: string }[];
 }
 
 export interface ApiResponse<T = any> {

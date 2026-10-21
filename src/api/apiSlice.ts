@@ -91,7 +91,7 @@ interface ForgotPasswordArgs {
 interface VerifyForgotOtpArgs {
   email: string;
   otp: string;
-  newPassword: string;
+  newPassword?: string;
 }
 
 interface ForgotPasswordResponse {
