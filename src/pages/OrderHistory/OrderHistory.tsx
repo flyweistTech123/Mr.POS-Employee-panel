@@ -42,7 +42,9 @@ const getDateRange = (filter: string) => {
 // ============================================================
 
 const OrderHistory = () => {
-  const [activeTab, setActiveTab] = useState('orders');
+  // 'orders' corresponds to the PURPLE toggle, 'dining' corresponds to the ORANGE toggle (formerly 'invoices'/'bar')
+  const [activeTab, setActiveTab] = useState<'orders' | 'dining'>('orders');
+  
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -146,9 +148,9 @@ const OrderHistory = () => {
     }
   }, [completed, activeTraining, completedTrainings, startTraining, navigate]);
 
-  if (activeTab === 'invoices') {
-    return <Invoice onBack={() => setActiveTab('orders')} />;
-  }
+  // If 'dining' tab is active, we render the Invoice component. 
+  // The user screenshot shows a toggle switch, so we keep the toolbar consistent, but if Invoice replaces the whole page, we'll conditionally render it below the header.
+  // For this example, I will keep the Invoice return behavior if you click the toggle, as per original logic.
 
   // The new API returns an array directly in `data.data` 
   let orders = Array.isArray(data?.data) ? data.data : (data?.data?.orders || []);
@@ -185,25 +187,27 @@ const OrderHistory = () => {
   };
 
   return (
-    <div className="p-6 min-h-screen bg-[#F8F9FB] font-sans">
+    <div className="p-6 min-h-screen bg-white font-sans">
       {/* ============== Top Header Toolbar ============== */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <h1 className="text-[24px] font-extrabold text-black tracking-tight">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        {/* Title */}
+        <h1 className="text-[28px] font-extrabold text-black tracking-tight">
           Order History
         </h1>
 
-        <div className="flex gap-3 items-center">
-          {/* Date Filter Dropdown */}
+        <div className="flex flex-wrap gap-3 items-center">
+          
+          {/* 1. Date Filter Dropdown */}
           <div className="relative">
             <div 
-              className="bg-white border border-gray-200 rounded-full px-4 py-1.5 flex items-center gap-2 cursor-pointer min-w-[100px] justify-between shadow-sm"
+              className="bg-[#F3F4F6] rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer min-w-[110px] justify-between transition-colors hover:bg-gray-200"
               onClick={() => setShowDateDropdown(!showDateDropdown)}
             >
-              <span className="text-[12px] font-semibold text-gray-700">
+              <span className="text-[13px] font-medium text-black">
                 {dateFilter || 'Today'}
               </span>
               <svg
-                className="w-3.5 h-3.5 text-gray-500"
+                className="w-3.5 h-3.5 text-black"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -211,7 +215,7 @@ const OrderHistory = () => {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   d="M19 9l-7 7-7-7"
                 />
               </svg>
@@ -221,7 +225,7 @@ const OrderHistory = () => {
                 {['Today', 'Last Week', 'Last Month', 'Reset'].map((option) => (
                   <button
                     key={option}
-                    className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 rounded text-gray-700 font-medium"
+                    className="block w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 rounded text-gray-700 font-medium"
                     onClick={() => {
                       if (option === 'Reset') setDateFilter('');
                       else setDateFilter(option);
@@ -235,8 +239,8 @@ const OrderHistory = () => {
             )}
           </div>
 
-          {/* Status Filters Pill */}
-          <div className="flex items-center bg-[#E8EAED] rounded-full p-1">
+          {/* 2. Status Filters Pill */}
+          <div className="flex items-center bg-[#F3F4F6] rounded-full p-1">
             {['All Orders', 'Preparing', 'Served', 'Cancelled'].map((option) => {
               const isActive =
                 (option === 'All Orders' && statusFilter === '') ||
@@ -244,7 +248,7 @@ const OrderHistory = () => {
               return (
                 <button
                   key={option}
-                  className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-all ${
+                  className={`px-5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-white text-black shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
@@ -260,58 +264,90 @@ const OrderHistory = () => {
             })}
           </div>
 
-          {/* Toggle Switch: Orders / Bar */}
-          <div className="flex items-center bg-[#E8EAED] rounded-full p-1 gap-1">
+          {/* 3. Toggle Switch (ORDERS / DINING) */}
+          <div className="flex items-center gap-3">
+            
+            {/* Orders Toggle (Purple) */}
             <button
-              className={`px-5 py-1.5 rounded-full text-[10px] font-extrabold tracking-wide transition-all ${
-                activeTab === 'orders'
-                  ? 'bg-[#6A1B9A] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
               onClick={() => setActiveTab('orders')}
-            >
-              ORDERS
-            </button>
-            <button
-              className={`px-5 py-1.5 rounded-full text-[10px] font-extrabold tracking-wide transition-all ${
-                activeTab === 'invoices'
-                  ? 'bg-[#6A1B9A] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+              className={`relative flex items-center w-[100px] h-[34px] rounded-full transition-colors duration-300 focus:outline-none ${
+                activeTab === 'orders' ? 'bg-[#6A1B9A]' : 'bg-[#F3F4F6]'
               }`}
-              onClick={() => setActiveTab('invoices')}
             >
-              BAR
+              {/* Text inside the toggle */}
+              <span className={`text-[10px] font-bold tracking-wider pl-3 ${
+                activeTab === 'orders' ? 'text-white' : 'text-gray-500'
+              }`}>
+                ORDERS
+              </span>
+              
+              {/* The Knob (White Circle) */}
+              <div 
+                className={`absolute top-1 w-[26px] h-[26px] bg-white rounded-full shadow-md transition-all duration-300 ${
+                  activeTab === 'orders' ? 'left-[70px]' : 'left-1'
+                }`} 
+              />
+            </button>
+
+            {/* Dining/Bar Toggle (Orange) */}
+            <button
+              onClick={() => setActiveTab('dining')}
+              className={`relative flex items-center justify-end w-[100px] h-[34px] rounded-full transition-colors duration-300 focus:outline-none ${
+                activeTab === 'dining' ? 'bg-[#FF9800]' : 'bg-[#F3F4F6]'
+              }`}
+            >
+              {/* Text inside the toggle */}
+              <span className={`text-[10px] font-bold tracking-wider pr-3 ${
+                activeTab === 'dining' ? 'text-white' : 'text-gray-500'
+              }`}>
+                DINING
+              </span>
+              
+              {/* The Knob (White Circle) */}
+              <div 
+                className={`absolute top-1 w-[26px] h-[26px] bg-white rounded-full shadow-md transition-all duration-300 ${
+                  activeTab === 'dining' ? 'left-[70px]' : 'left-1'
+                }`} 
+              />
             </button>
           </div>
+
         </div>
       </div>
 
-      {/* ============== Orders Grid ============== */}
-      {isLoading ? (
-        <Loader />
-      ) : isError || orders.length === 0 ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="text-lg font-bold text-gray-400 mb-1">
-              No orders found
-            </div>
-            <div className="text-sm text-gray-500">
-              {statusFilter
-                ? `No ${statusFilter.toLowerCase()} orders for ${timePeriod}`
-                : 'Try adjusting your filters'}
-            </div>
-          </div>
-        </div>
+      {/* ============== Content Area ============== */}
+      {/* If you need the Invoice component to take over, you'd use activeTab === 'dining' here */}
+      {activeTab === 'dining' ? (
+         <Invoice onBack={() => setActiveTab('orders')} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {orders.map((order: any, idx: number) => (
-            <OrderCard
-              key={order._id || idx}
-              order={order}
-              onClick={() => handleCardClick(order)}
-            />
-          ))}
-        </div>
+        <>
+          {isLoading ? (
+            <Loader />
+          ) : isError || orders.length === 0 ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="text-lg font-bold text-gray-400 mb-1">
+                  No orders found
+                </div>
+                <div className="text-sm text-gray-500">
+                  {statusFilter
+                    ? `No ${statusFilter.toLowerCase()} orders for ${timePeriod}`
+                    : 'Try adjusting your filters'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {orders.map((order: any, idx: number) => (
+                <OrderCard
+                  key={order._id || idx}
+                  order={order}
+                  onClick={() => handleCardClick(order)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ============== Modals ============== */}

@@ -1,45 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  useGetReservationsQuery, 
-  useCreateReservationMutation 
-} from '../../redux/api/reservationApi'; 
-import type { CreateReservationPayload } from '../../types/reservation';
+import {
+  useGetReservationsQuery,
+  useCreateReservationMutation,
+  useUpdateReservationMutation,
+  useDeleteReservationMutation,
+} from '../../redux/api/reservationApi';
+import type {
+  CreateReservationPayload,
+  UpdateReservationPayload,
+  Reservation,
+} from '../../types/reservation';
 
-// --- Modal Component (Preserved exactly as original) ---
-const NewReservationModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  isSubmitting 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+const toastStyle = { borderRadius: '10px', background: '#333', color: '#fff' };
+
+// ---------------------------------------------------------------------------
+// Create Modal
+// ---------------------------------------------------------------------------
+const NewReservationModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   onSubmit: (data: CreateReservationPayload) => void;
   isSubmitting: boolean;
 }) => {
-  // Maintained default values matching your Figma design
   const [formData, setFormData] = useState<CreateReservationPayload>({
     Reservations_online: false,
     Customer_id: 25,
-    slots: "Dinner",
-    slots_time: "07:30 PM - 09:00 PM",
-    title: "Mohammed Al-Farsi", 
+    slots: 'Dinner',
+    slots_time: '07:30 PM - 09:00 PM',
+    title: 'Mohammed Al-Farsi',
     Floor: 1,
     Capacity_count: 4,
     people_count: 4,
-    PaymentStatus: "UnPaid",
+    PaymentStatus: 'UnPaid',
     Table_id: 2,
-    Date_time: "2026-04-15T19:30:00.000Z", 
-    Notes: "Allergies: nuts",
-    Status: true
+    Date_time: '2026-04-15T19:30:00.000Z',
+    Notes: 'Allergies: nuts',
+    Status: true,
   });
 
   if (!isOpen) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,25 +65,25 @@ const NewReservationModal = ({
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
             New Reservation
           </h2>
-          
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Phone</label>
-                <input 
-                  type="text" 
-                  defaultValue="+974 55-000-1234" 
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                <input
+                  type="text"
+                  defaultValue="+974 55-000-1234"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -80,18 +91,18 @@ const NewReservationModal = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Occasion</label>
-                <input 
-                  type="text" 
-                  defaultValue="Birthday Business VIP Anniversary" 
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                <input
+                  type="text"
+                  defaultValue="Birthday Business VIP Anniversary"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Estimated Duration</label>
-                <input 
-                  type="text" 
-                  placeholder="__hr __min" 
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                <input
+                  type="text"
+                  placeholder="__hr __min"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -99,22 +110,22 @@ const NewReservationModal = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Date & Time</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="Date_time"
                   value={formData.Date_time}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   name="people_count"
                   value={formData.people_count}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -122,7 +133,7 @@ const NewReservationModal = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
-                <select 
+                <select
                   name="Table_id"
                   value={formData.Table_id}
                   onChange={handleChange}
@@ -135,25 +146,25 @@ const NewReservationModal = ({
               </div>
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Notes</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="Notes"
                   value={formData.Notes}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" 
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
 
             <div className="flex gap-3 mt-4">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={onClose}
                 className="flex-1 border border-purple-300 text-purple-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-purple-50 transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -168,38 +179,335 @@ const NewReservationModal = ({
   );
 };
 
+// ---------------------------------------------------------------------------
+// Edit Modal
+// ---------------------------------------------------------------------------
+const EditReservationModal = ({
+  reservation,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: {
+  reservation: Reservation | null;
+  onClose: () => void;
+  onSubmit: (data: UpdateReservationPayload) => void;
+  isSubmitting: boolean;
+}) => {
+  const [formData, setFormData] = useState<UpdateReservationPayload>({
+    id: 0,
+    people_count: 1,
+    Table_id: 1,
+    PaymentStatus: 'UnPaid',
+    Notes: '',
+  });
 
-// --- Main Page Component ---
+  useEffect(() => {
+    if (reservation) {
+      setFormData({
+        id: reservation.Reservations_id,
+        people_count: reservation.people_count,
+        Table_id: reservation.Table_id,
+        PaymentStatus: reservation.PaymentStatus,
+        Notes: reservation.Notes ?? '',
+      });
+    }
+  }, [reservation]);
+
+  if (!reservation) return null;
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'people_count' || name === 'Table_id' ? Number(value) : value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100">
+        <div className="p-6">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            Edit Reservation #{reservation.Reservations_id}
+          </h2>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <div>
+              <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
+              <input
+                type="text"
+                value={reservation.title ?? ''}
+                disabled
+                className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 text-sm text-gray-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
+                <input
+                  type="number"
+                  name="people_count"
+                  value={formData.people_count}
+                  onChange={handleChange}
+                  min={1}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
+                <select
+                  name="Table_id"
+                  value={formData.Table_id}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t) => (
+                    <option key={t} value={t}>
+                      Table {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-gray-600 mb-1">Payment Status</label>
+                <select
+                  name="PaymentStatus"
+                  value={formData.PaymentStatus}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="UnPaid">UnPaid</option>
+                  <option value="Paid">Paid</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-600 mb-1">Notes</label>
+                <input
+                  type="text"
+                  name="Notes"
+                  value={formData.Notes}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 border border-purple-300 text-purple-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-purple-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Delete Confirmation Modal
+// ---------------------------------------------------------------------------
+const DeleteConfirmModal = ({
+  reservation,
+  onClose,
+  onConfirm,
+  isDeleting,
+}: {
+  reservation: Reservation | null;
+  onClose: () => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+}) => {
+  if (!reservation) return null;
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-100 p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-2">Delete Reservation?</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          This will permanently delete reservation{' '}
+          <span className="font-medium text-gray-700">
+            #{reservation.Reservations_id} — {reservation.title}
+          </span>
+          . This action cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 border border-gray-300 text-gray-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 bg-red-600 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main Page
+// ---------------------------------------------------------------------------
 export default function ReservationPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
+  const [deletingReservation, setDeletingReservation] = useState<Reservation | null>(null);
+
+  // Inline form selection (null => create mode, Reservation => update mode)
+  const [selectedForInline, setSelectedForInline] = useState<Reservation | null>(null);
+  const [inlineForm, setInlineForm] = useState({
+    title: '',
+    people_count: 1,
+    Date_time: '',
+    Table_id: 1,
+    Notes: '',
+    PaymentStatus: 'UnPaid' as 'Paid' | 'UnPaid',
+  });
 
   const { data: reservations = [], isLoading } = useGetReservationsQuery();
   const [createReservation, { isLoading: isCreating }] = useCreateReservationMutation();
+  const [updateReservation, { isLoading: isUpdating }] = useUpdateReservationMutation();
+  const [deleteReservation, { isLoading: isDeleting }] = useDeleteReservationMutation();
 
+  // Sync inline form whenever a reservation is selected
+  useEffect(() => {
+    if (selectedForInline) {
+      setInlineForm({
+        title: selectedForInline.title ?? '',
+        people_count: selectedForInline.people_count,
+        Date_time: selectedForInline.Date_time,
+        Table_id: selectedForInline.Table_id,
+        Notes: selectedForInline.Notes ?? '',
+       PaymentStatus: selectedForInline.PaymentStatus as 'Paid' | 'UnPaid',
+      });
+    }
+  }, [selectedForInline]);
+
+  const resetInline = () => {
+    setSelectedForInline(null);
+    setInlineForm({
+      title: '',
+      people_count: 1,
+      Date_time: '',
+      Table_id: 1,
+      Notes: '',
+      PaymentStatus: 'UnPaid',
+    });
+  };
+
+  // ---- Handlers ----
   const handleCreateReservation = async (data: CreateReservationPayload) => {
     try {
       await createReservation(data).unwrap();
-      setIsModalOpen(false); 
-      
-      // Show Success Notification
-      toast.success('Reservation created successfully!', {
-        style: { borderRadius: '10px', background: '#333', color: '#fff' },
-      });
-      
+      setIsModalOpen(false);
+      toast.success('Reservation created successfully!', { style: toastStyle });
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to create reservation.', {
-        style: { borderRadius: '10px', background: '#333', color: '#fff' },
+        style: toastStyle,
       });
     }
   };
 
+  const handleUpdateReservation = async (data: UpdateReservationPayload) => {
+    try {
+      await updateReservation(data).unwrap();
+      setEditingReservation(null);
+      resetInline();
+      toast.success('Reservation updated successfully!', { style: toastStyle });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update reservation.', {
+        style: toastStyle,
+      });
+    }
+  };
+
+  const handleDeleteReservation = async () => {
+    if (!deletingReservation) return;
+    try {
+      await deleteReservation(deletingReservation.Reservations_id).unwrap();
+      if (selectedForInline?._id === deletingReservation._id) resetInline();
+      setDeletingReservation(null);
+      toast.success('Reservation deleted successfully!', { style: toastStyle });
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to delete reservation.', {
+        style: toastStyle,
+      });
+    }
+  };
+
+  // Inline form submit — routes to create OR update depending on selection
+  const handleInlineSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedForInline) {
+      // UPDATE — only send the fields the API accepts
+      handleUpdateReservation({
+        id: selectedForInline.Reservations_id,
+        people_count: Number(inlineForm.people_count),
+        Table_id: Number(inlineForm.Table_id),
+        PaymentStatus: inlineForm.PaymentStatus,
+        Notes: inlineForm.Notes,
+      });
+    } else {
+      // CREATE — map inline fields into CreateReservationPayload with sane defaults
+      const payload: CreateReservationPayload = {
+        Reservations_online: false,
+        Customer_id: 25,
+        slots: 'Dinner',
+        slots_time: '07:30 PM - 09:00 PM',
+        title: inlineForm.title || 'Walk-in Guest',
+        Floor: 1,
+        Capacity_count: Number(inlineForm.people_count) || 4,
+        people_count: Number(inlineForm.people_count) || 1,
+        PaymentStatus: inlineForm.PaymentStatus,
+        Table_id: Number(inlineForm.Table_id),
+        Date_time: inlineForm.Date_time
+          ? new Date(inlineForm.Date_time).toISOString()
+          : new Date().toISOString(),
+        Notes: inlineForm.Notes,
+        Status: true,
+      };
+      handleCreateReservation(payload);
+    }
+  };
+
+  const isInlineSubmitting = selectedForInline ? isUpdating : isCreating;
+
   return (
     <div className="min-h-screen bg-white p-8 font-sans text-gray-800 relative">
-      
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Reservations</h1>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
         >
@@ -210,18 +518,18 @@ export default function ReservationPage() {
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Left Column */}
         <div className="flex-1 flex flex-col gap-8">
-          
           {/* Reservation Queue */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               Reservation Queue
             </h2>
             <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2">
-              
               {isLoading ? (
-                // Skeleton Loading (Maintaining Card dimensions)
                 [1, 2, 3].map((i) => (
-                  <div key={i} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm animate-pulse">
+                  <div
+                    key={i}
+                    className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm animate-pulse"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="h-5 bg-gray-200 rounded w-1/2"></div>
                       <div className="h-6 bg-gray-200 rounded w-20"></div>
@@ -229,89 +537,241 @@ export default function ReservationPage() {
                     <div className="h-4 bg-gray-100 rounded w-3/4"></div>
                   </div>
                 ))
+              ) : reservations.length === 0 ? (
+                <div className="border border-dashed border-gray-300 rounded-lg p-8 text-center text-sm text-gray-400">
+                  No reservations yet. Create one to get started.
+                </div>
               ) : (
-                reservations.map((res, index) => (
-                  <div 
-                    key={res._id} 
-                    // Preserving the specific Figma red border on first item
-                    className={`${index === 0 ? 'border-2 border-red-400' : 'border border-gray-200'} rounded-lg p-4 bg-white shadow-sm relative shrink-0`}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-semibold text-gray-900">
-                        {res.title || res.customer_name || 'Guest'} - {res.people_count} guests
-                      </h3>
-                      <span className={`text-xs px-2 py-1 rounded border font-medium ${
-                        res.PaymentStatus === 'Paid' 
-                          ? 'bg-green-100 text-green-700 border-green-200' 
-                          : 'bg-orange-100 text-orange-700 border-orange-200'
-                      }`}>
-                        {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
-                      </span>
+                reservations.map((res, index) => {
+                  const isSelected = selectedForInline?._id === res._id;
+                  return (
+                    <div
+                      key={res._id}
+                      className={`rounded-lg p-4 bg-white shadow-sm relative shrink-0 transition-colors ${
+                        isSelected
+                          ? 'border-2 border-purple-500'
+                          : index === 0
+                          ? 'border-2 border-red-400'
+                          : 'border border-gray-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {res.title || res.customer_name || 'Guest'} - {res.people_count} guests
+                        </h3>
+                        <span
+                          className={`text-xs px-2 py-1 rounded border font-medium ${
+                            res.PaymentStatus === 'Paid'
+                              ? 'bg-green-100 text-green-700 border-green-200'
+                              : 'bg-orange-100 text-orange-700 border-orange-200'
+                          }`}
+                        >
+                          {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {new Date(res.Date_time).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}{' '}
+                        - Table {res.Table_id} {res.Notes ? `- ${res.Notes}` : ''}
+                      </p>
+
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => setEditingReservation(res)}
+                          className="text-xs px-3 py-1.5 rounded-md border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeletingReservation(res)}
+                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() =>
+                            isSelected ? resetInline() : setSelectedForInline(res)
+                          }
+                          className={`text-xs px-3 py-1.5 rounded-md border transition-colors ml-auto ${
+                            isSelected
+                              ? 'border-gray-300 text-gray-600 bg-gray-100 hover:bg-gray-200'
+                              : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          {isSelected ? 'Deselect' : 'Quick Edit'}
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {new Date(res.Date_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} - Table {res.Table_id} {res.Notes ? `- ${res.Notes}` : ''}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>
 
-          {/* Bottom Section (Inline Form exactly as original) */}
+          {/* Inline Form — creates OR updates based on selection */}
           <section className="border-2 border-red-400 rounded-xl p-6 bg-white">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
-              New Reservation
-            </h2>
-            
-            <form className="flex flex-col gap-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {selectedForInline
+                  ? `Edit Reservation #${selectedForInline.Reservations_id}`
+                  : 'New Reservation'}
+              </h2>
+              {selectedForInline && (
+                <button
+                  type="button"
+                  onClick={resetInline}
+                  className="text-xs text-gray-500 hover:text-gray-700 underline"
+                >
+                  Cancel edit
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleInlineSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Guest Name</label>
-                  <input type="text" defaultValue="Mohammed Al-Farsi" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="text"
+                    value={inlineForm.title}
+                    onChange={(e) =>
+                      setInlineForm((p) => ({ ...p, title: e.target.value }))
+                    }
+                    placeholder="Mohammed Al-Farsi"
+                    disabled={!!selectedForInline}
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Phone</label>
-                  <input type="text" defaultValue="+974 55-000-1234" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="text"
+                    defaultValue="+974 55-000-1234"
+                    disabled={!!selectedForInline}
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Occasion</label>
-                  <input type="text" defaultValue="Birthday Business VIP Anniversary" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="text"
+                    defaultValue="Birthday Business VIP Anniversary"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
+                  />
                 </div>
-                 <div>
+                <div>
                   <label className="block text-xs text-gray-600 mb-1">Estimated Duration</label>
-                  <input type="text" placeholder="__hr __min" className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="text"
+                    placeholder="__hr __min"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Date & Time</label>
-                  <input type="text" defaultValue="04/15/2026, 07:30 PM" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="datetime-local"
+                    value={
+                      inlineForm.Date_time
+                        ? new Date(inlineForm.Date_time).toISOString().slice(0, 16)
+                        : ''
+                    }
+                    onChange={(e) =>
+                      setInlineForm((p) => ({ ...p, Date_time: e.target.value }))
+                    }
+                    disabled={!!selectedForInline}
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Party Size</label>
-                  <input type="text" defaultValue="4" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="number"
+                    min={1}
+                    value={inlineForm.people_count}
+                    onChange={(e) =>
+                      setInlineForm((p) => ({
+                        ...p,
+                        people_count: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Assign Table</label>
-                  <select className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white">
-                    <option>Table 2 - Available</option>
+                  <select
+                    value={inlineForm.Table_id}
+                    onChange={(e) =>
+                      setInlineForm((p) => ({ ...p, Table_id: Number(e.target.value) }))
+                    }
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t) => (
+                      <option key={t} value={t}>
+                        Table {t}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Notes</label>
-                  <input type="text" defaultValue="Allergies: nuts" className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500" />
+                  <input
+                    type="text"
+                    value={inlineForm.Notes}
+                    onChange={(e) =>
+                      setInlineForm((p) => ({ ...p, Notes: e.target.value }))
+                    }
+                    placeholder="Allergies: nuts"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
+                  />
                 </div>
               </div>
 
-              <button type="button" onClick={() => setIsModalOpen(true)} className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-700 text-white py-3 rounded-md font-medium shadow-sm hover:opacity-90 transition-opacity">
-                Confirm Reservation
+              {selectedForInline && (
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Payment Status</label>
+                  <select
+                    value={inlineForm.PaymentStatus}
+                    onChange={(e) =>
+                      setInlineForm((p) => ({
+                        ...p,
+                        PaymentStatus: e.target.value as 'Paid' | 'UnPaid',
+                      }))
+                    }
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white"
+                  >
+                    <option value="UnPaid">UnPaid</option>
+                    <option value="Paid">Paid</option>
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isInlineSubmitting}
+                className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-700 text-white py-3 rounded-md font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isInlineSubmitting
+                  ? selectedForInline
+                    ? 'Saving...'
+                    : 'Creating...'
+                  : selectedForInline
+                  ? 'Save Changes'
+                  : 'Confirm Reservation'}
               </button>
             </form>
           </section>
@@ -322,9 +782,8 @@ export default function ReservationPage() {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
             Floor Map - Reservation View
           </h2>
-          
+
           <div className="grid grid-cols-4 gap-3">
-            {/* Table T1 */}
             <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
               <span className="font-semibold text-gray-700">T1</span>
               <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
@@ -382,11 +841,24 @@ export default function ReservationPage() {
         </div>
       </div>
 
-      <NewReservationModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      {/* Modals */}
+      <NewReservationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateReservation}
         isSubmitting={isCreating}
+      />
+      <EditReservationModal
+        reservation={editingReservation}
+        onClose={() => setEditingReservation(null)}
+        onSubmit={handleUpdateReservation}
+        isSubmitting={isUpdating}
+      />
+      <DeleteConfirmModal
+        reservation={deletingReservation}
+        onClose={() => setDeletingReservation(null)}
+        onConfirm={handleDeleteReservation}
+        isDeleting={isDeleting}
       />
     </div>
   );

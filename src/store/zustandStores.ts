@@ -189,6 +189,13 @@ export interface CurrentOrder {
   paymentStatus?: string;
 }
 
+// Add this right above your OrderFlowStoreState interface
+export interface WaitlistDraft {
+  persons: number;
+  floorName: string;
+  floorId: number | null;
+}
+
 export interface OrderFlowStoreState {
   currentOrder: CurrentOrder | null;
   pendingItem: OrderItem | null;
@@ -197,6 +204,7 @@ export interface OrderFlowStoreState {
   persons: number;
   isInOrderFlow: boolean;
   selectedFloorId: number | null;
+  waitlistDraft: WaitlistDraft | null; // <-- ADDED
 
   startOrder: (data: { tableId: string; floor: string; persons: number; floorId?: number }) => void;
   resetOrder: () => void;
@@ -213,6 +221,10 @@ export interface OrderFlowStoreState {
   setPersons: (persons: number) => void;
   setInOrderFlow: (isInOrderFlow: boolean) => void;
   hydrateFromServer: (serverData: any, floorName?: string) => void;
+  
+  // <-- ADDED THESE TWO ACTIONS
+  setWaitlistDraft: (draft: WaitlistDraft | null) => void;
+  clearWaitlistDraft: () => void;
 }
 
 // ==========================================
@@ -454,6 +466,7 @@ export const useOrderFlowStore = create<OrderFlowStoreState>()(
       persons: 1,
       isInOrderFlow: false,
       selectedFloorId: null,
+      waitlistDraft: null, // <-- ADDED
 
       startOrder: ({ tableId, floor, persons, floorId }) => set((state) => {
         let items = state.currentOrder?.items || [];
@@ -566,6 +579,10 @@ export const useOrderFlowStore = create<OrderFlowStoreState>()(
 
       setPersons: (persons) => set({ persons }),
       setInOrderFlow: (isInOrderFlow) => set({ isInOrderFlow }),
+      
+      // <-- ADDED ACTIONS
+      setWaitlistDraft: (draft) => set({ waitlistDraft: draft }),
+      clearWaitlistDraft: () => set({ waitlistDraft: null }),
 
       hydrateFromServer: (serverData, floorName = "F-01") => set(() => {
         const mappedItems = (serverData.items || []).map((si: any) => ({
@@ -608,6 +625,7 @@ export const useOrderFlowStore = create<OrderFlowStoreState>()(
         floor: state.floor,
         persons: state.persons,
         selectedFloorId: state.selectedFloorId,
+        waitlistDraft: state.waitlistDraft, // <-- ADDED
       }),
     }
   )
@@ -680,7 +698,11 @@ export const useSupportTicketListStore = create<SupportTicketListStoreState>((se
   setPeriod: (period) => set({ period }),
   setSearch: (search) => set({ search }),
 }));
-
+export interface WaitlistDraft {
+  persons: number;
+  floorName: string;
+  floorId: number | null;
+}
 // ==========================================
 // --- 8. WALKTHROUGH UI STORE ---
 // ==========================================

@@ -1,16 +1,14 @@
 // src/redux/slice/chatSlice.ts
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { 
-  getConversations, 
-  getConversationById, 
-  type ApiConversation, 
-  type ApiMessage 
-} from '@/api/chatApi'; // Or relative path depending on your structure
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  getConversations, getConversationById, sendMessage as sendMessageApi,
+  type ApiConversation, type ApiMessage, type ConversationParams,
+} from "@/api/chatApi";
 
 interface ChatState {
   conversations: ApiConversation[];
-  activeConversation: ApiConversation | null;
   messages: ApiMessage[];
+  activeChatId: string | null;
   loadingList: boolean;
   loadingChat: boolean;
   error: string | null;
@@ -18,72 +16,86 @@ interface ChatState {
 
 const initialState: ChatState = {
   conversations: [],
-  activeConversation: null,
   messages: [],
+  activeChatId: null,
   loadingList: false,
   loadingChat: false,
   error: null,
 };
 
 export const fetchConversations = createAsyncThunk(
-  'chat/fetchConversations',
-  async (params: { search?: string; type?: string } | undefined, { rejectWithValue }) => {
+  "chat/fetchConversations",
+  async (params: ConversationParams | undefined, { rejectWithValue }) => {
     try {
       return await getConversations(params);
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch conversations');
+    } catch (e: any) {
+      return rejectWithValue(
+        e?.response?.data?.message ?? e?.message ?? "Failed to load conversations"
+      );
     }
   }
 );
 
 export const fetchChatDetails = createAsyncThunk(
-  'chat/fetchChatDetails',
+  "chat/fetchChatDetails",
   async (id: string, { rejectWithValue }) => {
     try {
       return await getConversationById(id);
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch chat details');
+    } catch (e: any) {
+      return rejectWithValue(
+        e?.response?.data?.message ?? e?.message ?? "Failed to load chat"
+      );
+    }
+  }
+);
+
+export const sendMessage = createAsyncThunk(
+  "chat/sendMessage",
+  async (
+    { conversationId, text }: { conversationId: string; text: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await sendMessageApi(conversationId, text);
+    } catch (e: any) {
+      return rejectWithValue(e?.response?.data?.message ?? "Failed to send message");
     }
   }
 );
 
 const chatSlice = createSlice({
-  name: 'chat',
+  name: "chat",
   initialState,
   reducers: {
     clearActiveChat: (state) => {
-      state.activeConversation = null;
+      state.activeChatId = null;
       state.messages = [];
     },
   },
   extraReducers: (builder) => {
     builder
-      // Fetch List
-      .addCase(fetchConversations.pending, (state) => {
-        state.loadingList = true;
-        state.error = null;
+      .addCase(fetchConversations.pending, (s) => {
+        s.loadingList = true; s.error = null;
       })
-      .addCase(fetchConversations.fulfilled, (state, action: PayloadAction<ApiConversation[]>) => {
-        state.loadingList = false;
-        state.conversations = action.payload;
+      .addCase(fetchConversations.fulfilled, (s, a) => {
+        s.loadingList = false; s.conversations = a.payload;
       })
-      .addCase(fetchConversations.rejected, (state, action) => {
-        state.loadingList = false;
-        state.error = action.payload as string;
+      .addCase(fetchConversations.rejected, (s, a) => {
+        s.loadingList = false; s.error = (a.payload as string) ?? "Error";
       })
-      // Fetch Details
-      .addCase(fetchChatDetails.pending, (state) => {
-        state.loadingChat = true;
-        state.error = null;
+      .addCase(fetchChatDetails.pending, (s) => {
+        s.loadingChat = true; s.error = null;
       })
-      .addCase(fetchChatDetails.fulfilled, (state, action: PayloadAction<any>) => {
-        state.loadingChat = false;
-        state.activeConversation = action.payload;
-        state.messages = action.payload.messages || []; 
+      .addCase(fetchChatDetails.fulfilled, (s, a) => {
+        s.loadingChat = false;
+        s.activeChatId = a.payload.id;
+        s.messages = a.payload.messages ?? [];
       })
-      .addCase(fetchChatDetails.rejected, (state, action) => {
-        state.loadingChat = false;
-        state.error = action.payload as string;
+      .addCase(fetchChatDetails.rejected, (s, a) => {
+        s.loadingChat = false; s.error = (a.payload as string) ?? "Error";
+      })
+      .addCase(sendMessage.fulfilled, (s, a) => {
+        s.messages.push(a.payload);
       });
   },
 });

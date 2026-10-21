@@ -1,39 +1,60 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useGetAllFloorsQuery, useGetFloorWithTablesQuery } from "@/redux/api/quickOrderSlice";
+import {
+  useGetAllFloorsQuery,
+  useGetFloorWithTablesQuery,
+} from "@/redux/api/quickOrderSlice";
+import { useCreateWaitlistMutation } from "@/redux/api/waitlistSlice";
 import { useOrderFlowStore } from "@/store/zustandStores";
 import WaitlistDrawer from "@/components/common/WaitlistDrawer";
 import ReserveTableModal from "@/components/common/ReserveTableModal";
 import EditFloorPlan from "@/components/common/EditFloorPlan";
-import { TableIcon } from "@/icons/TableIcon"; // ✅ Using your exact TableIcon
+import { TableIcon } from "@/icons/TableIcon";
 
 const TablePage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("All Tables");
-  const { floor: globalFloor } = useOrderFlowStore();
+
+  const {
+    floor: globalFloor,
+    selectedFloorId: globalFloorId,
+    waitlistDraft,
+    clearWaitlistDraft,
+  } = useOrderFlowStore();
 
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [showReserve, setShowReserve] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSelectingTableForGuest, setIsSelectingTableForGuest] = useState(false);
+  const [creatingForTableId, setCreatingForTableId] = useState<number | null>(null);
+
+  const [createWaitlist] = useCreateWaitlistMutation();
 
   const { data: floorsData } = useGetAllFloorsQuery();
   const floors = floorsData?.data || [];
 
   const floorId = useMemo(() => {
+    if (globalFloorId) return globalFloorId;
     const match = floors.find((f: any) => f.Floor_Name === globalFloor);
     return match ? match.Floor_id : floors[0]?.Floor_id;
-  }, [floors, globalFloor]);
+  }, [floors, globalFloor, globalFloorId]);
 
-  const { data: floorTables, isLoading } = useGetFloorWithTablesQuery(String(floorId), { skip: !floorId });
+  const { data: floorTables, isLoading } = useGetFloorWithTablesQuery(
+    String(floorId),
+    { skip: !floorId }
+  );
   const tables = floorTables?.tables || [];
 
   const filteredTables = useMemo(() => {
     if (activeTab === "All Tables") return tables;
-    return tables.filter((t: any) => (t.dynamic_status || t.table_status || "Available").toLowerCase() === activeTab.toLowerCase());
+    return tables.filter(
+      (t: any) =>
+        (t.dynamic_status || t.table_status || "Available").toLowerCase() ===
+        activeTab.toLowerCase()
+    );
   }, [tables, activeTab]);
 
-  // ✅ Group tables by row
   const groupedRows = useMemo(() => {
     const rowMap: Record<string, any[]> = {};
     filteredTables.forEach((table: any) => {
@@ -42,17 +63,54 @@ const TablePage: React.FC = () => {
       if (!rowMap[row]) rowMap[row] = [];
       rowMap[row].push(table);
     });
-    return Object.keys(rowMap).sort((a, b) => Number(a) - Number(b)).map((key) => rowMap[key]);
+    return Object.keys(rowMap)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((key) => rowMap[key]);
   }, [filteredTables]);
 
+  // Cancel selection mode if the draft is cleared elsewhere
+  useEffect(() => {
+    if (!waitlistDraft) setIsSelectingTableForGuest(false);
+  }, [waitlistDraft]);
+
   const handleTableSelect = (table: any) => {
-    navigate("/orders", { state: { tableId: table.Table_id, floor: globalFloor } });
+    navigate("/orders", {
+      state: { tableId: table.Table_id, floor: globalFloor },
+    });
   };
 
-  // ✅ AutoScrollRow matching the Edit view
+  const handleTableSelectForGuest = async (table: any) => {
+    if (!waitlistDraft) return;
+    setCreatingForTableId(table.Table_id);
+    try {
+      const name = window.prompt("Guest name?");
+      if (!name) return;
+      const phone = window.prompt("Guest phone?") || "";
+      if (!phone) return;
+
+      await createWaitlist({
+        customer_name: name,
+        phone,
+        persons: waitlistDraft.persons,
+        Floor_id: waitlistDraft.floorId!,
+        Table_id: table.Table_id,
+        save_customer: false,
+      }).unwrap();
+
+      clearWaitlistDraft();
+      setIsSelectingTableForGuest(false);
+      setShowWaitlist(true);
+    } catch (err) {
+      console.error("Failed to create waitlist", err);
+      alert("Failed to add guest. Please try again.");
+    } finally {
+      setCreatingForTableId(null);
+    }
+  };
+
   const AutoScrollRow = ({ children }: { children: React.ReactNode }) => {
     const rowRef = useRef<HTMLDivElement>(null);
-    
+
     useEffect(() => {
       function onDragOver(e: DragEvent) {
         if (!rowRef.current) return;
@@ -73,18 +131,19 @@ const TablePage: React.FC = () => {
     }, []);
 
     return (
-      <div 
-        ref={rowRef} 
+      <div
+        ref={rowRef}
         className="flex flex-row gap-6 mb-6 overflow-x-auto flex-nowrap min-w-0 w-full pb-2 snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {children}
       </div>
     );
   };
 
-  // Status to size mapping (same as Edit view)
-  const getSizeFromCapacity = (capacity: number): "small" | "medium" | "long" => {
+  const getSizeFromCapacity = (
+    capacity: number
+  ): "small" | "medium" | "long" => {
     if (capacity === 4) return "medium";
     if (capacity === 8) return "long";
     return "small";
@@ -97,7 +156,7 @@ const TablePage: React.FC = () => {
         <h1 className="text-2xl md:text-3xl font-bold whitespace-nowrap">
           Table <span className="text-gray-400">(Floor Plan)</span>
         </h1>
-        
+
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex bg-[#F1F1F1] rounded-full p-1.5 shadow-inner">
             {["All Tables", "Served", "waiting", "Reser"].map((tab) => (
@@ -105,7 +164,9 @@ const TablePage: React.FC = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  activeTab === tab ? "bg-white text-black shadow-sm" : "text-gray-500 hover:text-gray-800"
+                  activeTab === tab
+                    ? "bg-white text-black shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
                 }`}
               >
                 {tab}
@@ -114,20 +175,23 @@ const TablePage: React.FC = () => {
           </div>
 
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => setIsEditing(true)}
               className="flex items-center gap-2 bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 transition-opacity"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
               Edit Tables
             </button>
-            <button 
+            <button
               onClick={() => setShowWaitlist(true)}
               className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
             >
               Add Waitlist
             </button>
-            <button 
+            <button
               onClick={() => setShowReserve(true)}
               className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
             >
@@ -137,41 +201,67 @@ const TablePage: React.FC = () => {
         </div>
       </div>
 
+      {/* GUEST-SELECTION BANNER */}
+      {isSelectingTableForGuest && waitlistDraft && (
+        <div className="mb-4 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-purple-900 font-semibold">
+            Pick a table for{" "}
+            <span className="font-bold">{waitlistDraft.persons}</span> guest(s)
+            on <span className="font-bold">{waitlistDraft.floorName}</span>
+          </p>
+          <button
+            onClick={() => {
+              clearWaitlistDraft();
+              setIsSelectingTableForGuest(false);
+            }}
+            className="text-xs font-bold text-purple-700 underline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* EDIT MODE TOGGLE */}
       {isEditing ? (
         <div className="mt-4">
-          <EditFloorPlan 
-            floor={globalFloor} 
-            onSave={() => setIsEditing(false)} 
+          <EditFloorPlan
+            floor={globalFloor}
+            onSave={() => setIsEditing(false)}
           />
         </div>
       ) : (
         <>
-          {/* TABLES GRID (HORIZONTAL SLIDER) */}
           {isLoading ? (
-            <div className="text-center py-20 text-gray-500">Loading tables...</div>
+            <div className="text-center py-20 text-gray-500">
+              Loading tables...
+            </div>
           ) : groupedRows.length === 0 ? (
-            <div className="text-center py-20 text-gray-500">No tables available on this floor.</div>
+            <div className="text-center py-20 text-gray-500">
+              No tables available on this floor.
+            </div>
           ) : (
             <div className="flex flex-col gap-0 items-center w-full min-w-0">
-              {/* ✅ Each row uses the AutoScrollRow matching the Edit view */}
               {groupedRows.map((rowTables, rowIndex) => (
                 <AutoScrollRow key={rowIndex}>
                   {rowTables.map((table: any) => {
-                    const status = table.dynamic_status || table.table_status || "Available";
+                    const status =
+                      table.dynamic_status || table.table_status || "Available";
                     const size = getSizeFromCapacity(table.Capacity || 2);
-                    
+                    const busy = creatingForTableId === table.Table_id;
+
                     return (
-                      <div 
-                        key={table.Table_id} 
-                        onClick={() => handleTableSelect(table)} 
-                        className="cursor-pointer transition-transform hover:scale-105 snap-start"
+                      <div
+                        key={table.Table_id}
+                        onClick={() =>
+                          isSelectingTableForGuest
+                            ? handleTableSelectForGuest(table)
+                            : handleTableSelect(table)
+                        }
+                        className={`cursor-pointer transition-transform hover:scale-105 snap-start ${
+                          busy ? "opacity-50 pointer-events-none" : ""
+                        }`}
                       >
-                        <TableSlot
-                          table={table}
-                          size={size}
-                          status={status}
-                        />
+                        <TableSlot table={table} size={size} status={status} />
                       </div>
                     );
                   })}
@@ -183,21 +273,42 @@ const TablePage: React.FC = () => {
       )}
 
       {/* MODALS */}
-      <WaitlistDrawer open={showWaitlist} onClose={() => setShowWaitlist(false)} />
-      <ReserveTableModal open={showReserve} onClose={() => setShowReserve(false)} tables={tables} />
+      <WaitlistDrawer
+        open={showWaitlist}
+        onClose={() => setShowWaitlist(false)}
+        onAddGuestProceed={() => {
+          setShowWaitlist(false);
+          setIsSelectingTableForGuest(true);
+        }}
+      />
+      <ReserveTableModal
+        open={showReserve}
+        onClose={() => setShowReserve(false)}
+        tables={tables}
+      />
     </div>
   );
 };
 
-// ✅ Reusing the exact same TableSlot visual from Edit
-const TableSlot = ({ table, size, status }: { table: any, size: "small" | "medium" | "long", status: string }) => {
+const TableSlot = ({
+  table,
+  size,
+  status,
+}: {
+  table: any;
+  size: "small" | "medium" | "long";
+  status: string;
+}) => {
   return (
     <div className="relative flex flex-col items-center justify-center min-w-[160px] min-h-[140px]">
       <TableIcon
         size={size}
-        label={table.number ? table.number.toLowerCase().replace(/^t(\d+)$/, "t-$1") : `t-${table.Table_id}`}
+        label={
+          table.number
+            ? table.number.toLowerCase().replace(/^t(\d+)$/, "t-$1")
+            : `t-${table.Table_id}`
+        }
       />
-      {/* Status Badge overlay */}
       {status && status !== "Available" && (
         <div
           className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${
