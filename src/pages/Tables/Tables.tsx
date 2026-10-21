@@ -1,426 +1,221 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getTablesByFloor } from "@/api/tableApi";
-import type { Table } from "@/api/tableApi";
-import { TableIcon } from "@/icons/TableIcon";
-import OrderSummaryModal from "@/components/common/OrderSummaryModal";
-import PaymentModal from "@/components/common/PaymentModal";
-import { SuccessModal } from "@/components/common/SuccessModal";
-import * as orderApi from "@/api/orderApi";
-import type { OrderItem } from "@/types/order";
-import editIcon from "@/assets/table/edit.svg";
-import CheckmarkIcon from "@/icons/CheckmarkIcon";
-import ReadyDishIcon from "@/icons/ReadyDishIcon";
+import { useGetAllFloorsQuery, useGetFloorWithTablesQuery } from "@/redux/api/quickOrderSlice";
 import { useOrderFlowStore } from "@/store/zustandStores";
+import WaitlistDrawer from "@/components/common/WaitlistDrawer";
+import ReserveTableModal from "@/components/common/ReserveTableModal";
 import EditFloorPlan from "@/components/common/EditFloorPlan";
-import { useWalkthroughStore } from "@/store/walkthroughStore";
-import TimerIcon from "@/icons/ClockIcon";
-import { orderHistoryTrainingSteps } from '@/walkthrough/steps';
+import { TableIcon } from "@/icons/TableIcon"; // ✅ Using your exact TableIcon
 
-const statusTabs = [
-  { label: "All Tables", value: "all" },
-  { label: "Served", value: "Served" },
-  { label: "Waiting", value: "Waiting" },
-  { label: "Reserved", value: "Reserved" },
-  // { label: "Ready", value: "Ready" },
-  // { label: "Occupied", value: "Occupied" },
-];
+const TablePage: React.FC = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("All Tables");
+  const { floor: globalFloor } = useOrderFlowStore();
 
-const statusIconMap: Record<string, React.ReactNode> = {
-  Served: <CheckmarkIcon width={20} height={20} />,
-  Ready: <ReadyDishIcon width={20} height={20} />,
-  Waiting: <TimerIcon width={20} height={20} />,
-  // Add more mappings as needed
-};
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showReserve, setShowReserve] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-// Status color mapping for TableIcon
-const statusStyleMap: Record<string, { color: string; textColor: string }> = {
-  Served: { color: "#34C7594D", textColor: "#34C759" },
-  Reserved: { color: "#A579D14D", textColor: "#A579D1" },
-  // Cleaning: { color: "#DBEAFE", textColor: "#2563EB" },
-  Occupied: { color: "#FECACA", textColor: "#B91C1C" },
-  Waiting: { color: "#FEF3C7", textColor: "#B45309" },
-  Available: { color: "#E5E7EB", textColor: "#6B7280" },
-  Ready: { color: "#FFE3BC", textColor: "#FEC002" },
-};
+  const { data: floorsData } = useGetAllFloorsQuery();
+  const floors = floorsData?.data || [];
 
-// Helper: group tables by row (first digit of number, e.g., T11 → row 1)
-function groupTablesByRow(tables: Table[]) {
-  const rowMap: Record<string, Table[]> = {};
-  tables.forEach((table) => {
-    // Extract row from table.number (e.g., T11 → 1, T22 → 2)
-    const match = table.number.match(/T(\d{2})/);
-    let row = "1";
-    if (match) {
-      row = match[1][0];
-    }
-    if (!rowMap[row]) rowMap[row] = [];
-    rowMap[row].push(table);
-  });
-  // Sort rows numerically
-  const sortedRows = Object.keys(rowMap).sort((a, b) => Number(a) - Number(b));
-  return sortedRows.map((row) => ({
-    row,
-    tables: rowMap[row].sort(
-      (a, b) => Number(a.number.slice(2)) - Number(b.number.slice(2))
-    ),
-  }));
-}
+  const floorId = useMemo(() => {
+    const match = floors.find((f: any) => f.Floor_Name === globalFloor);
+    return match ? match.Floor_id : floors[0]?.Floor_id;
+  }, [floors, globalFloor]);
 
-const TableCard = ({
-  table,
-  onClick,
-}: {
-  table: Table;
-  onClick: () => void;
-}) => {
-  let size: "small" | "medium" | "long" = "small";
-  if (table.capacity === 4) size = "medium";
-  if (table.capacity === 8) size = "long";
-  const icon =
-    table.status && statusIconMap[table.status]
-      ? statusIconMap[table.status]
-      : undefined;
-  // Build status prop for TableIcon
-  const statusObj =
-    table.status && table.status !== "Available"
-      ? { text: table.status, ...(statusStyleMap[table.status] || {}) }
-      : undefined;
-  return (
-    <div
-      className={`flex flex-col items-center justify-center cursor-pointer mx-2 my-2  relative min-w-fit${
-        table.status === "Available" || table.status === undefined
-          ? " table-available"
-          : ""
-      }`}
-      onClick={onClick}
-    >
-      <TableIcon
-        size={size}
-        label={table.number.toLowerCase().replace(/^t(\d+)$/, "t-$1")}
-        status={statusObj}
-        icon={icon}
-        timer={table.timer}
-      />
-      {/* Show timer for Waiting tables */}
-      {/* {table.status === 'Waiting' && table.timer !== undefined && (
-      <div className="text-xs font-semibold text-[#B45309] mt-1">
-        {table.timer} min
+  const { data: floorTables, isLoading } = useGetFloorWithTablesQuery(String(floorId), { skip: !floorId });
+  const tables = floorTables?.tables || [];
+
+  const filteredTables = useMemo(() => {
+    if (activeTab === "All Tables") return tables;
+    return tables.filter((t: any) => (t.dynamic_status || t.table_status || "Available").toLowerCase() === activeTab.toLowerCase());
+  }, [tables, activeTab]);
+
+  // ✅ Group tables by row
+  const groupedRows = useMemo(() => {
+    const rowMap: Record<string, any[]> = {};
+    filteredTables.forEach((table: any) => {
+      const match = String(table["Table-name"] || table.Table_id).match(/(\d+)/);
+      const row = match ? match[1][0] : "1";
+      if (!rowMap[row]) rowMap[row] = [];
+      rowMap[row].push(table);
+    });
+    return Object.keys(rowMap).sort((a, b) => Number(a) - Number(b)).map((key) => rowMap[key]);
+  }, [filteredTables]);
+
+  const handleTableSelect = (table: any) => {
+    navigate("/orders", { state: { tableId: table.Table_id, floor: globalFloor } });
+  };
+
+  // ✅ AutoScrollRow matching the Edit view
+  const AutoScrollRow = ({ children }: { children: React.ReactNode }) => {
+    const rowRef = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+      function onDragOver(e: DragEvent) {
+        if (!rowRef.current) return;
+        const { left, right } = rowRef.current.getBoundingClientRect();
+        const scrollAmount = 20;
+        const threshold = 40;
+        if (e.clientX - left < threshold) {
+          rowRef.current.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+        } else if (right - e.clientX < threshold) {
+          rowRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+        }
+      }
+      const node = rowRef.current;
+      if (node) node.addEventListener("dragover", onDragOver);
+      return () => {
+        if (node) node.removeEventListener("dragover", onDragOver);
+      };
+    }, []);
+
+    return (
+      <div 
+        ref={rowRef} 
+        className="flex flex-row gap-6 mb-6 overflow-x-auto flex-nowrap min-w-0 w-full pb-2 snap-x snap-mandatory"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {children}
       </div>
-      )} */}
+    );
+  };
+
+  // Status to size mapping (same as Edit view)
+  const getSizeFromCapacity = (capacity: number): "small" | "medium" | "long" => {
+    if (capacity === 4) return "medium";
+    if (capacity === 8) return "long";
+    return "small";
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F8F8F8] px-8 py-6 overflow-hidden">
+      {/* HEADER */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold whitespace-nowrap">
+          Table <span className="text-gray-400">(Floor Plan)</span>
+        </h1>
+        
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex bg-[#F1F1F1] rounded-full p-1.5 shadow-inner">
+            {["All Tables", "Served", "waiting", "Reser"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  activeTab === tab ? "bg-white text-black shadow-sm" : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 transition-opacity"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              Edit Tables
+            </button>
+            <button 
+              onClick={() => setShowWaitlist(true)}
+              className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
+            >
+              Add Waitlist
+            </button>
+            <button 
+              onClick={() => setShowReserve(true)}
+              className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
+            >
+              Reserve
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* EDIT MODE TOGGLE */}
+      {isEditing ? (
+        <div className="mt-4">
+          <EditFloorPlan 
+            floor={globalFloor} 
+            onSave={() => setIsEditing(false)} 
+          />
+        </div>
+      ) : (
+        <>
+          {/* TABLES GRID (HORIZONTAL SLIDER) */}
+          {isLoading ? (
+            <div className="text-center py-20 text-gray-500">Loading tables...</div>
+          ) : groupedRows.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">No tables available on this floor.</div>
+          ) : (
+            <div className="flex flex-col gap-0 items-center w-full min-w-0">
+              {/* ✅ Each row uses the AutoScrollRow matching the Edit view */}
+              {groupedRows.map((rowTables, rowIndex) => (
+                <AutoScrollRow key={rowIndex}>
+                  {rowTables.map((table: any) => {
+                    const status = table.dynamic_status || table.table_status || "Available";
+                    const size = getSizeFromCapacity(table.Capacity || 2);
+                    
+                    return (
+                      <div 
+                        key={table.Table_id} 
+                        onClick={() => handleTableSelect(table)} 
+                        className="cursor-pointer transition-transform hover:scale-105 snap-start"
+                      >
+                        <TableSlot
+                          table={table}
+                          size={size}
+                          status={status}
+                        />
+                      </div>
+                    );
+                  })}
+                </AutoScrollRow>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* MODALS */}
+      <WaitlistDrawer open={showWaitlist} onClose={() => setShowWaitlist(false)} />
+      <ReserveTableModal open={showReserve} onClose={() => setShowReserve(false)} tables={tables} />
     </div>
   );
 };
 
-const TablePage: React.FC = () => {
-  const navigate = useNavigate();
-  const startOrder = useOrderFlowStore((s) => s.startOrder);
-  const [tables, setTables] = useState<Table[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
-  const [orderSummary, setOrderSummary] = useState<any | null>(null);
-  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-
-  const floor = useOrderFlowStore((s) => s.floor);
-  const persons = useOrderFlowStore((s) => s.persons);
-  // const currentOrder = useOrderFlowStore((s) => s.currentOrder);
-  const isInOrderFlow = useOrderFlowStore((s) => s.isInOrderFlow);
-  const { completed, activeTraining, startTraining, reset } = useWalkthroughStore();
-
-  useEffect(() => {
-    setLoading(true);
-    getTablesByFloor(floor).then((t) => {
-      setTables(t);
-      setLoading(false);
-    });
-  }, [floor]);
-
-  useEffect(() => {
-    if (completed && activeTraining === 'table') {
-      reset();
-      setTimeout(() => {
-        startTraining('orderHistory', orderHistoryTrainingSteps);
-        navigate('/');
-      }, 50);
-    }
-  }, [completed, activeTraining, startTraining, reset, navigate]);
-
-  const filteredTables =
-    activeTab === "all" ? tables : tables.filter((t) => t.status === activeTab);
-  const groupedRows = groupTablesByRow(filteredTables);
-
-  // Handler for table click
-  const handleTableClick = async (table: Table) => {
-    console.log("[Walkthrough Debug] Clicked table:", table);
-    console.log(
-      "[Walkthrough Debug] Current state - floor:",
-      floor,
-      "persons:",
-      persons,
-      "isInOrderFlow:",
-      isInOrderFlow
-    );
-
-    // If table has a status other than 'Available' and has an order, show bill (regardless of entry point)
-    if (table.status !== "Available" && table.currentOrder) {
-      const order = await orderApi.getOrderById(table.currentOrder);
-      if (order) {
-        setOrderSummary({
-          items: order.items,
-          subtotal: order.pricingSummary?.subtotal || 0,
-          tax: order.pricingSummary?.tax || 0,
-          total: order.pricingSummary?.totalAmount || 0,
-          orderId: order.orderId,
-          paymentType: order.paymentDetails?.method,
-          customerName: order.customerInfo?.name,
-        });
-        setOrderSummaryOpen(true);
-      }
-      return;
-    }
-
-    // If in order flow and clicking available table, start order and navigate
-    if (
-      isInOrderFlow &&
-      (table.status === "Available" || table.status === undefined)
-    ) {
-      console.log(
-        "[Walkthrough Debug] In order flow, starting order for table:",
-        table.id
-      );
-      // Advance walkthrough before navigating
-      const walkthrough = useWalkthroughStore.getState();
-      const step = walkthrough.steps[walkthrough.currentStep];
-      if (
-        step?.selector === ".table-available" &&
-        (!step.advanceOn ||
-          step.advanceOn === "both" ||
-          step.advanceOn === "ui")
-      ) {
-        walkthrough.next();
-      }
-      startOrder({ tableId: table.id, floor, persons });
-      navigate("/orders");
-      return;
-    }
-
-    // If not in order flow (coming from sidebar) and clicking available table, do nothing
-    if (
-      !isInOrderFlow &&
-      (table.status === "Available" || table.status === undefined)
-    ) {
-      console.log(
-        "[Walkthrough Debug] Not in order flow, doing nothing for available table"
-      );
-      return;
-    }
-  };
-
+// ✅ Reusing the exact same TableSlot visual from Edit
+const TableSlot = ({ table, size, status }: { table: any, size: "small" | "medium" | "long", status: string }) => {
   return (
-    <div className="table-page-root min-h-screen bg-[#fafafa] px-6 lg:pt-10  pt-6 lg:px-10 ">
-      {!editMode ? (
-        <>
-          <div className="flex flex-col lg:flex-row justify-between mb-6 lg:justify-between  lg:gap-4 gap-2">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4  ">
-              <h1 className="text-2xl md:text-3xl font-bold whitespace-nowrap">
-                Table{" "}
-                <span className="font-bold text-[#00000099]">(Floor Plan)</span>
-              </h1>
+    <div className="relative flex flex-col items-center justify-center min-w-[160px] min-h-[140px]">
+      <TableIcon
+        size={size}
+        label={table.number ? table.number.toLowerCase().replace(/^t(\d+)$/, "t-$1") : `t-${table.Table_id}`}
+      />
+      {/* Status Badge overlay */}
+      {status && status !== "Available" && (
+        <div
+          className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${
+            status === "Served"
+              ? "bg-green-100 text-green-700"
+              : status === "Reserved"
+              ? "bg-purple-100 text-purple-700"
+              : status === "Ready"
+              ? "bg-yellow-100 text-yellow-700"
+              : status === "Occupied"
+              ? "bg-red-100 text-red-700"
+              : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {status === "Served" && "✓ "}
+          {status === "Ready" && "🔔 "}
+          {status}
         </div>
-            {/* <div className="flex flex-col sm:flex-row gap-2 items-center min-w-0"> */}
-            {/* <FloorDropdown floors={floors} selected={selectedFloor} onChange={setSelectedFloor} /> */}
-            {/* </div> */}
-            <div className="flex gap-2 items-center overflow-hidden ">
-              <button
-                className="px-3 py-1.5 flex gap-2 items-center rounded-lg bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white font-medium shadow text-base sm:text-lg whitespace-nowrap min-w-fit sm:px-4 sm:py-2"
-                onClick={() => setEditMode(true)}
-              >
-                <img src={editIcon} alt="edit" />
-                <span className="pr-2">Edit Tables</span>
-              </button>
-
-              <div className="overflow-x-scroll rounded-full bg-[#F1F1F1] p-2">
-          <div className="flex gap-2">
-                  {" "}
-                  {statusTabs.map((tab) => (
-            <button
-                      key={tab.value}
-                      className={`px-4 py-1.5 rounded-full font-medium text-base transition-all ${
-                        activeTab === tab.value
-                          ? "bg-white text-black shadow font-bold"
-                          : "bg-[#F5F5F5] text-[#222] font-medium"
-                      }
-                    ${tab.value === "all" ? "table-tab-all" : ""}
-                    ${tab.value === "Served" ? "table-tab-served" : ""}
-                    ${tab.value === "Waiting" ? "table-tab-waiting" : ""}
-                    ${tab.value === "Reserved" ? "table-tab-reserved" : ""}`}
-                      onClick={() => {
-                        setActiveTab(tab.value);
-                        const walkthrough = useWalkthroughStore.getState();
-                        const step = walkthrough.steps[walkthrough.currentStep];
-                        if (
-                          !step?.advanceOn ||
-                          step.advanceOn === "both" ||
-                          step.advanceOn === "ui"
-                        ) {
-                          setTimeout(() => {
-                            walkthrough.next();
-                          }, 100);
-                        }
-                      }}
-                      type="button"
-                      style={{ minWidth: 110 }}
-                    >
-                      {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-            </div>
-          </div>
-          {/* Matrix layout: each row is horizontally scrollable */}
-          <div className="flex flex-col gap-0 ">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-gray-600">Loading tables...</div>
-                </div>
-              </div>
-            ) : groupedRows.length > 0 ? (
-              groupedRows.map(({ row, tables }) => (
-                <div
-                  key={row}
-                  className="flex  gap-4  overflow-x-scroll pb-2 min-w-0 snap-x snap-mandatory "
-                >
-                  {tables.map((table) => (
-                    <TableCard
-                      key={table.id}
-                      table={table}
-                      onClick={() => handleTableClick(table)}
-                    />
-                  ))}
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-400 mb-2">
-                    {activeTab === "all" && "No tables available"}
-                    {activeTab === "Served" && "No tables served"}
-                    {activeTab === "Waiting" && "No tables waiting"}
-                    {activeTab === "Reserved" && "No tables reserved"}
-                    {activeTab === "Available" && "No available tables"}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {activeTab === "all" && "There are no tables in the system"}
-                    {activeTab === "Served" && "No tables have been served yet"}
-                    {activeTab === "Waiting" && "No tables are currently waiting"}
-                    {activeTab === "Reserved" && "No tables are currently reserved"}
-                    {activeTab === "Available" && "All tables are currently occupied"}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          {/* Show OrderSummaryModal if orderSummaryOpen */}
-          <OrderSummaryModal
-            open={orderSummaryOpen}
-            order={orderSummary || { items: [], subtotal: 0, tax: 0, total: 0 }}
-            onClose={() => setOrderSummaryOpen(false)}
-            onUpdateItemQuantity={async (itemId, newQty) => {
-              if (orderSummary?.orderId) {
-                // Find the item and update its quantity
-                const updatedItems = orderSummary.items.map((item: OrderItem) => 
-                  item.itemId === itemId ? { ...item, quantity: newQty } : item
-                );
-                
-                // Recalculate pricing
-                const subtotal = updatedItems.reduce((sum: number, item: OrderItem) => {
-                  const addOnsTotal = (item.addOns?.reduce((a: number, addon) => a + (addon.price || 0), 0) || 0) * (item.quantity || 1);
-                  return sum + item.price * (item.quantity || 1) + addOnsTotal;
-                }, 0);
-                const tax = Math.round(subtotal * 0.06);
-                const total = subtotal + tax;
-                
-                // Update the order via API
-                await orderApi.updateOrder(orderSummary.orderId, {
-                  items: updatedItems,
-                  pricingSummary: {
-                    subtotal,
-                    tax,
-                    taxPercentage: 6,
-                    discount: 0,
-                    serviceCharge: 0,
-                    totalAmount: total,
-                  }
-                });
-                
-                // Update local state
-                setOrderSummary({
-                  ...orderSummary,
-                  items: updatedItems,
-                  subtotal,
-                  tax,
-                  total,
-                });
-              }
-            }}
-            onChoosePaymentOption={() => {
-              setOrderSummaryOpen(false);
-              setShowPaymentModal(true);
-            }}
-          />
-          
-          {/* Payment Modal */}
-          <PaymentModal
-            open={showPaymentModal}
-            onClose={() => setShowPaymentModal(false)}
-            total={orderSummary?.total || 0}
-            onConfirm={async (method) => {
-              if (orderSummary?.orderId) {
-                // Update order with payment details
-                await orderApi.updateOrder(orderSummary.orderId, {
-                  paymentDetails: {
-                    method,
-                    status: 'Paid',
-                    transactionId: `TXN-${Date.now()}`,
-                  }
-                });
-                setShowPaymentModal(false);
-                setShowSuccessModal(true);
-              }
-            }}
-          />
-          
-          {/* Success Modal */}
-          <SuccessModal
-            open={showSuccessModal}
-            title="Payment Received Successfully!"
-            subtitle="Your payment has been processed and the order has been updated."
-            buttonText="Back to Tables"
-            onButtonClick={() => {
-              setShowSuccessModal(false);
-              // Refresh tables to show updated status
-              getTablesByFloor(floor).then((t) => {
-                setTables(t);
-              });
-            }}
-          />
-        </>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold">
-              Table{" "}
-              <span className="font-bold text-[#00000099]">(Floor Plan)</span>
-            </h1>
-          </div>
-          <EditFloorPlan floor={floor} onSave={() => setEditMode(false)} />
-        </>
       )}
     </div>
   );

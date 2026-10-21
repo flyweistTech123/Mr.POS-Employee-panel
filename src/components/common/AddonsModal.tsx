@@ -4,7 +4,7 @@ import type { OrderItem } from "@/types/order";
 interface AddonsModalProps {
   open: boolean;
   item: OrderItem | null;
-  selectedSize: string;
+  selectedSize?: string; // Made optional to resolve TS errors
   tableId?: string;
   onClose: () => void;
   onSave: (data: { addons: string[]; note: string }) => void;
@@ -22,7 +22,6 @@ const dummyAddons = [
 const AddonsModal: React.FC<AddonsModalProps> = ({
   open,
   item,
-  // selectedSize,
   tableId,
   onClose,
   onSave,
@@ -37,7 +36,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
     }
   }, [open, item]);
 
-  // Split addons into two groups
   const noPriceAddons = dummyAddons.filter((a) => a.price === 0);
   const withPriceAddons = dummyAddons.filter((a) => a.price > 0);
 
@@ -53,7 +51,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
       />
       {open && item && (
         <div className="bg-white rounded-2xl w-[400px] max-w-full shadow-xl overflow-hidden relative z-10">
-          {/* Header */}
           <div
             className="rounded-t-2xl py-4 px-6  text-black text-left"
             style={{
@@ -69,10 +66,8 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
               </div>
             </div>
           </div>
-          {/* Content */}
           <div className="p-8 pt-6 pb-0">
             <div className="font-bold text-lg text-left mb-6">Addons</div>
-            {/* No price addons inline */}
             <div className="flex flex-row gap-6 mb-4">
               {noPriceAddons.map((addon) => (
                 <label
@@ -95,7 +90,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
                 </label>
               ))}
             </div>
-            {/* With price addons stacked */}
             <div className="flex flex-col gap-2 mb-8">
               {withPriceAddons.map((addon) => (
                 <label
@@ -119,13 +113,10 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
                 </label>
               ))}
             </div>
-            {/* Note section */}
             <div className="mb-8">
               <div className="font-bold mb-2 text-left">Note</div>
               <textarea
-                className="w-full rounded-xl p-4 text-base font-normal focus:outline-none resize-none min-h-[56px] 
-                
-                bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] placeholder:text-[#00000099]"
+                className="w-full rounded-xl p-4 text-base font-normal focus:outline-none resize-none min-h-[56px] bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] placeholder:text-[#00000099]"
                 rows={2}
                 placeholder="Enter Notes here....."
                 value={note}
@@ -134,7 +125,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
             </div>
             <div className="pb-6" />
           </div>
-          {/* Save button remains as is */}
           <div className="px-8 pb-8 pt-2 bg-white">
             <button
               className="w-full py-3 rounded-xl text-lg font-semibold text-white bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"

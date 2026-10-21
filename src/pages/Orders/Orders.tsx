@@ -1,728 +1,569 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useMemo } from "react";
-import { useOrderFlowStore, useWalkthroughUIStore } from "@/store/zustandStores";
-import { useWalkthroughStore } from '@/store/walkthroughStore';
 import { useNavigate, useLocation } from "react-router-dom";
+import { useOrderFlowStore, useWalkthroughUIStore } from "@/store/zustandStores";
+import type { OrderItem } from "@/types/order";
 
-// API Hooks
 import {
   useGetAllItemsQuery,
   useGetAllItemTypesQuery,
   useGetAllFloorsQuery,
   useCreateOrderMutation,
-  useUpdateOrderMutation,
   useSendToKitchenMutation,
+  useUpdateOrderStatusMutation,
+  useCreatePaymentMutation,
 } from "@/redux/api/quickOrderSlice";
 
-// Components & Modals
+import PaymentModal from "@/components/common/PaymentModal";
 import ItemDetailsModal from "@/components/common/ItemDetailsModal";
 import AddonsModal from "@/components/common/AddonsModal";
-import OrderSummaryModal from "@/components/common/OrderSummaryModal";
-import PaymentModal from "@/components/common/PaymentModal";
-import { SuccessModal } from "@/components/common/SuccessModal";
-import ReadyToScanModal from "@/components/common/ReadyToScanModal";
-import ReadyToPayModal from "@/components/common/ReadyToPayModal";
-import PaymentDoneModal from "@/components/common/PaymentDoneModal";
-import BarTabScreen from "./BarTabScreen"; 
+import BarTabScreen from "./BarTabScreen";
+import { KitchenSuccessModal } from "@/components/common/CustomSuccessModals";
+import CancelOrderModal from "@/components/common/CancelOrderModal";
 
-// Assets
-import personIcon from "@/assets/user_icon.svg";
-import floorIcon from "@/assets/floor_icon.svg";
-import tableIcon from "@/assets/table_filled_icon.svg";
 import TrashIcon from "@/assets/Trash.svg";
-import successIcon from '@/assets/order/success_icon_large.svg';
-
-// Figma Fallbacks (Food only)
-import image1 from '../../assets/order/DoubleChocolateFrappe.png';
-import image2 from '../../assets/order/MCSignature.png';
-import image3 from '../../assets/order/MOPBBPilot_BigMac.png';
-import image4 from '../../assets/order/MOP_BBPilot_Buttermilk.png';
-import image5 from '../../assets/order/MOP_BBPilot_McSpicy.png';
-import image6 from '../../assets/order/Nuggets.png';
-
-const FIGMA_FALLBACK_ITEMS = [
-  { itemId: 'f1',  name: 'Crispy Chicken', price: 330, image: image2, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f2',  name: 'Filet-O-Fish',   price: 330, image: image4, itemType: 'crispy',   preparationStation: 'Kitchen' },
-  { itemId: 'f3',  name: 'Spicy burger',   price: 330, image: image5, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f4',  name: 'Spicy burger',   price: 330, image: image5, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f5',  name: 'Spicy burger',   price: 330, image: image5, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f6',  name: 'Frappe',         price: 199, image: image1, itemType: 'beverage', preparationStation: 'Counter' },
-  { itemId: 'f7',  name: 'Filet-O-Fish',   price: 330, image: image4, itemType: 'crispy',   preparationStation: 'Kitchen' },
-  { itemId: 'f8',  name: 'Filet-O-Fish',   price: 330, image: image4, itemType: 'crispy',   preparationStation: 'Kitchen' },
-  { itemId: 'f9',  name: 'Big Mac',        price: 330, image: image3, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f10', name: 'Spicy burger',   price: 330, image: image5, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f11', name: 'Frappe',         price: 199, image: image1, itemType: 'beverage', preparationStation: 'Counter' },
-  { itemId: 'f12', name: 'Frappe',         price: 199, image: image1, itemType: 'beverage', preparationStation: 'Counter' },
-  { itemId: 'f13', name: 'Spicy burger',   price: 330, image: image5, itemType: 'burger',   preparationStation: 'Kitchen' },
-  { itemId: 'f14', name: 'Frappe',         price: 199, image: image1, itemType: 'beverage', preparationStation: 'Counter' },
-  { itemId: 'f15', name: 'Frappe',         price: 199, image: image1, itemType: 'beverage', preparationStation: 'Counter' },
-];
-
-const getFigmaImage = (name: string): string | null => {
-  const n = (name || "").toLowerCase();
-  if (n.includes("frappe") || n.includes("chocolate")) return image1;
-  if (n.includes("signature") || n.includes("mcchicken") || n.includes("crispy chicken")) return image2;
-  if (n.includes("big mac") || n.includes("bigmac")) return image3;
-  if (n.includes("filet") || n.includes("buttermilk")) return image4;
-  if (n.includes("spicy") || n.includes("mcspicy")) return image5;
-  if (n.includes("nugget")) return image6;
-  return null;
-};
-
-const isCounterItem = (categoryName: string) => {
-  const n = (categoryName || "").toLowerCase();
-  return n.includes("beverage") || n.includes("drink") || n.includes("beer") || n.includes("wine") || n.includes("cocktail");
-};
+import successIcon from "@/assets/order/success_icon_large.svg";
 
 const Orders: React.FC = () => {
-  // --- Zustand Store ---
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [activeMode, setActiveMode] = useState<"Food" | "Bar">("Food");
+  const [showBarTabScreen, setShowBarTabScreen] = useState(false);
+
   const {
-    currentOrder, pendingItem, pendingCustomizedItem,
-    setPendingCustomizedItem, clearPendingCustomizedItem,
-    addItemToOrder, resetOrder, startOrder, updateOrderItem,
-    setCurrentOrderId, removeOrderItem, setFloor,
-    setPersons: setPersonsGlobal, setInOrderFlow,
+    currentOrder,
+    pendingCustomizedItem,
+    clearPendingCustomizedItem,
+    addItemToOrder,
+    resetOrder,
+    startOrder,
+    updateOrderItem,
+    setCurrentOrderId,
+    removeOrderItem,
+    setPersons: setPersonsGlobal,
+    setServerTotals,
+    floor: globalFloor,
   } = useOrderFlowStore();
 
   const selectedCategory = useWalkthroughUIStore((s) => s.selectedCategory);
   const setSelectedCategory = useWalkthroughUIStore((s) => s.setSelectedCategory);
-  const { steps, currentStep, isActive, next } = useWalkthroughStore();
 
-  // --- UI State ---
-  const [activeMode, setActiveMode] = useState<'Food' | 'Bar'>('Food');
-  const [showBarTabScreen, setShowBarTabScreen] = useState(false);
-  
-  const [isHappyHourActive, setIsHappyHourActive] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // --- Selection State ---
   const [persons, setPersons] = useState(1);
-  const [selectedFloor, setSelectedFloor] = useState("F-01");
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [selectedItemTypeId, setSelectedItemTypeId] = useState<string | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState(globalFloor || "F-01");
+  const [panelMode, setPanelMode] = useState<"idle" | "floor" | "order">("idle");
 
-  // --- Flow State ---
-  const [showFloorPersonsPanel, setShowFloorPersonsPanel] = useState(false);
-  const [showOrderSentPanel, setShowOrderSentPanel] = useState(false);
-  const [orderSending, setOrderSending] = useState(false);
-  const [showSummaryPanel, setShowSummaryPanel] = useState(false);
-  const [showOrderSummaryModal, setShowOrderSummaryModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReadyToPayModal, setShowReadyToPayModal] = useState(false);
+  
+  const [showKitchenSuccess, setShowKitchenSuccess] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // --- Modals State ---
-  const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
-  const [showAddonsModal, setShowAddonsModal] = useState(false);
   const [modalItem, setModalItem] = useState<any>(null);
-  const [modalSize, setModalSize] = useState("M");
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  
+  const [isSendingKitchen, setIsSendingKitchen] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // --- API Mutations & Queries ---
-  const [createOrder, { isLoading: isCreatingOrder }] = useCreateOrderMutation();
-  const [updateOrder] = useUpdateOrderMutation();
-  const [sendToKitchen, { isLoading: isSendingToKitchen }] = useSendToKitchenMutation();
+  const [feedback, setFeedback] = useState("");
 
-  const { data: itemTypesData, isLoading: itemTypesLoading } = useGetAllItemTypesQuery({ type: activeMode });
-  const { data: itemsData, isLoading: itemsLoading } = useGetAllItemsQuery({ type: activeMode });
+  // ✅ API Hooks (with loading states)
+  const { data: itemTypesData, isLoading: isLoadingTypes } = useGetAllItemTypesQuery({ type: activeMode });
+  const { data: itemsData, isLoading: isLoadingItems } = useGetAllItemsQuery({ type: activeMode });
   const { data: floorsData } = useGetAllFloorsQuery();
 
-  // --- Memos & Effects ---
-  const floors = useMemo<string[]>(() => {
-    const apiFloors = (floorsData?.data || []).map((f: any) => f.Floor_Name);
-    return apiFloors.length > 0 ? apiFloors : ["F-01", "F-02", "F-03"];
+  const [createOrder] = useCreateOrderMutation();
+  const [sendToKitchen] = useSendToKitchenMutation();
+  const [updateOrderStatus] = useUpdateOrderStatusMutation();
+  const [createPayment] = useCreatePaymentMutation();
+
+  const floorsWithIds = useMemo(() => {
+    return (floorsData?.data || []).map((f: any) => ({ id: f.Floor_id, name: f.Floor_Name }));
   }, [floorsData]);
 
   const categories = useMemo(() => {
-    const apiCats = itemTypesData?.data?.map((type: any) => ({
-      label: type.Name,
-      value: type.Items_types_id.toString(),
-      icon: type.emozi || null,
+    const apiCats = itemTypesData?.data?.map((t: any) => ({
+      label: t.Name, value: t.Items_types_id.toString(), icon: t.emozi,
     })) || [];
     return [{ label: "All Items", value: "all", icon: null }, ...apiCats];
   }, [itemTypesData]);
 
-  const apiMenuItems = useMemo(() => {
-    return (itemsData?.data || []).map((item: any) => {
-      const cat = item.Category || {};
-      const typeId = cat.Items_types_id?.toString();
-      const typeName = cat.Name || "";
-      const apiImg = item.image_url || item.image || null;
-      const figmaImg = activeMode === 'Food' ? getFigmaImage(item["item-name"]) : null;
-      
-      return {
-        itemId: item.Items_id?.toString(),
-        name: item["item-name"] || item.Title,
-        price: item["item-price"] || item.Price,
-        image: figmaImg || apiImg,
-        itemType: typeId,
-        categoryName: typeName,
-        preparationStation: isCounterItem(typeName) ? "Counter" : "Kitchen",
-      };
-    });
-  }, [itemsData, activeMode]);
+  const menuItems = useMemo(() => {
+    return (itemsData?.data || []).map((item: any) => ({
+      itemId: item.Items_id?.toString(),
+      name: item["item-name"],
+      price: item["item-price"],
+      image: item.image_url || item.image,
+      itemType: item.Category?.Items_types_id?.toString(),
+    }));
+  }, [itemsData]);
 
   const filteredItems = useMemo(() => {
-    if (selectedCategory === "all" || !selectedCategory) {
-      if (apiMenuItems.length === 0 && activeMode === 'Food') return FIGMA_FALLBACK_ITEMS;
-      return apiMenuItems;
-    }
-   return apiMenuItems.filter((item: any) => item.itemType === selectedCategory);
-  }, [selectedCategory, apiMenuItems, activeMode]);
+    if (selectedCategory === "all") return menuItems;
+    return menuItems.filter((i: any) => i.itemType === selectedCategory);
+  }, [selectedCategory, menuItems]);
 
-  const isLoading = itemTypesLoading || itemsLoading;
+  const items = currentOrder?.items || [];
+  const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = Math.round(subTotal * 0.06);
+  const total = currentOrder?.serverTotal ?? subTotal + tax;
 
-  useEffect(() => { setInOrderFlow(true); }, [setInOrderFlow]);
+  const isOrderPaid = currentOrder?.orderStatus === "Completed" || currentOrder?.paymentStatus === "Success";
+  const isOrderSentToKitchen = currentOrder?.orderStatus === "In_Kitchen" || currentOrder?.orderStatus === "Cooking" || currentOrder?.orderStatus === "Ready";
 
+  const showSuccessPanel = isOrderPaid;
+  const showOrderSummary = !isOrderPaid && !isOrderSentToKitchen && panelMode === "order" && currentOrder && items.length > 0;
+
+  // ✅ Effect: Sync Cart with Toast
   useEffect(() => {
-    setSelectedCategory("all");
-    setSelectedItemTypeId(null);
-  }, [activeMode, setSelectedCategory]);
-
-  useEffect(() => {
-    if (pendingItem && currentOrder) { setModalItem(pendingItem); setShowItemDetailsModal(true); }
-  }, [pendingItem, currentOrder]);
-
-  useEffect(() => {
-    if (pendingCustomizedItem && selectedTable && currentOrder) {
+    if (pendingCustomizedItem && currentOrder) {
       addItemToOrder(pendingCustomizedItem);
       clearPendingCustomizedItem();
+      // Show Toast
+      setFeedback(`Added ${pendingCustomizedItem.name} to order!`);
+      setTimeout(() => setFeedback(""), 2000);
     }
-  }, [pendingCustomizedItem, selectedTable, currentOrder, addItemToOrder, clearPendingCustomizedItem]);
+  }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem]);
 
+  // ✅ Navigation / State sync
   useEffect(() => {
-    if (currentOrder && currentOrder.tableId) {
-      setSelectedTable(currentOrder.tableId);
-      setSelectedFloor(currentOrder.floor);
-      setPersons(currentOrder.persons);
-    }
-  }, [currentOrder]);
-
-  useEffect(() => {
-    if (location.state && location.state.showOrderSentPanel) {
-      setShowOrderSentPanel(true);
+    const navState = location.state as { tableId?: number; floor?: string; persons?: number };
+    if (navState?.tableId) {
+      if (currentOrder?.tableId !== String(navState.tableId)) {
+        startOrder({
+          tableId: String(navState.tableId),
+          floor: navState.floor || selectedFloor,
+          persons: navState.persons || persons,
+        });
+      }
+      setPanelMode("order");
       window.history.replaceState({}, document.title);
+    } else if (currentOrder) {
+      setPanelMode("order");
+    } else {
+      setPanelMode("idle");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  // --- Handlers ---
-  const handleRightPanelClick = () => {
-    setShowFloorPersonsPanel(true);
-    const walkthrough = useWalkthroughStore.getState();
-    const step = walkthrough.steps[walkthrough.currentStep];
-    if (step?.selector === ".select-table-prompt" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
-      walkthrough.next();
-    }
-  };
-
   const handleAddToCart = (item: any) => {
-    if (!currentOrder && !selectedTable && !showFloorPersonsPanel) {
-      setTimeout(() => {
-        setModalItem(item);
-        setShowItemDetailsModal(true);
-        setShowFloorPersonsPanel(true);
-      }, 100);
+    if (panelMode !== "order") {
+      setPanelMode("floor");
       return;
     }
     setModalItem(item);
-    setShowItemDetailsModal(true);
+    setShowItemModal(true);
   };
 
   const handleAddonsSave = ({ addons, note }: { addons: string[]; note: string }) => {
     if (!modalItem) return;
     const customizedItem = {
-      ...modalItem, 
-      size: modalSize,
-      addOns: addons.map((label, idx) => ({ id: String(idx), name: label, price: 0 })),
+      ...modalItem,
+      size: "M",
+      addOns: addons.map((a, i) => ({ id: String(i), name: a, price: 0 })),
       notes: note,
     };
     
-    if (!currentOrder && !selectedTable) {
-      setPendingCustomizedItem(customizedItem);
-      setShowAddonsModal(false); setModalItem(null); setModalSize("M");
-      return;
-    }
-    
     addItemToOrder(customizedItem);
+    setShowAddonModal(false);
+    
+    // ✅ Show Toast
     setFeedback(`${modalItem.name} added to order!`);
-    setTimeout(() => setFeedback(""), 1200);
-    setShowAddonsModal(false); setModalItem(null); setModalSize("M");
+    setTimeout(() => setFeedback(""), 2000);
   };
 
-  const handleSelectTable = (isQuickOrder: boolean = false) => {
-    if (isQuickOrder) {
-      startOrder({ tableId: "Quick-Table", floor: selectedFloor, persons });
-      setShowFloorPersonsPanel(false);
-    } else {
-      navigate("/table", { state: { persons, floor: selectedFloor } });
+  const handleBack = () => setShowCancelModal(true);
+
+  const confirmCancelOrder = () => {
+    resetOrder();
+    setShowKitchenSuccess(false);
+    setPanelMode("idle");
+    setShowCancelModal(false);
+    setFeedback("Order reset");
+    setTimeout(() => setFeedback(""), 1500);
+  };
+
+  const saveOrderToServer = async (): Promise<string | null> => {
+    if (currentOrder?.orderId) return currentOrder.orderId;
+
+    try {
+      const tableIdNum = Number(String(currentOrder?.tableId).replace(/\D/g, "")) || 2;
+      const payload = {
+        items: items.map((i: OrderItem) => ({
+          item_id: Number(i.itemId),
+          item_Quentry: i.quantity,
+          item_size: i.size || "M",
+          item_note: i.notes || "",
+          item_status: "Preparing",
+        })),
+        Tax: tax,
+        Customer_id: 25,
+        Dining_Option: "Dine in",
+        Table_id: tableIdNum,
+        Kitchen_id: 1,
+        Order_Status: "Preparing",
+        payment_status: "Pending",
+        Status: true,
+      };
+
+      const res = await createOrder(payload).unwrap();
+      const orderId = String(res.data?.POS_Order_id || "");
+      setCurrentOrderId(orderId, res.data?._id);
+      if (res.data) {
+        setServerTotals({
+          subTotal: res.data.SubTotal,
+          tax: res.data.Tax,
+          total: res.data.Total,
+        });
+      }
+      return orderId;
+    } catch (err) {
+      console.error(err);
+      return null;
     }
+  };
+
+  const handleSendToKitchen = async () => {
+    setIsSendingKitchen(true); 
+    try {
+      let orderId = await saveOrderToServer();
+      if (!orderId) {
+        setFeedback("Failed to save order");
+        return;
+      }
+
+      await sendToKitchen({
+        id: orderId,
+        items: items.map((i: OrderItem) => ({
+          item_id: Number(i.itemId),
+          item_note: i.notes || "",
+        })),
+      }).unwrap();
+      
+      await updateOrderStatus({ id: orderId, Order_Status: "In_Kitchen" }).unwrap();
+      
+      setShowKitchenSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setFeedback("Failed to send to kitchen");
+    } finally {
+      setIsSendingKitchen(false); 
+    }
+  };
+
+  const handlePaymentInitiation = async () => {
+    setIsProcessingPayment(true); 
+    try {
+      let id = await saveOrderToServer();
+      if (!id) {
+        setFeedback("Failed to save order");
+        return;
+      }
+      setShowPaymentModal(true);
+    } catch (err) {
+      console.error(err);
+      setFeedback("Failed to open payment");
+    } finally {
+      setIsProcessingPayment(false); 
+    }
+  };
+
+  const handlePaymentConfirm = async (result: { option: string; paymentOptionId: number }) => {
+    setShowPaymentModal(false);
+    setShowReadyToPayModal(true);
+
+    setTimeout(async () => {
+      const orderId = useOrderFlowStore.getState().currentOrder?.orderId;
+      if (!orderId) return;
+
+      try {
+        await createPayment({
+          Payment_Options_id: result.paymentOptionId,
+          Order_id: orderId,
+          payment_method: result.option,
+          paymentStatus: "Success",
+        }).unwrap();
+        
+        useOrderFlowStore.getState().setServerTotals({
+          subTotal: currentOrder?.serverSubTotal || subTotal,
+          tax: currentOrder?.serverTax || tax,
+          total: currentOrder?.serverTotal || total,
+          orderStatus: "Completed",
+          paymentStatus: "Success"
+        });
+
+        await updateOrderStatus({ id: orderId, Order_Status: "Completed" }).unwrap();
+
+        setShowReadyToPayModal(false);
+      } catch (err: any) {
+        setFeedback(err?.data?.message || "Payment update failed");
+        console.error(err);
+      }
+    }, 2000);
   };
 
   const handleNextOrder = () => {
     resetOrder();
-    setShowOrderSentPanel(false);
-    setSelectedTable(null);
+    setShowKitchenSuccess(false);
+    setPanelMode("idle");
     setPersons(1);
-    setSelectedFloor(floors[0] || "F-01");
-    setSelectedCategory("all");
-    setSelectedItemTypeId(null);
-    setShowFloorPersonsPanel(false);
-    const walkthrough = useWalkthroughStore.getState();
-    walkthrough.complete();
   };
 
-  const handleDeleteItem = (itemId: string) => { if (!currentOrder) return; removeOrderItem(itemId); };
-  const handleUpdateQuantity = (itemId: string, newQty: number) => {
-    if (newQty < 1) return;
-    updateOrderItem(itemId, { quantity: newQty });
-  };
-
-  const orderItems = currentOrder?.items || [];
-  const subtotal = orderItems.reduce((sum: number, item: any) => {
-    const addOnsTotal = (item.addOns?.reduce((a: number, addon: any) => a + (addon.price || 0), 0) || 0) * (item.quantity || 1);
-    return sum + item.price * (item.quantity || 1) + addOnsTotal;
-  }, 0);
-  const tax = Math.round(subtotal * 0.06);
-  const total = subtotal + tax;
-  const hasKitchenItem = orderItems.some((item: any) => item.preparationStation === "Kitchen");
-  const allCounter = orderItems.length > 0 && orderItems.every((item: any) => item.preparationStation === "Counter");
-
-  // --- Order Submissions ---
-  const handleOrderAction = async () => {
-    if (hasKitchenItem) {
-      setShowConfirmationModal(true);
-    } else if (allCounter && currentOrder) {
-      setOrderSending(true);
-      try {
-        const tableId = Number(String(currentOrder.tableId || '').replace(/\D/g, ''));
-        const mappedItems = currentOrder.items.map((item: any) => ({
-          item_id: Number(item.itemId),
-          item_Quentry: item.quantity || 1,
-          item_size: item.size || "Medium",
-          item_note: item.notes || "",
-          item_status: "Preparing"
-        }));
-        
-        const result = await createOrder({
-          items: mappedItems,
-          Tax: tax,
-          Customer_id: (currentOrder as any).customerId || 25,
-          Dining_Option: "Dine in",
-          Table_id: tableId || 2,
-          Kitchen_id: (currentOrder as any).kitchenId || 1,
-          Order_Status: "Preparing",
-          payment_status: "Pending",
-          Status: true
-        }).unwrap();
-
-        const newOrderId = result?.order?.orderId ?? result?.order?._id ?? result?.data?.orderId ?? result?.data?._id;
-        if (newOrderId) setCurrentOrderId(String(newOrderId));
-        setShowOrderSentPanel(true);
-      } catch (error) { 
-        console.error('Failed to send order', error); 
-        setFeedback('Failed to create order');
-      } finally { 
-        setOrderSending(false); 
-      }
-    }
-  };
-
-  const handleConfirmationContinue = async () => {
-    if (!currentOrder) return;
-    setOrderSending(true);
-    try {
-      const tableId = Number(String(currentOrder.tableId || '').replace(/\D/g, ''));
-      const mappedItems = currentOrder.items.map((item: any) => ({
-        item_id: Number(item.itemId),
-        item_Quentry: item.quantity || 1,
-        item_size: item.size || "Medium",
-        item_note: item.notes || "",
-        item_status: "Preparing"
-      }));
-
-      const result = await createOrder({
-        items: mappedItems,
-        Tax: tax,
-        Customer_id: (currentOrder as any).customerId || 25,
-        Dining_Option: "Dine in",
-        Table_id: tableId || 2,
-        Kitchen_id: (currentOrder as any).kitchenId || 1,
-        Order_Status: "Preparing",
-        payment_status: "Pending",
-        Status: true
-      }).unwrap();
-
-      const newOrderId = result?.order?.orderId ?? result?.order?._id ?? result?.data?.orderId ?? result?.data?._id;
-      if (newOrderId) {
-        setCurrentOrderId(String(newOrderId));
-        if (hasKitchenItem) {
-          await sendToKitchen({ id: newOrderId }).unwrap().catch(console.warn);
-        }
-      }
-      setShowConfirmationModal(false);
-      setShowOrderSentPanel(true);
-    } catch (error) { 
-      console.error('Failed to send order', error); 
-      setFeedback('Failed to create order');
-    } finally { 
-      setOrderSending(false); 
-    }
-  };
-
-  /* ============================================================
-     RENDER: BAR TAB SCREEN (Isolated)
-     ============================================================ */
-  if (activeMode === 'Bar' && showBarTabScreen) {
+  if (activeMode === "Bar" && showBarTabScreen) {
     return <BarTabScreen onBack={() => setShowBarTabScreen(false)} />;
   }
 
-  /* ============================================================
-     RENDER: MAIN SCREEN
-     ============================================================ */
   return (
     <div className="flex flex-col min-h-screen p-6 bg-[#F8F8F8]">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-black">
-          {activeMode === 'Food' ? 'Quick Orders' : 'Bar Management'}
-        </h1>
-
+        <h1 className="text-3xl font-bold">{activeMode === "Food" ? "Quick Orders" : "Bar Management"}</h1>
         <div className="flex items-center gap-4">
-          {activeMode === 'Bar' && (
-            <button onClick={() => setShowBarTabScreen(true)}
-              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white font-semibold text-sm shadow-md hover:opacity-90 transition-all">
+          {activeMode === "Bar" && (
+            <button onClick={() => setShowBarTabScreen(true)} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white font-semibold text-sm shadow-md hover:opacity-90 transition-all">
               <span className="text-lg leading-none">+</span> Open Bar Tab
             </button>
           )}
-          
           <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-100">
-            <button onClick={() => setActiveMode('Food')}
-              className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${activeMode === 'Food' ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" : "text-gray-500 hover:bg-gray-50"}`}>
-              Food
-            </button>
-            <button onClick={() => setActiveMode('Bar')}
-              className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${activeMode === 'Bar' ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" : "text-gray-500 hover:bg-gray-50"}`}>
-              Bar
-            </button>
+            <button onClick={() => setActiveMode("Food")} className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${activeMode === "Food" ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" : "text-gray-500 hover:bg-gray-50"}`}>Food</button>
+            <button onClick={() => setActiveMode("Bar")} className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${activeMode === "Bar" ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm" : "text-gray-500 hover:bg-gray-50"}`}>Bar</button>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
-        {/* LEFT PANEL - CATEGORIES & ITEMS */}
-        <div className="flex-1 bg-white rounded-[32px] shadow-sm p-6 flex flex-col overflow-hidden">
-          
-          {/* Category Bar */}
-          <div className="mb-6 w-full overflow-x-auto">
-            <div className="flex gap-2">
-              {categories.map((cat) => {
-                const isActive = selectedCategory === cat.value;
-                return (
-                  <button
-                    key={cat.value}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-medium transition-all text-[13px] whitespace-nowrap ${
-                      isActive ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-200" : "bg-transparent text-gray-600 hover:text-gray-900"
-                    }`}
-                    onClick={() => {
-                      setSelectedCategory(cat.value);
-                      setSelectedItemTypeId(cat.value !== "all" ? cat.value : null);
-                      const walkthrough = useWalkthroughStore.getState();
-                      const step = walkthrough.steps[walkthrough.currentStep];
-                      if (!step?.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui") {
-                        setTimeout(() => walkthrough.next(), 100);
-                      }
-                    }}
-                  >
-                    {cat.icon && <span className="text-[15px] leading-none flex items-center">{cat.icon}</span>}
-                    <span>{cat.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+      <div className="flex gap-6 h-[calc(100vh-140px)]">
+        {/* LEFT PANEL */}
+        <div className="flex-1 bg-white rounded-[32px] p-6 flex flex-col overflow-hidden">
+          <div className="flex gap-2 mb-6 overflow-x-auto">
+            {categories.map(c => (
+              <button key={c.value} onClick={() => setSelectedCategory(c.value)} className={`px-4 py-2 rounded-full text-sm font-medium ${selectedCategory === c.value ? 'bg-gray-100 text-gray-900 shadow-sm border' : 'text-gray-500'}`}>
+                {c.icon} {c.label}
+              </button>
+            ))}
           </div>
-
-          {/* Items Grid */}
-          <div className="flex-1 overflow-y-auto pr-1">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-full">
-                <div className="w-10 h-10 border-4 border-t-4 border-gray-200 border-t-[#6A1B9A] rounded-full animate-spin"></div>
+          
+          {/* ✅ SKELETON LOADER FOR ITEMS */}
+          <div className="flex-1 overflow-y-auto">
+            {isLoadingItems ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="bg-white border rounded-2xl p-3 flex flex-col items-center animate-pulse">
+                    <div className="w-20 h-20 bg-gray-200 rounded-full mb-2" />
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  </div>
+                ))}
               </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="flex justify-center items-center h-full text-gray-400 text-sm">No items found.</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {filteredItems.map((item: any, idx: number) => (
-                  <div key={item.itemId + idx}
-                    className={`bg-white shadow-sm border border-gray-100 rounded-2xl flex flex-col items-center cursor-pointer transition-all duration-200 min-h-[168px] justify-between py-3 px-2 hover:shadow-md ${
-                      idx === 0 ? 'order-item-first' : ''
-                    }${idx === 1 ? ' order-item-second' : ''}${idx === 2 ? ' order-item-third' : ''}`}
-                    onClick={() => handleAddToCart(item)}>
-                    <div className="w-full flex items-center justify-center flex-1 mb-2">
-                      <img src={item.image || "https://via.placeholder.com/100x100?text=Item"} alt={item.name} className="w-[92px] h-[92px] object-contain rounded-md" />
-                    </div>
-                    <div className="text-[13px] font-bold text-center text-gray-900 leading-tight line-clamp-2 mb-1 px-1">{item.name}</div>
-                    <div className="text-[12px] font-medium text-gray-500">{item.price} XOF</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {filteredItems.map((item: any) => (
+                  <div key={item.itemId} onClick={() => handleAddToCart(item)} className="bg-white border rounded-2xl p-3 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow">
+                    <img src={item.image} alt={item.name} className="w-20 h-20 object-contain mb-2" />
+                    <div className="text-sm font-bold text-center line-clamp-1">{item.name}</div>
+                    <div className="text-xs text-gray-500">{item.price} XOF</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {feedback && (
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-2 rounded-full shadow-lg z-50 transition-all animate-bounce">
-              {feedback}
-            </div>
-          )}
         </div>
 
         {/* RIGHT PANEL */}
-        <div 
-          className="w-full lg:w-[320px] bg-white rounded-[28px] shadow-sm flex flex-col items-center justify-center text-center overflow-hidden relative"
-          onClick={handleRightPanelClick}
-          style={{ cursor: !currentOrder && !selectedTable && !showFloorPersonsPanel && !showOrderSentPanel && !showConfirmationModal ? "pointer" : "default" }}
-        >
-          {/* 1. Order Sent Panel */}
-          {showOrderSentPanel && (
-            <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-white">
+        <div className="w-[340px] bg-white rounded-[28px] shadow-sm overflow-hidden relative">
+          
+          {/* SUCCESS PANEL */}
+          {showSuccessPanel && (
+            <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
               <div className="bg-[#F5F5F5] rounded-t-[28px] p-6 w-full text-left">
-                <div className="text-xl font-bold text-gray-800">
-                  #{currentOrder ? (currentOrder as any).orderId || (Math.random()*1000).toFixed(0) : (Math.random()*1000).toFixed(0)}
+                <div className="text-2xl font-bold text-gray-800">
+                  # {currentOrder?.orderId || "108"}
                 </div>
                 <div className="flex justify-between mt-1">
                   <div className="text-xs font-medium text-gray-500">Order Created</div>
-                  <div className="text-xs font-medium text-gray-500 text-right">Table - {currentOrder?.tableId?.replace("t-", "")}</div>
+                  <div className="text-xs font-medium text-gray-500 text-right">
+                    Table - {currentOrder?.tableId?.replace("t-", "") || "04"}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col items-center justify-center flex-1 py-8">
-                <div className="rounded-full p-6 mb-6"><img src={successIcon} alt="success" className="w-24 h-24" /></div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Sent!</h2>
-                <p className="text-gray-500 text-sm px-8">Your order has been sent successfully.</p>
+                <div className="rounded-full p-6 mb-6">
+                  <img src={successIcon} alt="success" className="w-24 h-24" />
+                </div>
               </div>
-              <button className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all" onClick={handleNextOrder}>
+              <button
+                className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all rounded-b-[28px]"
+                onClick={handleNextOrder}
+              >
                 Next Order
               </button>
             </div>
           )}
 
-          <SuccessModal open={showConfirmationModal} title="Order Sent to Kitchen"
-            subtitle="Your Dish has been created and will be updated in the menu in couple of minutes"
-            buttonText={orderSending ? "Sending..." : "Continue"} onButtonClick={handleConfirmationContinue} />
-
-          {/* 2. Floor & Persons Panel */}
-          {!selectedTable && !currentOrder && showFloorPersonsPanel && !showOrderSentPanel && !showConfirmationModal && (
-            <div className="w-full h-full flex flex-col justify-between overflow-hidden person-floor-panel bg-white">
-              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 text-left">
-                <div className="text-xl font-bold text-gray-800">Floor Map</div>
-                <div className="text-xs font-medium text-gray-600 mt-1">Select Floor and Persons</div>
+          {/* FLOOR MAP */}
+          {!showSuccessPanel && panelMode === "floor" && (
+            <div className="w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
+                <div className="text-xl font-bold">Floor Map</div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="mb-8">
-                  <div className="font-semibold text-gray-700 mb-4 text-start">Select Persons:</div>
-                  <div className="flex items-center justify-center gap-4">
-                    <button className="w-10 h-10 rounded-lg bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white text-xl flex items-center justify-center shadow-md"
-                      onClick={() => { setPersons((p) => { const nv = Math.max(1, p - 1); setPersonsGlobal(nv); return nv; }); }}>–</button>
-                    <div className="w-16 h-10 flex items-center justify-center border border-gray-200 rounded-lg text-lg font-bold text-gray-800">{persons}</div>
-                    <button className="w-10 h-10 rounded-lg bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white text-xl flex items-center justify-center shadow-md"
-                      onClick={() => { setPersons((p) => { const nv = Math.min(20, p + 1); setPersonsGlobal(nv); return nv; }); }}>+</button>
+              <div className="flex-1 p-6">
+                <div className="mb-8 text-center">
+                  <div className="font-semibold mb-3 text-left">Select Persons:</div>
+                  <div className="flex justify-center items-center gap-4">
+                    <button onClick={() => { setPersons(p => Math.max(1, p - 1)); setPersonsGlobal(persons - 1); }} className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl">-</button>
+                    <div className="w-16 h-10 border rounded-lg flex items-center justify-center font-bold">{persons}</div>
+                    <button onClick={() => { setPersons(p => p + 1); setPersonsGlobal(persons + 1); }} className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl">+</button>
                   </div>
                 </div>
-                <div className="mb-8">
-                  <div className="font-semibold text-gray-700 mb-4 text-start">Select Floor:</div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {floors.map((floor) => (
-                      <button key={floor}
-                        className={`py-3 rounded-xl text-sm font-medium transition-all ${selectedFloor === floor ? "bg-gradient-to-b from-[#8E24AA] to-[#E53935] text-white shadow-md" : "bg-gray-50 text-gray-600 hover:bg-gray-100"}`}
-                        onClick={() => { setSelectedFloor(floor); setFloor(floor); }}>
-                        {floor}
+                <div className="text-left">
+                  <div className="font-semibold mb-3">Select Floor:</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {floorsWithIds.map(f => (
+                      <button key={f.id} onClick={() => setSelectedFloor(f.name)} className={`py-2 rounded-lg text-sm font-medium ${selectedFloor === f.name ? 'bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white' : 'bg-gray-50'}`}>
+                        {f.name}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="flex w-full">
-                <button className="select-table-panel flex-1 py-4 text-base font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
-                  onClick={() => {
-                    const walkthrough = useWalkthroughStore.getState();
-                    const step = walkthrough.steps[walkthrough.currentStep];
-                    if (step?.selector === ".person-floor-panel" && (!step.advanceOn || step.advanceOn === "both" || step.advanceOn === "ui")) {
-                      walkthrough.next();
-                    }
-                    handleSelectTable(false);
-                  }}>
-                  Select Table
+              <div className="flex">
+                <button onClick={() => { navigate("/table", { state: { persons, floor: selectedFloor, floorId: floorsWithIds.find(f => f.name === selectedFloor)?.id } }); }} className="flex-1 py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] rounded-bl-[28px]">Select Table</button>
+                <button onClick={() => { startOrder({ tableId: "Quick-Table", floor: selectedFloor, persons }); setPanelMode("order"); }} className="flex-1 py-4 text-[#8E24AA] font-bold bg-white border-l rounded-br-[28px]">Quick Order</button>
+              </div>
+            </div>
+          )}
+
+          {/* ORDER SUMMARY */}
+          {showOrderSummary && (
+            <div className="w-full h-full flex flex-col bg-[#F9F5F9] rounded-[28px] overflow-hidden">
+              <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] p-5 flex justify-between items-center">
+                <div>
+                  <div className="text-xl font-bold text-gray-900">Order Summary</div>
+                  <div className="text-xs font-semibold text-gray-700">Table - {currentOrder.tableId?.replace("t-", "")}</div>
+                </div>
+                <button onClick={handleBack} className="text-xs font-bold text-gray-700 bg-white/50 hover:bg-white px-3 py-1 rounded-full transition-colors flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  Back
                 </button>
-                <button className="quick-order-panel flex-1 py-4 text-base font-semibold text-[#8E24AA] bg-white border-l border-gray-200 hover:bg-gray-50 transition-all"
-                  onClick={() => handleSelectTable(true)}>
-                  Quick Order
-                </button>
               </div>
-            </div>
-          )}
-
-          {/* 3. Initial Prompt */}
-          {!selectedTable && !currentOrder && !showOrderSentPanel && !showConfirmationModal && !showFloorPersonsPanel && (
-            <div className="flex flex-col items-center justify-center h-full w-full select-table-prompt px-8">
-              <div className="text-[22px] font-bold text-[#8A8A8A] leading-[1.6] text-center">Tap to Select Table</div>
-              <div className="text-[22px] font-bold text-[#8A8A8A] leading-[1.6] text-center">&amp;</div>
-              <div className="text-[22px] font-bold text-[#8A8A8A] leading-[1.6] text-center">Start Order</div>
-            </div>
-          )}
-
-          {/* 4. Display Selected Table / Start Order */}
-          {selectedTable && !currentOrder && !pendingCustomizedItem && !showOrderSentPanel && !showConfirmationModal && (
-            <div className="w-full h-full flex flex-col justify-between overflow-hidden">
-              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 text-left">
-                <div className="text-2xl font-bold text-gray-800">Start Order</div>
-                <div className="text-xs font-medium text-gray-600 mt-1">Floor, Table, Person Display</div>
-              </div>
-              <div className="flex flex-col items-center justify-center flex-1 gap-6 p-6">
-                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
-                  <img src={personIcon} alt="person icon" className="w-6 h-6" />
-                  <span>Persons:</span>
-                  <span className="font-bold ml-auto">{persons.toString().padStart(2, "0")}</span>
-                </div>
-                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
-                  <img src={floorIcon} alt="floor icon" className="w-6 h-6" />
-                  <span>Floor:</span>
-                  <span className="font-bold ml-auto">{(selectedFloor ?? "F-01").replace("F-", "")}</span>
-                </div>
-                <div className="flex items-center gap-4 w-full max-w-[200px] text-lg text-gray-700">
-                  <img src={tableIcon} alt="table icon" className="w-6 h-6" />
-                  <span>Table:</span>
-                  <span className="font-bold ml-auto">{(selectedTable ?? "").replace("t-", "")}</span>
-                </div>
-              </div>
-              <button className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all"
-                onClick={() => { startOrder({ tableId: selectedTable, floor: selectedFloor, persons }); }}>
-                Start Order
-              </button>
-            </div>
-          )}
-
-          {/* 5. Active Order Summary */}
-          {currentOrder && ((currentOrder.items && currentOrder.items.length > 0) || showSummaryPanel) && !showOrderSentPanel && !showConfirmationModal && (
-            <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-[#F9F5F9]">
-              <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] py-4 px-5 text-left shrink-0">
-                <div className="text-xl font-bold text-gray-900">Order Summary</div>
-                <div className="text-xs font-semibold text-gray-700 mt-0.5">Table -{currentOrder.tableId?.replace("t-", "")}</div>
-              </div>
-
-              <div className="flex text-[11px] font-bold text-gray-500 px-5 py-2 border-b border-gray-200 bg-white shrink-0">
-                <div className="w-8">Qty</div>
-                <div className="flex-1">Item</div>
-                <div className="w-10 text-center">Size</div>
-                <div className="w-16 text-right">Total</div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-5 py-3 bg-white">
-                {orderItems.map((item: any, idx: number) => (
-                  <div key={item.itemId + idx} className="mb-4">
+              <div className="flex-1 overflow-y-auto p-4 bg-white">
+                {items.map((item: OrderItem, idx: number) => (
+                  <div key={idx} className="mb-4">
                     <div className="flex justify-between items-start mb-1">
-                      <div className="flex flex-col flex-1 pr-2">
-                        <span className="text-sm font-bold text-gray-800 leading-tight">
-                          {item.quantity || 1} xL {item.name}
-                        </span>
-                        {item.addOns && item.addOns.length > 0 && (
-                          <span className="text-[10px] text-gray-500 mt-0.5">{item.addOns.map((a: any) => a.name).join(", ")}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-bold text-gray-800 w-16 text-right">{item.price * (item.quantity || 1)} XOF</span>
-                      </div>
+                      <div className="flex-1"><div className="text-sm font-bold">{item.quantity} x {item.name}</div></div>
+                      <div className="text-sm font-bold">{item.price * item.quantity} XOF</div>
                     </div>
                     <div className="flex justify-end items-center gap-2 mt-2">
-                      <div className="flex items-center border border-gray-200 rounded-md overflow-hidden h-7">
-                        <button className="w-7 h-full flex items-center justify-center bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white text-xs font-bold" onClick={() => handleUpdateQuantity(item.itemId, (item.quantity || 1) - 1)}>-</button>
-                        <span className="w-9 h-full flex items-center justify-center text-xs font-bold text-gray-800 bg-white">{item.quantity || 1}</span>
-                        <button className="w-7 h-full flex items-center justify-center bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white text-xs font-bold" onClick={() => handleUpdateQuantity(item.itemId, (item.quantity || 1) + 1)}>+</button>
+                      <div className="flex items-center border rounded-md">
+                        <button onClick={() => updateOrderItem(item.itemId, { quantity: Math.max(1, item.quantity - 1) })} className="px-2 py-1 bg-gray-100 text-xs">-</button>
+                        <span className="px-3 text-xs">{item.quantity}</span>
+                        <button onClick={() => updateOrderItem(item.itemId, { quantity: item.quantity + 1 })} className="px-2 py-1 bg-gray-100 text-xs">+</button>
                       </div>
-                      <button className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-md bg-white hover:bg-gray-50 transition-colors" onClick={() => handleDeleteItem(item.itemId)} aria-label="Delete item">
-                        <img src={TrashIcon} alt="Delete" className="w-3.5 h-3.5 opacity-60" />
-                      </button>
+                      <button onClick={() => removeOrderItem(item.itemId)} className="p-1 border rounded-md"><img src={TrashIcon} className="w-3 h-3" /></button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="bg-[#FDF0F4] p-5 border-t border-gray-200 shrink-0">
-                <div className="flex text-xs justify-between text-gray-500 mb-1">
-                  <span>Tax 6%</span>
-                  <span>{tax.toLocaleString()} XOF</span>
-                </div>
-                <div className="flex justify-between items-center font-bold text-sm text-gray-800 mt-2">
-                  <span>Subtotal (incl. tax)</span>
-                  <span className="text-gray-900">{total.toLocaleString()} XOF</span>
-                </div>
+              <div className="p-4 bg-[#FDF0F4] border-t">
+                <div className="flex justify-between font-bold"><span>Subtotal</span><span>{total} XOF</span></div>
               </div>
-
-              <div className="flex flex-col shrink-0">
-                {hasKitchenItem && (
-                  <button className="w-full py-3.5 text-sm font-bold bg-[#00C853] text-white hover:bg-[#00A844] transition-all disabled:opacity-50" onClick={handleOrderAction} disabled={orderSending || isCreatingOrder || isSendingToKitchen}>
-                    {orderSending ? 'Sending...' : 'Send to Kitchen'}
-                  </button>
-                )}
-                {orderItems.length > 0 && (
-                  <button className="select-payment-btn w-full py-4 text-base font-bold bg-white text-[#8E24AA] border-t border-gray-200 hover:bg-gray-50 transition-all"
-                    onClick={() => { setShowOrderSummaryModal(true); }}
-                  >
-                    Select Payment Option
-                  </button>
-                )}
+              
+              <div className="flex flex-col">
+                <button 
+                  onClick={handleSendToKitchen} 
+                  disabled={isSendingKitchen} 
+                  className="w-full py-4 text-white font-bold bg-[#00C853] hover:bg-[#00A844] disabled:opacity-70"
+                >
+                  {isSendingKitchen ? "Sending..." : "Send to Kitchen"}
+                </button>
+                
+                <button 
+                  onClick={handlePaymentInitiation} 
+                  disabled={isProcessingPayment} 
+                  className="w-full py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-70"
+                >
+                  {isProcessingPayment ? "Processing..." : "Select Payment Option"}
+                </button>
               </div>
             </div>
           )}
+
+          {/* EMPTY ORDER */}
+          {!showSuccessPanel && !showOrderSummary && panelMode === "order" && currentOrder && items.length === 0 && (
+            <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
+                <div className="text-xl font-bold text-gray-800">Start Order</div>
+                <div className="text-sm text-gray-600">Table - {currentOrder.tableId?.replace("t-", "")}</div>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                <p className="text-lg">Tap items on the left to add them.</p>
+              </div>
+            </div>
+          )}
+
+          {/* IDLE */}
+          {!showSuccessPanel && panelMode === "idle" && (
+            <div onClick={() => setPanelMode("floor")} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors">
+              <div className="text-2xl font-bold text-gray-400 text-center leading-relaxed pointer-events-none">
+                Tap to Select Table<br/>&<br/>Start Order
+              </div>
+            </div>
+          )}
+          
         </div>
       </div>
 
-      {/* ALL MODALS */}
-      <ItemDetailsModal open={showItemDetailsModal} item={modalItem}
-        onClose={() => setShowItemDetailsModal(false)}
-        onSelect={(size) => { setModalSize(size); setShowItemDetailsModal(false); setTimeout(() => setShowAddonsModal(true), 100); }} />
+      {/* MODALS */}
+      <ItemDetailsModal 
+        open={showItemModal} 
+        item={modalItem} 
+        onClose={() => setShowItemModal(false)} 
+        onSelect={(size: string) => { setShowItemModal(false); setShowAddonModal(true); }} 
+      />
+      <AddonsModal 
+        open={showAddonModal} 
+        item={modalItem} 
+        selectedSize="M" 
+        tableId={currentOrder?.tableId || undefined} 
+        onClose={() => setShowAddonModal(false)} 
+        onSave={handleAddonsSave} 
+      />
+      <PaymentModal 
+        open={showPaymentModal} 
+        onClose={() => setShowPaymentModal(false)} 
+        total={total} 
+        onConfirm={handlePaymentConfirm} 
+      />
       
-      <AddonsModal open={showAddonsModal} item={modalItem} selectedSize={modalSize} tableId={currentOrder?.tableId}
-        onClose={() => setShowAddonsModal(false)} onSave={handleAddonsSave} />
-      
-      <OrderSummaryModal open={showOrderSummaryModal} onClose={() => setShowOrderSummaryModal(false)}
-        order={{ items: orderItems, subtotal, tax, total, orderId: (currentOrder as any)?.orderId, paymentType: '', customerName: '' }}
-        onUpdateItemQuantity={(itemId, newQty) => { updateOrderItem(itemId, { quantity: newQty }); }}
-        onChoosePaymentOption={() => { setShowOrderSummaryModal(false); setTimeout(() => setShowPaymentOptions(true), 200); }} />
-      
-      <PaymentModal open={showPaymentOptions} onClose={() => setShowPaymentOptions(false)} total={total}
-        onConfirm={async (method) => {
-          const orderId = (currentOrder as any)?.orderId;
-          if (!orderId) {
-            setFeedback('Order has not been saved to the server yet.');
-            setTimeout(() => setFeedback(""), 2500);
-            return;
-          }
-          try {
-            await updateOrder({
-              id: orderId,
-              paymentDetails: { method, status: 'Paid', paidAt: new Date().toISOString() },
-              Order_Status: 'Completed',
-            }).unwrap();
-            setShowPaymentOptions(false);
-            setShowSuccessModal(true);
-          } catch (err: any) {
-            console.error('Payment update failed', err);
-            setFeedback(err?.data?.message || 'Payment update failed');
-            setTimeout(() => setFeedback(""), 2500);
-          }
-        }} />
-      
-      <SuccessModal open={showSuccessModal} title="Payment Received Successful !"
-        subtitle="Your payment has been processed and the order has been updated."
-        buttonText="Start new Order"
-        onButtonClick={() => {
-          setShowSuccessModal(false);
-          resetOrder();
-          startOrder({ tableId: '', floor: '', persons: 1 });
-          setSelectedTable(null);
-          setSelectedFloor(floors[0] || "F-01");
-          setSelectedCategory("all");
-          setSelectedItemTypeId(null);
-        }} />
+      {showReadyToPayModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-8 w-[400px] text-center shadow-2xl">
+            <h2 className="text-xl font-bold mb-2">Ready to Pay</h2>
+            <p className="text-sm text-gray-500 mb-6">Place the card at the payment terminal</p>
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-[#8E24AA] flex items-center justify-center text-3xl">💳</div>
+            <button onClick={() => setShowReadyToPayModal(false)} className="w-full py-3 rounded-xl bg-gray-100 font-semibold">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <KitchenSuccessModal 
+        open={showKitchenSuccess} 
+        onClose={() => setShowKitchenSuccess(false)} 
+        itemCount={items.length} 
+      />
+
+      <CancelOrderModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={confirmCancelOrder}
+      />
+
+      {/* ✅ TOAST NOTIFICATION */}
+      {feedback && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-2 rounded-full z-[60] shadow-lg transition-all animate-bounce">
+          {feedback}
+        </div>
+      )}
     </div>
   );
 };

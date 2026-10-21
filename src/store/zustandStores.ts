@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import getCookie from '@/utils/getCookie';
 import { removeCookie } from '@/utils/removeCookie';
 import userIcon from '@/assets/employeeImage.png';
-import { 
-  fetchEmployeeWorkSummary, 
+import {
+  fetchEmployeeWorkSummary,
   type WorkSummaryData,
   getCurrentEmployeeProfile,
   updateCurrentEmployeeProfile,
@@ -14,14 +16,23 @@ import {
   getCurrentEmployeeNotifications,
   markNotificationAsRead,
   clockInEmployee,
-  clockOutEmployee
+  clockOutEmployee,
 } from '@/api/employeeApi';
-import type { Order } from '@/types/order';
+import type { Order, OrderItem } from '@/types/order';
 import * as orderApi from '@/api/orderApi';
-import type { OrderItem } from '@/types/order';
 import * as menuApi from '@/api/menuApi';
-import { createSupportTicket, type CreateSupportTicketPayload, type SupportTicketResponse, getSupportTicketId, fetchSupportTickets, type SupportTicket } from '@/api/supportApi';
+import {
+  createSupportTicket,
+  type CreateSupportTicketPayload,
+  type SupportTicketResponse,
+  getSupportTicketId,
+  fetchSupportTickets,
+  type SupportTicket,
+} from '@/api/supportApi';
 
+// ==========================================
+// --- 1. USER & AUTH TYPES ---
+// ==========================================
 interface WorkDetails {
   onboardingDate: string;
   yearsWithUs: number;
@@ -36,9 +47,7 @@ interface TodayProgress {
 }
 
 interface WeeklySummary {
-  [day: string]: {
-    orders: number;
-  };
+  [day: string]: { orders: number };
 }
 
 interface MonthlyData {
@@ -53,11 +62,7 @@ interface MonthlyData {
 interface WorkSummary {
   today: TodayProgress;
   weekly: WeeklySummary;
-  customersHandled: {
-    morning: number;
-    noon: number;
-    evening: number;
-  };
+  customersHandled: { morning: number; noon: number; evening: number };
   totalOrdersServed: number;
   monthly: MonthlyData;
 }
@@ -86,21 +91,16 @@ interface Activity {
 }
 
 interface UserStoreState {
-  // Authentication
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
   checkAuth: () => void;
   
-  // User Profile
   user: UserProfile | null;
   loading: boolean;
   error: string | null;
-  
-  // Work Summary
   workSummary: WorkSummaryData | null;
   
-  // User Actions
   fetchUserProfile: () => Promise<void>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   changeUserPassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
@@ -111,7 +111,6 @@ interface UserStoreState {
   fetchUserNotifications: () => Promise<unknown>;
   markNotificationAsRead: (notificationId: string) => Promise<void>;
   
-  // Clock In/Out
   isClockedIn: boolean;
   lastClockIn: string | null;
   lastClockOut: string | null;
@@ -136,35 +135,6 @@ interface MenuStoreState {
   loading: boolean;
   error: string | null;
   fetchMenuItems: () => Promise<void>;
-}
-
-interface CurrentOrder {
-  tableId: string;
-  floor: string;
-  persons: number;
-  items: OrderItem[];
-}
-
-interface OrderFlowStoreState {
-  currentOrder: CurrentOrder | null;
-  pendingItem: OrderItem | null;
-  pendingCustomizedItem: OrderItem | null;
-  startOrder: (data: { tableId: string; floor: string; persons: number; orderId?: string }) => void;
-  setPendingItem: (item: OrderItem) => void;
-  clearPendingItem: () => void;
-  setPendingCustomizedItem: (item: OrderItem) => void;
-  clearPendingCustomizedItem: () => void;
-  addItemToOrder: (item: OrderItem) => void;
-  updateOrderItem: (itemId: string, updates: Partial<OrderItem>) => void;
-  removeOrderItem: (itemId: string) => void;
-  resetOrder: () => void;
-  setCurrentOrderId: (orderId: string) => void;
-  floor: string;
-  persons: number;
-  isInOrderFlow: boolean;
-  setFloor: (floor: string) => void;
-  setPersons: (persons: number) => void;
-  setInOrderFlow: (inOrderFlow: boolean) => void;
 }
 
 interface SupportTicketStoreState {
@@ -202,40 +172,73 @@ interface WalkthroughUIState {
   setSelectedCategory: (category: string) => void;
 }
 
-// Consolidated User Store (replaces useAuthStore and useStore)
+// ==========================================
+// --- 2. ORDER FLOW TYPES ---
+// ==========================================
+export interface CurrentOrder {
+  orderId?: string;
+  mongoId?: string;
+  tableId: string | null;
+  floor: string;
+  persons: number;
+  items: OrderItem[];
+  serverSubTotal?: number;
+  serverTax?: number;
+  serverTotal?: number;
+  orderStatus?: string;
+  paymentStatus?: string;
+}
+
+export interface OrderFlowStoreState {
+  currentOrder: CurrentOrder | null;
+  pendingItem: OrderItem | null;
+  pendingCustomizedItem: OrderItem | null;
+  floor: string;
+  persons: number;
+  isInOrderFlow: boolean;
+  selectedFloorId: number | null;
+
+  startOrder: (data: { tableId: string; floor: string; persons: number; floorId?: number }) => void;
+  resetOrder: () => void;
+  setCurrentOrderId: (orderId: string, mongoId?: string) => void;
+  setServerTotals: (data: { subTotal: number; tax: number; total: number; orderStatus?: string; paymentStatus?: string }) => void;
+  addItemToOrder: (item: OrderItem) => void;
+  updateOrderItem: (itemId: string, updates: Partial<OrderItem>) => void;
+  removeOrderItem: (itemId: string) => void;
+  setPendingItem: (item: OrderItem | null) => void;
+  clearPendingItem: () => void;
+  setPendingCustomizedItem: (item: OrderItem | null) => void;
+  clearPendingCustomizedItem: () => void;
+  setFloor: (floor: string, floorId?: number) => void;
+  setPersons: (persons: number) => void;
+  setInOrderFlow: (isInOrderFlow: boolean) => void;
+  hydrateFromServer: (serverData: any, floorName?: string) => void;
+}
+
+// ==========================================
+// --- 3. USER STORE ---
+// ==========================================
 export const useUserStore = create<UserStoreState>((set, get) => ({
-  // Authentication
   isAuthenticated: false,
-  login: () => {
-    console.log('Setting authenticated state to true');
-    set({ isAuthenticated: true });
-  },
+  login: () => set({ isAuthenticated: true }),
   logout: () => {
-    console.log('Logging out, removing cookie and setting state to false');
     removeCookie('authToken');
     set({ isAuthenticated: false, user: null, workSummary: null });
   },
   checkAuth: () => {
     const token = getCookie('authToken');
-    console.log('Checking auth, token found:', !!token);
     set({ isAuthenticated: !!token });
   },
   
-  // User Profile
   user: null,
   loading: false,
   error: null,
-  
-  // Work Summary
   workSummary: null,
   
-  // User Actions
-  fetchUserProfile: 
-  async () => {
+  fetchUserProfile: async () => {
     set({ loading: true, error: null });
     try {
       const profile = await getCurrentEmployeeProfile();
-      // Transform API response to match our UserProfile interface
       const userProfile: UserProfile = {
         id: profile.id,
         employeeId: profile.employeeId,
@@ -244,47 +247,27 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         phone: profile.phone,
         profilePic: profile.avatar || userIcon,
         recoveryMail: profile.email,
-    status: 'Active',
+        status: 'Active',
         role: profile.role,
         department: profile.department,
-    responsibilities: "Order's and Reservations",
+        responsibilities: "Order's and Reservations",
         joinDate: profile.joinDate,
-    workDetails: {
+        workDetails: {
           onboardingDate: profile.joinDate,
           yearsWithUs: Math.floor((Date.now() - new Date(profile.joinDate).getTime()) / (1000 * 60 * 60 * 24 * 365)),
-      shiftTimings: '9:00 AM - 6:00 PM',
-      totalLeaves: 24,
-      leavesLeft: 12,
-    },
-    workSummary: {
-      today: {
-        remainingTime: '2h 30m',
-        workedTime: '5h 30m',
-      },
-      weekly: {
-        Monday: { orders: 12 },
-        Tuesday: { orders: 15 },
-        Wednesday: { orders: 10 },
-        Thursday: { orders: 18 },
-        Friday: { orders: 20 },
-        Saturday: { orders: 22 },
-        Sunday: { orders: 8 },
-      },
-      customersHandled: {
-        morning: 15,
-        noon: 20,
-        evening: 25,
-      },
-      totalOrdersServed: 60,
-      monthly: {
-        totalPresent: 22,
-        leaves: 2,
-        leavesLeft: 10,
-        lateIn: 1,
-        earlyOut: 0,
-        workingHours: '160h',
-      },
-    },
+          shiftTimings: '9:00 AM - 6:00 PM',
+          totalLeaves: 24,
+          leavesLeft: 12,
+        },
+        workSummary: {
+          today: { remainingTime: '2h 30m', workedTime: '5h 30m' },
+          weekly: {
+            Monday: { orders: 12 }, Tuesday: { orders: 15 }, Wednesday: { orders: 10 }, Thursday: { orders: 18 }, Friday: { orders: 20 }, Saturday: { orders: 22 }, Sunday: { orders: 8 },
+          },
+          customersHandled: { morning: 15, noon: 20, evening: 25 },
+          totalOrdersServed: 60,
+          monthly: { totalPresent: 22, leaves: 2, leavesLeft: 10, lateIn: 1, earlyOut: 0, workingHours: '160h' },
+        },
       };
       set({ user: userProfile, loading: false });
     } catch (error: unknown) {
@@ -304,14 +287,10 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     }
   },
   
-  changeUserPassword: async (
-    // currentPassword, newPassword
-  ) => {
+  changeUserPassword: async () => {
     set({ loading: true, error: null });
     try {
-      const result = await changePassword(
-        // currentPassword, newPassword
-      );
+      const result = await changePassword();
       set({ loading: false });
       return result;
     } catch (error: unknown) {
@@ -323,70 +302,37 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   fetchWorkSummary: async () => {
     try {
       const data = await fetchEmployeeWorkSummary('current');
-    set({ workSummary: data });
+      set({ workSummary: data });
     } catch (error: unknown) {
       set({ error: (error instanceof Error ? error.message : 'Failed to fetch work summary') });
     }
   },
   
-  fetchUserPerformance: async (
-    // period = 'weekly'
-  ) => {
-    try {
-      return await getCurrentEmployeePerformance(
-        // period
-      );
-    } catch (error: unknown) {
-      set({ error: (error instanceof Error ? error.message : 'Failed to fetch performance') });
-      throw error;
-    }
+  fetchUserPerformance: async () => {
+    try { return await getCurrentEmployeePerformance(); } 
+    catch (error: unknown) { set({ error: (error instanceof Error ? error.message : 'Failed to fetch performance') }); throw error; }
   },
   
   fetchUserSchedule: async (weekStart) => {
-    try {
-      return await getCurrentEmployeeSchedule(weekStart);
-    } catch (error: unknown) {
-      set({ error: (error instanceof Error ? error.message : 'Failed to fetch schedule') });
-      throw error;
-    }
+    try { return await getCurrentEmployeeSchedule(weekStart); } 
+    catch (error: unknown) { set({ error: (error instanceof Error ? error.message : 'Failed to fetch schedule') }); throw error; }
   },
   
-  fetchUserOrders: async (
-    // params
-  ) => {
-    try {
-      return await getCurrentEmployeeOrders(
-        // params
-      );
-    } catch (error: unknown) {
-      set({ error: (error instanceof Error ? error.message : 'Failed to fetch user orders') });
-      throw error;
-    }
+  fetchUserOrders: async () => {
+    try { return await getCurrentEmployeeOrders(); } 
+    catch (error: unknown) { set({ error: (error instanceof Error ? error.message : 'Failed to fetch user orders') }); throw error; }
   },
   
   fetchUserNotifications: async () => {
-    try {
-      return await getCurrentEmployeeNotifications();
-    } catch (error: unknown) {
-      set({ error: (error instanceof Error ? error.message : 'Failed to fetch notifications') });
-      throw error;
-    }
+    try { return await getCurrentEmployeeNotifications(); } 
+    catch (error: unknown) { set({ error: (error instanceof Error ? error.message : 'Failed to fetch notifications') }); throw error; }
   },
   
-  markNotificationAsRead: async (
-    // notificationId
-  ) => {
-    try {
-      await markNotificationAsRead(
-        // notificationId
-      );
-    } catch (error: unknown) {
-      set({ error: (error instanceof Error ? error.message : 'Failed to mark notification as read') });
-      throw error;
-    }
+  markNotificationAsRead: async () => {
+    try { await markNotificationAsRead(); } 
+    catch (error: unknown) { set({ error: (error instanceof Error ? error.message : 'Failed to mark notification as read') }); throw error; }
   },
   
-  // Clock In/Out
   isClockedIn: false,
   lastClockIn: null,
   lastClockOut: null,
@@ -397,10 +343,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       set((state) => ({
         isClockedIn: true,
         lastClockIn: time,
-        activities: [
-          { date: new Date(time).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }), text: 'Clocked in', ago: 'Just now' },
-          ...state.activities,
-        ],
+        activities: [{ date: new Date(time).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }), text: 'Clocked in', ago: 'Just now' }, ...state.activities],
       }));
     }
   },
@@ -410,15 +353,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       set((state) => ({
         isClockedIn: false,
         lastClockOut: time,
-        activities: [
-          { date: new Date(time).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }), text: 'Clocked out', ago: 'Just now' },
-          ...state.activities,
-        ],
+        activities: [{ date: new Date(time).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }), text: 'Clocked out', ago: 'Just now' }, ...state.activities],
       }));
     }
   },
   fetchActivities: async () => {
-    // Dummy activities
     set({
       activities: [
         { date: '14 Apr', text: 'Brian Griffin wants to collaborate', ago: '5 days ago' },
@@ -430,10 +369,12 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   },
 }));
 
-// Legacy compatibility - redirect to new store
 export const useAuthStore = useUserStore;
 export const useStore = useUserStore;
 
+// ==========================================
+// --- 4. LEGACY ORDER STORE ---
+// ==========================================
 export const useOrderStore = create<OrderStoreState>((set) => ({
   orders: [],
   loading: false,
@@ -442,7 +383,6 @@ export const useOrderStore = create<OrderStoreState>((set) => ({
     set({ loading: true, error: null });
     try {
       const orders = await orderApi.fetchOrders(params);
-      console.log(orders)
       set({ orders, loading: false });
     } catch (error: unknown) {
       set({ error: (error instanceof Error ? error.message : 'Failed to fetch orders'), loading: false });
@@ -462,9 +402,7 @@ export const useOrderStore = create<OrderStoreState>((set) => ({
     try {
       await orderApi.updateOrder(orderId, updates);
       set((state) => ({
-        orders: state.orders.map((order) =>
-          order.orderId === orderId ? { ...order, ...updates } : order
-        ),
+        orders: state.orders.map((order) => order.orderId === orderId ? { ...order, ...updates } : order),
         loading: false,
       }));
     } catch (error: unknown) {
@@ -485,6 +423,9 @@ export const useOrderStore = create<OrderStoreState>((set) => ({
   },
 }));
 
+// ==========================================
+// --- 5. MENU STORE ---
+// ==========================================
 export const useMenuStore = create<MenuStoreState>((set) => ({
   menuItems: [],
   loading: false,
@@ -500,79 +441,181 @@ export const useMenuStore = create<MenuStoreState>((set) => ({
   },
 }));
 
-export const useOrderFlowStore = create<OrderFlowStoreState>((set) => ({
-  currentOrder: null,
-  pendingItem: null,
-  pendingCustomizedItem: null,
-  startOrder: ({ tableId, floor, persons, orderId }) => set((state) => {
-    let items = state.currentOrder?.items || [];
-    if (state.pendingCustomizedItem) {
-      items = [...items, state.pendingCustomizedItem];
-    }
-    return {
-      currentOrder: { tableId, floor, persons, items, ...(orderId ? { orderId } : {}) },
+// ==========================================
+// --- 6. ORDER FLOW STORE (Main POS Flow) ---
+// ==========================================
+export const useOrderFlowStore = create<OrderFlowStoreState>()(
+  persist(
+    (set) => ({
+      currentOrder: null,
       pendingItem: null,
       pendingCustomizedItem: null,
-    };
-  }),
-  setPendingItem: (item) => set(() => ({ pendingItem: item })),
-  clearPendingItem: () => set(() => ({ pendingItem: null })),
-  setPendingCustomizedItem: (item) => set(() => ({ pendingCustomizedItem: item })),
-  clearPendingCustomizedItem: () => set(() => ({ pendingCustomizedItem: null })),
-  addItemToOrder: (item) => set((state) => {
-    if (!state.currentOrder) return {};
-    return {
-      currentOrder: {
-        ...state.currentOrder,
-        items: [...state.currentOrder.items, item],
-      },
-    };
-  }),
-  updateOrderItem: (itemId, updates) => set((state) => {
-    if (!state.currentOrder) return {};
-    return {
-      currentOrder: {
-        ...state.currentOrder,
-        items: state.currentOrder.items.map((item) =>
-          item.itemId === itemId ? { ...item, ...updates } : item
-        ),
-      },
-    };
-  }),
-  removeOrderItem: (itemId) => set((state) => {
-    if (!state.currentOrder) return {};
-    return {
-      currentOrder: {
-        ...state.currentOrder,
-        items: state.currentOrder.items.filter((item) => item.itemId !== itemId),
-      },
-    };
-  }),
-  resetOrder: () => set(() => ({ 
-    currentOrder: null, 
-    pendingItem: null, 
-    pendingCustomizedItem: null,
-    floor: "F-01",
-    persons: 1,
-    isInOrderFlow: false
-  })),
-  setCurrentOrderId: (orderId) => set((state) => {
-    if (!state.currentOrder) return {};
-    return {
-      currentOrder: {
-        ...state.currentOrder,
-        orderId,
-      },
-    };
-  }),
-  floor: "F-01",
-  persons: 1,
-  isInOrderFlow: false,
-  setFloor: (floor) => set({ floor }),
-  setPersons: (persons) => set({ persons }),
-  setInOrderFlow: (isInOrderFlow) => set({ isInOrderFlow }),
-}));
+      floor: "F-01",
+      persons: 1,
+      isInOrderFlow: false,
+      selectedFloorId: null,
 
+      startOrder: ({ tableId, floor, persons, floorId }) => set((state) => {
+        let items = state.currentOrder?.items || [];
+        if (state.pendingCustomizedItem) {
+          items = [...items, { ...state.pendingCustomizedItem, quantity: 1 }];
+        }
+        return {
+          currentOrder: {
+            orderId: state.currentOrder?.orderId,
+            tableId,
+            floor,
+            persons,
+            items,
+          },
+          selectedFloorId: floorId ?? state.selectedFloorId,
+          pendingItem: null,
+          pendingCustomizedItem: null,
+          floor,
+          persons,
+          isInOrderFlow: true,
+        };
+      }),
+
+      resetOrder: () => set({
+        currentOrder: null,
+        pendingItem: null,
+        pendingCustomizedItem: null,
+        floor: "F-01",
+        persons: 1,
+        isInOrderFlow: false,
+      }),
+
+      setCurrentOrderId: (orderId, mongoId) => set((state) => {
+        if (!state.currentOrder) return {};
+        return { currentOrder: { ...state.currentOrder, orderId, mongoId } };
+      }),
+
+      setServerTotals: (data) => set((state) => {
+        if (!state.currentOrder) return {};
+        return {
+          currentOrder: {
+            ...state.currentOrder,
+            serverSubTotal: data.subTotal,
+            serverTax: data.tax,
+            serverTotal: data.total,
+            orderStatus: data.orderStatus,
+            paymentStatus: data.paymentStatus,
+          },
+        };
+      }),
+
+      addItemToOrder: (item) => set((state) => {
+        if (!state.currentOrder) {
+          return {
+            currentOrder: {
+              tableId: null,
+              floor: "F-01",
+              persons: 1,
+              items: [{ ...item, quantity: item.quantity || 1 }],
+            },
+          };
+        }
+        const existingIdx = state.currentOrder.items.findIndex(
+          (i) => i.itemId === item.itemId && i.size === item.size && JSON.stringify(i.addOns) === JSON.stringify(item.addOns)
+        );
+        if (existingIdx >= 0) {
+          const newItems = [...state.currentOrder.items];
+          newItems[existingIdx].quantity += item.quantity || 1;
+          return { currentOrder: { ...state.currentOrder, items: newItems } };
+        }
+        return {
+          currentOrder: {
+            ...state.currentOrder,
+            items: [...state.currentOrder.items, { ...item, quantity: item.quantity || 1 }],
+          },
+        };
+      }),
+
+      updateOrderItem: (itemId, updates) => set((state) => {
+        if (!state.currentOrder) return {};
+        return {
+          currentOrder: {
+            ...state.currentOrder,
+            items: state.currentOrder.items.map((item) =>
+              item.itemId === itemId ? { ...item, ...updates } : item
+            ),
+          },
+        };
+      }),
+
+      removeOrderItem: (itemId) => set((state) => {
+        if (!state.currentOrder) return {};
+        return {
+          currentOrder: {
+            ...state.currentOrder,
+            items: state.currentOrder.items.filter((item) => item.itemId !== itemId),
+          },
+        };
+      }),
+
+      setPendingItem: (item) => set({ pendingItem: item }),
+      clearPendingItem: () => set({ pendingItem: null }),
+      setPendingCustomizedItem: (item) => set({ pendingCustomizedItem: item }),
+      clearPendingCustomizedItem: () => set({ pendingCustomizedItem: null }),
+
+      setFloor: (floor, floorId) => set((state) => ({
+        floor,
+        selectedFloorId: floorId ?? state.selectedFloorId,
+      })),
+
+      setPersons: (persons) => set({ persons }),
+      setInOrderFlow: (isInOrderFlow) => set({ isInOrderFlow }),
+
+      hydrateFromServer: (serverData, floorName = "F-01") => set(() => {
+        const mappedItems = (serverData.items || []).map((si: any) => ({
+          itemId: String(si.item_id),
+          name: si.Item?.item_name || si.item_name || `Item ${si.item_id}`,
+          price: Number(si.Item?.prices || si.prices || 0) + Number(si.Addon?.prices || 0),
+          quantity: Number(si.item_Quentry) || 1,
+          size: si.item_size || null,
+          notes: si.item_note || "",
+          addOns: si.Addon ? [{ id: String(si.Addon.item_Addons_id), name: si.Addon.Addons, price: si.Addon.prices }] : [],
+          serverItemId: si._id,
+          serverItemStatus: si.item_status,
+          preparationStation: "Kitchen",
+        }));
+
+        return {
+          currentOrder: {
+            orderId: String(serverData.POS_Order_id),
+            mongoId: serverData._id,
+            tableId: serverData.Table_id != null ? String(serverData.Table_id) : null,
+            floor: floorName,
+            persons: 1,
+            items: mappedItems,
+            serverSubTotal: Number(serverData.SubTotal) || 0,
+            serverTax: Number(serverData.Tax) || 0,
+            serverTotal: Number(serverData.Total) || 0,
+            orderStatus: serverData.Order_Status,
+            paymentStatus: serverData.payment_status,
+          },
+          floor: floorName,
+          persons: 1,
+          isInOrderFlow: true,
+        };
+      }),
+    }),
+    {
+      name: 'order-flow-store',
+      partialize: (state) => ({
+        currentOrder: state.currentOrder,
+        floor: state.floor,
+        persons: state.persons,
+        selectedFloorId: state.selectedFloorId,
+      }),
+    }
+  )
+);
+
+// ==========================================
+// --- 7. SUPPORT TICKET STORES ---
+// ==========================================
 export const useSupportTicketStore = create<SupportTicketStoreState>((set, get) => ({
   email: '',
   businessName: '',
@@ -583,7 +626,7 @@ export const useSupportTicketStore = create<SupportTicketStoreState>((set, get) 
   createdAt: null,
   loading: false,
   error: null,
-  setField: (field: keyof SupportTicketStoreState, value: unknown) => set({ [field]: value }),
+  setField: (field, value) => set({ [field]: value }),
   setImages: (images) => set({ images }),
   fetchTicketId: async () => {
     set({ loading: true });
@@ -591,7 +634,7 @@ export const useSupportTicketStore = create<SupportTicketStoreState>((set, get) 
       const ticketId = await getSupportTicketId();
       set({ ticketNumber: ticketId, loading: false });
     } catch (error) {
-      console.error(error)
+      console.error(error);
       set({ error: 'Failed to fetch ticket ID', loading: false });
     }
   },
@@ -600,9 +643,7 @@ export const useSupportTicketStore = create<SupportTicketStoreState>((set, get) 
     try {
       const { email, businessName, subject, message, images } = get();
       const payload: CreateSupportTicketPayload = { email, businessName, subject, message, images };
-      const res: SupportTicketResponse = await createSupportTicket(
-        payload
-      );
+      const res: SupportTicketResponse = await createSupportTicket(payload);
       set({ ticketNumber: res.ticketNumber, createdAt: res.createdAt, loading: false });
     } catch (error: unknown) {
       if (typeof error === 'object' && error && 'message' in error) {
@@ -627,15 +668,11 @@ export const useSupportTicketListStore = create<SupportTicketListStoreState>((se
   fetchTickets: async () => {
     set({ loading: true, error: null });
     try {
-      const { filter, period,
-        //  search 
-        } = get();
-      const tickets = await fetchSupportTickets(filter, period,
-        //  search
-        );
+      const { filter, period } = get();
+      const tickets = await fetchSupportTickets(filter, period);
       set({ tickets, loading: false });
     } catch (error: unknown) {
-      console.error(error)
+      console.error(error);
       set({ error: 'Failed to fetch tickets', loading: false });
     }
   },
@@ -644,6 +681,9 @@ export const useSupportTicketListStore = create<SupportTicketListStoreState>((se
   setSearch: (search) => set({ search }),
 }));
 
+// ==========================================
+// --- 8. WALKTHROUGH UI STORE ---
+// ==========================================
 export const useWalkthroughUIStore = create<WalkthroughUIState>((set) => ({
   selectedCategory: 'all',
   setSelectedCategory: (category) => set({ selectedCategory: category }),

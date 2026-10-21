@@ -5,9 +5,6 @@ import successReceiptIcon from '@/assets/payment/success_tick_receipt.svg'
 import billIcon from '@/assets/payment/bill_icon.svg'
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 
-
-
-
 interface OrderSummaryModalProps {
   open: boolean;
   onClose: () => void;
@@ -34,12 +31,10 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
   const [showReceipt, setShowReceipt] = useState(false);
   const { isActive, steps, currentStep } = useWalkthroughStore();
   
-  // Check if we're on the order-summary-modal step during walkthrough
   const isOnOrderSummaryStep = isActive && steps[currentStep]?.selector === '.order-summary-modal';
 
   if (!open) return null;
 
-  // Dummy data for receipt (replace with real props as needed)
   const receipt = {
     orderNumber: order.orderId || '',
     date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -55,8 +50,7 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
         className="absolute inset-0 bg-[rgba(0,0,0,0.15)] backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="order-summary-modal bg-white rounded-2xl w-[420px] max-w-full shadow-xl overflow-hidden relative z-10 flex flex-col"
-        >
+      <div className="order-summary-modal bg-white rounded-2xl w-[420px] max-w-full shadow-xl overflow-hidden relative z-10 flex flex-col">
         <div className="flex items-center justify-between px-6 pt-6 pb-2 mb-4">
           <div className="text-2xl font-bold text-left">Order Summary</div>
           <button className="text-4xl font-bold " onClick={onClose}>&times;</button>
@@ -134,7 +128,6 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
                 className="choose-payment-btn w-4/5 py-3 rounded-xl text-lg font-semibold text-white bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 transition-all"
                 onClick={() => {
                   onChoosePaymentOption();
-                  // Walkthrough: advance if on the choose-payment-btn step
                   const walkthrough = useWalkthroughStore.getState();
                   const step = walkthrough.steps[walkthrough.currentStep];
                   if (walkthrough.isActive && step && step.selector === '.choose-payment-btn') {
@@ -155,9 +148,7 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
           <div className="flex flex-col items-center justify-center flex-1 px-6 pb-6 pt-2">
             <div className="flex flex-col items-center justify-center w-full">
               <div className="bg-white rounded-2xl shadow p-6 w-full max-w-xs mx-auto flex flex-col items-center">
-                {/* <div className="rounded-full bg-[#E6F9ED] p-3 mb-3 flex items-center justify-center"> */}
                 <img src={successReceiptIcon}  alt="success"/> 
-                {/* </div> */}
                 <div className="text-xl font-semibold text-center mb-1">Payment Success!</div>
                 <div className="text-sm text-center mb-4 text-[#474747]">Your payment has been successfully done.</div>
                 <div className="text-center text-sm text-[#00000099] font-bold mb-1">Total Payment</div>
@@ -183,7 +174,7 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
               </div>
             </div>
             <button
-              className=" mt-6 py-3 rounded-xl text-lg font-semibold text-black border-none   transition-all flex items-center justify-center gap-2"
+              className=" mt-6 py-3 rounded-xl text-lg font-semibold text-black border-none transition-all flex items-center justify-center gap-2"
               onClick={() => window.print()}
             >
               <img src={downloadReceiptIcon} alt="downloadReceiptIcon" /> <span className="text-sm font-bold" >Print Receipt</span>
@@ -201,4 +192,4 @@ const OrderSummaryModal: React.FC<OrderSummaryModalProps> = ({
   );
 };
 
-export default OrderSummaryModal; 
+export default OrderSummaryModal;
