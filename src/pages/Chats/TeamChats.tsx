@@ -15,7 +15,7 @@ import {
   appendOptimisticMessage,
   confirmMessage,
 } from '@/redux/slice/chatSlice';
-import type { ApiConversation, ApiMessage } from '@/api/chatApi';
+import type { ApiMessage } from '@/api/chatApi';
 import { useChatSocket } from '@/hooks/useChatSocket';
 
 // --- Types ---
@@ -32,7 +32,6 @@ type Chat = User | Group;
 
 const roles = ["All", "Waiters", "Chefs", "Managers"];
 
-// 🔥 UPDATED: Maps the exact backend JSON structure to your UI format
 const mapApiToChat = (apiChat: any): Chat => {
   const mappedLastMessage = apiChat.last_message ? {
     text: apiChat.last_message.message || "",
@@ -127,25 +126,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom when a new message is added
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center">Loading chat details...</div>;
+    return <div className="flex-1 flex items-center justify-center">Loading chat history...</div>;
   }
 
   const handleSend = async () => {
     const text = message.trim();
     if (!text || sending) return;
+    
     setSending(true);
-    setMessage("");
+    setMessage(""); // clear input immediately
+    
     try {
       await onSend(text);
     } catch (e) {
       console.error("send failed", e);
-      setMessage(text);
+      setMessage(text); // restore text on failure
     } finally {
       setSending(false);
     }
@@ -174,10 +176,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-4 bg-white min-h-0">
         {messages.length === 0 ? (
-          <div className="text-center text-[#222] mt-20">No messages yet.</div>
+          <div className="text-center text-[#222] mt-20">No messages yet. Say hello!</div>
         ) : (
           messages.map((msg: any) => {
-            // compare as strings just in case
+            // Determine if the message is from the current user
             const mine = myUserId ? String(msg.senderId) === String(myUserId) : false;
             return (
               <div
@@ -235,7 +237,6 @@ const TeamChats: React.FC = () => {
 
   const token = localStorage.getItem("token");
 
-  // 🔥 UPDATED: Safely parse user ID and cast to string
   const myUserId = useMemo<string | null>(() => {
     try {
       const raw = localStorage.getItem("user");
@@ -260,9 +261,12 @@ const TeamChats: React.FC = () => {
     if (!token) return;
     setSelectedChat(chat);
     
-    joinChat(chat.id); // Join Socket room
+    // Join the socket room for this specific conversation
+    joinChat(chat.id); 
     
+    // Fetch historical messages
     dispatch(fetchChatDetails(chat.id));
+
     const step = steps[currentStep];
     if (isActive && step && step.selector === ".team-chat-left-panel") next();
   }, [dispatch, token, steps, currentStep, isActive, next, joinChat]);
@@ -272,10 +276,13 @@ const TeamChats: React.FC = () => {
     dispatch(clearActiveChat());
   };
 
+  // 🔥 THIS IS THE ACTUAL SEND MESSAGE LOGIC 🔥
   const handleSend = useCallback(async (text: string) => {
     if (!selectedChat) return;
 
     const optimisticId = `tmp-${crypto.randomUUID()}`;
+    
+    // 1. Immediately add the message to the screen (Optimistic UI)
     dispatch(appendOptimisticMessage({
       id: optimisticId,
       text,
@@ -284,10 +291,14 @@ const TeamChats: React.FC = () => {
     }));
 
     try {
+      // 2. Emit the message to the Socket.IO server
       const ack = await sendChatMessage(selectedChat.id, text);
+      
+      // 3. The server responds with the actual saved message data
       const confirmed = ack?.message ?? ack?.data ?? null;
       
       if (confirmed?.id) {
+        // 4. Replace the temporary optimistic message with the confirmed one
         dispatch(confirmMessage({
           clientId: optimisticId,
           message: {
@@ -300,6 +311,7 @@ const TeamChats: React.FC = () => {
       }
     } catch (e) {
       console.error("send failed", e);
+      // Note: You could dispatch a `removeMessage(optimisticId)` here to roll back if it fails
     }
   }, [selectedChat, myUserId, dispatch, sendChatMessage]);
 

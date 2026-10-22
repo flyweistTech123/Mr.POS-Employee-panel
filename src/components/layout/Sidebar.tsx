@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiCalendar, FiUserCheck, FiTrendingUp, FiClock } from 'react-icons/fi';
+import { FiUserCheck } from 'react-icons/fi';
 
 // Sidebar PNG icons
 import quickOrder from '@/assets/sidebar/quickorder.png';
@@ -10,18 +10,11 @@ import training from '@/assets/sidebar/training.png';
 import reservation from '@/assets/sidebar/reservation.png';
 import logoutIcon from '@/assets/sidebar/logout.png';
 import chat from '@/assets/sidebar/chat.png';
-import calender from '@/assets/sidebar/calendar.png';
 import setting from '@/assets/sidebar/settings.png';
 import saleperfomance from '@/assets/sidebar/sp.png';
 
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
-import QuickOrderIcon from '@/assets/navbar/quick_order_icon.svg';
-import TableIcon from '@/assets/navbar/table_icon.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
-import TrainingIcon from '@/assets/navbar/user2_icon.svg';
-import TeamChatsIcon from '@/assets/navbar/headphone_icon.svg';
-import SettingIcon from '@/assets/navbar/settings_icon.svg';
-import SignOutIcon from '@/assets/navbar/logout_icon.svg';
 
 const navItems = [
   { label: 'Quick order', icon: quickOrder, path: '/orders', isSvg: false },
@@ -51,28 +44,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
 
+  // Selected (active) button style
+  const selectedClasses =
+    'text-white shadow-md bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)]';
+  // Default (unselected) button style
+  const defaultClasses = 'text-gray-700 hover:bg-[#F3E5F5]';
+
   const renderIcon = (item: any, active: boolean) => {
-    if (item.isSvg) {
+    if (item.isSvg || typeof item.icon === 'string') {
       return (
         <img
           src={item.icon}
           alt={item.label}
-          className={`h-5 w-5 shrink-0 ${active ? 'brightness-0 invert' : 'opacity-70'}`}
-        />
-      );
-    }
-    // If icon is a string (PNG asset), render as <img>
-    if (typeof item.icon === 'string') {
-      return (
-        <img
-          src={item.icon}
-          alt={item.label}
-          className={`h-5 w-5 shrink-0 object-contain ${active ? 'brightness-0 invert' : 'opacity-70'}`}
+          className={`h-5 w-5 shrink-0 object-contain ${
+            active ? 'brightness-0 invert' : 'opacity-70'
+          }`}
         />
       );
     }
     const IconComponent = item.icon;
-    return <IconComponent size={20} className={`shrink-0 ${active ? 'text-white' : 'text-gray-700'}`} />;
+    return (
+      <IconComponent
+        size={20}
+        className={`shrink-0 ${active ? 'text-white' : 'text-gray-700'}`}
+      />
+    );
   };
 
   return (
@@ -90,9 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
               key={item.label}
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
-                isActive(item.path)
-                  ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#F3E5F5]'
+                isActive(item.path) ? selectedClasses : defaultClasses
               }`}
             >
               {renderIcon(item, isActive(item.path))}
@@ -110,9 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
               key={item.label}
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
-                isActive(item.path)
-                  ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#F3E5F5]'
+                isActive(item.path) ? selectedClasses : defaultClasses
               }`}
             >
               {renderIcon(item, isActive(item.path))}
@@ -129,9 +121,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
               <button
                 key={item.label}
                 onClick={onLogoutClick}
-                className="flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium text-gray-700 hover:bg-[#F3E5F5] transition-all duration-200"
+                className={`flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${defaultClasses}`}
               >
-                <img src={item.icon} alt={item.label} className="h-5 w-5 opacity-70 shrink-0" />
+                <img
+                  src={item.icon}
+                  alt={item.label}
+                  className="h-5 w-5 shrink-0 opacity-70"
+                />
                 <span className="text-sm">Sign out</span>
               </button>
             );
@@ -141,9 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
               key={item.label}
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
-                isActive(item.path)
-                  ? 'bg-gradient-to-r from-[#9C27B0] to-[#D32F2F] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#F3E5F5]'
+                isActive(item.path) ? selectedClasses : defaultClasses
               }`}
             >
               {renderIcon(item, isActive(item.path))}
