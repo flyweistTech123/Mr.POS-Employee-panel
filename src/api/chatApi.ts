@@ -9,27 +9,29 @@ export interface ApiMessage {
 }
 
 export interface ApiConversation {
-  id: string;
-  name: string;
+  _id: string;
+  chat_conversation_id: number;
+  title: string;
   type: "individual" | "group";
-  avatar?: string;
-  role?: string;
-  lastSeen?: string;
-  memberIds?: string[];
-  lastMessage?: {
-    text: string;
-    time: string;
-    senderId: string;
-    unread: boolean;
+  unread_count: number;
+  last_message?: {
+    chat_message_id: number;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sent_at: string;
   };
-  messages?: ApiMessage[];
+  participants?: Array<{
+    participant_id: number;
+    name: string;
+    role: string;
+  }>;
 }
 
 export interface ConversationParams {
   search?: string;
-  type?: string; // "waiter" | "chef" | "manager" (singular)
+  type?: string;
 }
-
 /**
  * GET /restaurant/chat/conversations/getall
  * Owner token → all conversations. Employee token → only their own.
@@ -38,7 +40,7 @@ export const getConversations = async (
   params?: ConversationParams
 ): Promise<ApiConversation[]> => {
   const { data } = await api.get<{ data: ApiConversation[] } | ApiConversation[]>(
-    "/restaurant/chat/conversations/getall",
+    "/api/v1/restaurant/chat/conversations/getall",
     { params }
   );
   // Support either { data: [...] } or raw [...] envelope
@@ -53,7 +55,7 @@ export const getConversationById = async (
   id: string
 ): Promise<ApiConversation> => {
   const { data } = await api.get<{ data: ApiConversation } | ApiConversation>(
-    `/restaurant/chat/conversations/${id}`
+    `/api/v1/restaurant/chat/conversations/${id}`
   );
   return "data" in (data as object) && !Array.isArray(data)
     ? (data as { data: ApiConversation }).data
@@ -66,7 +68,7 @@ export const sendMessage = async (
   text: string
 ): Promise<ApiMessage> => {
   const { data } = await api.post<{ data: ApiMessage } | ApiMessage>(
-    `/restaurant/chat/conversations/${conversationId}/messages`,
+    `/api/v1/restaurant/chat/conversations/${conversationId}/messages`,
     { text }
   );
   return "data" in (data as object) && !Array.isArray(data)

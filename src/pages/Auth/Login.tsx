@@ -136,6 +136,8 @@ const LoginPage: React.FC = () => {
     }
   };
 
+ // src/pages/Auth/Login.tsx
+
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -149,10 +151,26 @@ const LoginPage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await verifyEmployeeOtp({
+      const result = await verifyEmployeeOtp({
         challenge_id: challengeId,
         otp,
       }).unwrap();
+
+      // ✅ FIX: Cast result.data to 'any' to bypass the strict type check,
+      // and grab the 'token' which your type definition says exists.
+      const data = result?.data as any; 
+      const token = data?.token || data?.access_token || (result as any)?.token;
+
+      if (token) {
+        localStorage.setItem("token", token);
+      } else {
+        console.warn("No token found in verify response:", result);
+      }
+
+      // Save the user data
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
 
       toast.success('Login successful!', {
         duration: 4000,

@@ -83,21 +83,45 @@ interface ResendOtpResponse {
   };
 }
 
-interface ForgotPasswordArgs {
+/* ---------- Forgot Password Types (matches backend contract) ---------- */
+
+interface ForgotPasswordSendOtpArgs {
   email: string;
 }
 
-// Backend requires all three fields in one request
-interface VerifyForgotOtpArgs {
-  email: string;
-  otp: string;
-  newPassword: string;
-}
-
-interface ForgotPasswordResponse {
+interface ForgotPasswordSendOtpResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data: {
+    challenge_id: string;
+    email: string;
+    expires_at: string;
+    expires_in_seconds: number;
+  };
+}
+
+interface ForgotPasswordVerifyOtpArgs {
+  challenge_id: string;
+  otp: string;
+}
+
+interface ForgotPasswordVerifyOtpResponse {
+  success: boolean;
+  message: string;
+  data: {
+    reset_token: string;
+  };
+}
+
+interface ForgotPasswordResetArgs {
+  reset_token: string;
+  new_password: string;
+  confirm_password: string;
+}
+
+interface ForgotPasswordResetResponse {
+  success: boolean;
+  message: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -244,26 +268,36 @@ export const apiSlice = createApi({
       }),
     }),
 
-    forgetPasswordSendOtp: builder.mutation<ForgotPasswordResponse, ForgotPasswordArgs>({
+    /* ---------- Forgot Password (3-step challenge flow) ---------- */
+
+    forgetPasswordSendOtp: builder.mutation<
+      ForgotPasswordSendOtpResponse,
+      ForgotPasswordSendOtpArgs
+    >({
       query: (body) => ({
-        url: '/api/v1/user/forget-password/send-otp',
+        url: '/api/v1/employee/forgot-password/send-otp',
         method: 'POST',
         body,
       }),
     }),
 
-    forgetPasswordResendOtp: builder.mutation<ForgotPasswordResponse, ForgotPasswordArgs>({
+    forgetPasswordVerifyOtp: builder.mutation<
+      ForgotPasswordVerifyOtpResponse,
+      ForgotPasswordVerifyOtpArgs
+    >({
       query: (body) => ({
-        url: '/api/v1/user/forget-password/resend-otp',
+        url: '/api/v1/employee/forgot-password/verify-otp',
         method: 'POST',
         body,
       }),
     }),
 
-    // Combines OTP verification AND password reset into one call
-    forgetPasswordVerifyOtp: builder.mutation<ForgotPasswordResponse, VerifyForgotOtpArgs>({
+    forgetPasswordReset: builder.mutation<
+      ForgotPasswordResetResponse,
+      ForgotPasswordResetArgs
+    >({
       query: (body) => ({
-        url: '/api/v1/user/forget-password/verify-otp',
+        url: '/api/v1/employee/forgot-password/reset-password',
         method: 'POST',
         body,
       }),
@@ -296,8 +330,8 @@ export const {
   useVerifyEmployeeOtpMutation,
   useResendEmployeeOtpMutation,
   useForgetPasswordSendOtpMutation,
-  useForgetPasswordResendOtpMutation,
   useForgetPasswordVerifyOtpMutation,
+  useForgetPasswordResetMutation,
   useFetchUserProfileQuery,
   useGetEmployeePerformanceQuery,
   useGetDashboardStatsQuery,

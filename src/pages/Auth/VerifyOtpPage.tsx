@@ -12,8 +12,15 @@ const extractErrorMessage = (err: any, fallback: string): string => {
   if (typeof data === 'string') return data;
   if (typeof data?.message === 'string') return data.message;
   if (typeof data?.detail === 'string') return data.detail;
+  for (const key of Object.keys(data)) {
+    const val = (data as any)[key];
+    if (Array.isArray(val) && val[0]) return `${key}: ${val[0]}`;
+    if (typeof val === 'string') return `${key}: ${val}`;
+  }
   return fallback;
 };
+
+const OTP_LENGTH = 8;
 
 const VerifyOtpPage: React.FC = () => {
   const [otp, setOtp] = useState('');
@@ -22,7 +29,9 @@ const VerifyOtpPage: React.FC = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const email = location.state?.email || '';
+
+  const email: string = location.state?.email || '';
+  const challengeId: string = location.state?.challengeId || '';
 
   const [verifyOtp] = useForgetPasswordVerifyOtpMutation();
 
@@ -30,29 +39,36 @@ const VerifyOtpPage: React.FC = () => {
     event.preventDefault();
     setError(null);
 
-    if (!email) {
-      setError('Email missing. Please restart the flow.');
+    if (!challengeId) {
+      setError('Session expired. Please restart the flow.');
       return;
     }
-    
-    if (otp.length !== 8) {
-      setError('Please enter the 8-digit OTP.');
+    if (otp.length !== OTP_LENGTH) {
+      setError(`Please enter the ${OTP_LENGTH}-digit OTP.`);
       return;
     }
 
     setIsLoading(true);
     try {
-      // STEP 3 API CALL: Verify OTP only
-      await verifyOtp({ email, otp }).unwrap();
-      
-      toast.success('OTP Verified successfully!', { duration: 4000 });
-      
-      // Move to Screen 4 (Set New Password) passing email + verified otp
-      navigate('/reset-password', { state: { email, otp } });
+      // STEP 2: verify OTP → receive reset_token
+      const result = await verifyOtp({ challenge_id: challengeId, otp }).unwrap();
+      const resetToken = result?.data?.reset_token;
+
+      if (!resetToken) {
+        throw new Error('No reset token returned from server.');
+      }
+
+      toast.success('OTP verified successfully!', {
+        duration: 4000,
+        position: 'top-right',
+      });
+
+      // STEP 3: proceed to set-password screen
+      navigate('/reset-password', { state: { email, resetToken } });
     } catch (err: any) {
       const msg = extractErrorMessage(err, 'Invalid or expired OTP.');
       setError(msg);
-      toast.error(msg, { duration: 5000 });
+      toast.error(msg, { duration: 5000, position: 'top-right' });
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +88,11 @@ const VerifyOtpPage: React.FC = () => {
           <div className="text-center mb-8">
             <h3 className="text-2xl lg:text-[32px] font-bold">Verify OTP</h3>
             <p className="text-sm text-[#000000CC] mt-2 font-normal">
-              Please Enter the Authentication received to your registered email
+              Please enter the authentication code sent to your registered email
             </p>
+            {email && (
+              <p className="font-bold text-sm text-black mt-1">{email}</p>
+            )}
           </div>
 
           <form onSubmit={handleVerifyOtp} className="space-y-6">
@@ -84,20 +103,24 @@ const VerifyOtpPage: React.FC = () => {
               <input
                 id="otp"
                 type="text"
-                maxLength={8}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={OTP_LENGTH}
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) =>
+                  setOtp(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))
+                }
                 placeholder="Enter OTP here"
                 className="w-full px-4 py-3 bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 text-sm placeholder-gray-400"
                 required
               />
             </div>
-            
+
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-            
+
             <button
               type="submit"
-              disabled={isLoading || otp.length !== 8}
+              disabled={isLoading || otp.length !== OTP_LENGTH}
               className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 disabled:opacity-70"
             >
               {isLoading ? 'Verifying...' : 'Verify'}

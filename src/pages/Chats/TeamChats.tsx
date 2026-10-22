@@ -1,5 +1,5 @@
 // src/pages/TeamChats.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import searchIcon from "@/assets/chats/searchIcon.svg";
 import sendIcon from "@/assets/chats/sendIcon.svg";
 import { useWalkthroughStore } from '@/store/walkthroughStore';
@@ -12,8 +12,11 @@ import {
   fetchConversations,
   fetchChatDetails,
   clearActiveChat,
+  appendOptimisticMessage,
+  confirmMessage,
 } from '@/redux/slice/chatSlice';
-import type { ApiConversation } from '@/api/chatApi';
+import type { ApiConversation, ApiMessage } from '@/api/chatApi';
+import { useChatSocket } from '@/hooks/useChatSocket';
 
 // --- Types ---
 interface User {
@@ -29,18 +32,34 @@ type Chat = User | Group;
 
 const roles = ["All", "Waiters", "Chefs", "Managers"];
 
-const mapApiToChat = (apiChat: ApiConversation): Chat => {
+// 🔥 UPDATED: Maps the exact backend JSON structure to your UI format
+const mapApiToChat = (apiChat: any): Chat => {
+  const mappedLastMessage = apiChat.last_message ? {
+    text: apiChat.last_message.message || "",
+    time: new Date(apiChat.last_message.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    senderId: String(apiChat.last_message.sender_id),
+    unread: apiChat.unread_count > 0,
+  } : { text: "", time: "", senderId: "", unread: false };
+
   if (apiChat.type === "group") {
     return {
-      id: apiChat.id, name: apiChat.name, avatar: apiChat.avatar || "",
-      memberIds: apiChat.memberIds || [], type: "group",
-      lastMessage:
-        apiChat.lastMessage || { text: "", time: "", senderId: "", unread: false },
+      id: String(apiChat.chat_conversation_id), 
+      name: apiChat.title || "Group Chat",
+      avatar: "", 
+      memberIds: apiChat.participants?.map((p: any) => String(p.participant_id)) || [],
+      type: "group",
+      lastMessage: mappedLastMessage,
     };
   }
+
+  const otherParticipant = apiChat.participants?.[0];
+
   return {
-    id: apiChat.id, name: apiChat.name, role: apiChat.role || "Member",
-    avatar: apiChat.avatar || "", lastSeen: apiChat.lastSeen || "",
+    id: String(apiChat.chat_conversation_id),
+    name: apiChat.title || otherParticipant?.name || "Member",
+    role: otherParticipant?.role || "Member",
+    avatar: "", 
+    lastSeen: "",
     type: "individual",
   };
 };
@@ -90,11 +109,48 @@ function useIsMobile() {
   return isMobile;
 }
 
-const ChatWindow = ({ chat, messages, isMobile, onBack, leftPanelRef, loading }: any) => {
+interface ChatWindowProps {
+  chat: Chat;
+  messages: ApiMessage[];
+  isMobile: boolean;
+  onBack: () => void;
+  loading: boolean;
+  onSend: (text: string) => Promise<void>;
+  socketConnected: boolean;
+  myUserId: string | null;
+}
+
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  chat, messages, isMobile, onBack, loading, onSend, socketConnected, myUserId,
+}) => {
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length]);
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center">Loading chat details...</div>;
   }
+
+  const handleSend = async () => {
+    const text = message.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setMessage("");
+    try {
+      await onSend(text);
+    } catch (e) {
+      console.error("send failed", e);
+      setMessage(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-white rounded-2xl overflow-hidden flex-1 min-h-0">
       <div className="flex items-center px-4 md:px-8 py-4 border-b border-[#E5E5EA] bg-white relative">
@@ -110,25 +166,51 @@ const ChatWindow = ({ chat, messages, isMobile, onBack, leftPanelRef, loading }:
           className="w-10 h-10 rounded-full object-cover" />
         <div className="flex-1 flex flex-col items-center justify-center min-w-0">
           <span className="font-bold text-lg text-[#2C2C2E] truncate">{chat.name}</span>
+          {!socketConnected && (
+            <span className="text-xs text-red-500">Reconnecting…</span>
+          )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 bg-white min-h-0">
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-4 bg-white min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-[#222] mt-20">No messages yet.</div>
         ) : (
-          messages.map((msg: any) => (
-            <div key={msg.id} className="bg-[#F8EAEE] text-black px-4 py-2 rounded-xl mb-2">
-              {msg.text}
-            </div>
-          ))
+          messages.map((msg: any) => {
+            // compare as strings just in case
+            const mine = myUserId ? String(msg.senderId) === String(myUserId) : false;
+            return (
+              <div
+                key={msg.id}
+                className={`px-4 py-2 rounded-xl mb-2 max-w-[75%] break-words ${
+                  mine
+                    ? "bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white ml-auto"
+                    : "bg-[#F8EAEE] text-black"
+                }`}
+              >
+                {msg.text}
+              </div>
+            );
+          })
         )}
       </div>
+
       <div className="border-t border-[#E5E5EA] px-4 py-4 flex items-center gap-3 bg-white">
-        <input type="text" className="flex-1 border-none outline-none text-base text-[#666668]"
-          placeholder="Start typing..." value={message}
-          onChange={(e) => setMessage(e.target.value)} />
-        <button className="text-2xl text-[#6A1B9A] flex items-center justify-center w-10 h-10"
-          type="button">
+        <input
+          type="text"
+          className="flex-1 border-none outline-none text-base text-[#666668]"
+          placeholder="Start typing..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
+          disabled={!socketConnected}
+        />
+        <button
+          className="text-2xl text-[#6A1B9A] flex items-center justify-center w-10 h-10 disabled:opacity-40"
+          type="button"
+          onClick={handleSend}
+          disabled={sending || !message.trim() || !socketConnected}
+        >
           <img src={sendIcon} alt="send" className="w-6 h-6" />
         </button>
       </div>
@@ -142,43 +224,86 @@ const TeamChats: React.FC = () => {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
 
   const isMobile = useIsMobile();
-  const leftPanelRef = React.useRef<HTMLDivElement>(null!);
+  const leftPanelRef = useRef<HTMLDivElement>(null!);
   const navigate = useNavigate();
+  
+  const { joinChat, sendChatMessage, connected } = useChatSocket(); 
 
   const dispatch = useDispatch<AppDispatch>();
   const { conversations, messages, loadingList, loadingChat, error } =
     useSelector((state: RootState) => state.chat);
 
-  // Token source for gating API calls
   const token = localStorage.getItem("token");
+
+  // 🔥 UPDATED: Safely parse user ID and cast to string
+  const myUserId = useMemo<string | null>(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.id ? String(parsed.id) : null; 
+    } catch { return null; }
+  }, []);
 
   const {
     isActive, steps, currentStep, next, completed, activeTraining,
     completedTrainings, startTraining,
   } = useWalkthroughStore();
 
-  // Only fetch when authenticated; refetch if token appears later
   useEffect(() => {
     if (!token) return;
-    const typeParam =
-      activeTab === "All" ? undefined : activeTab.toLowerCase().slice(0, -1);
+    const typeParam = activeTab === "All" ? undefined : activeTab.toLowerCase().slice(0, -1);
     dispatch(fetchConversations({ search: search || undefined, type: typeParam }));
   }, [dispatch, activeTab, search, token]);
 
-  const handleSelectChat = (chat: Chat) => {
+  const handleSelectChat = useCallback((chat: Chat) => {
     if (!token) return;
     setSelectedChat(chat);
+    
+    joinChat(chat.id); // Join Socket room
+    
     dispatch(fetchChatDetails(chat.id));
     const step = steps[currentStep];
     if (isActive && step && step.selector === ".team-chat-left-panel") next();
-  };
+  }, [dispatch, token, steps, currentStep, isActive, next, joinChat]);
 
   const handleBack = () => {
     setSelectedChat(null);
     dispatch(clearActiveChat());
   };
 
-  React.useEffect(() => {
+  const handleSend = useCallback(async (text: string) => {
+    if (!selectedChat) return;
+
+    const optimisticId = `tmp-${crypto.randomUUID()}`;
+    dispatch(appendOptimisticMessage({
+      id: optimisticId,
+      text,
+      senderId: myUserId ?? "me",
+      createdAt: new Date().toISOString(),
+    }));
+
+    try {
+      const ack = await sendChatMessage(selectedChat.id, text);
+      const confirmed = ack?.message ?? ack?.data ?? null;
+      
+      if (confirmed?.id) {
+        dispatch(confirmMessage({
+          clientId: optimisticId,
+          message: {
+            id: confirmed.id,
+            text: confirmed.message ?? confirmed.text ?? text,
+            senderId: confirmed.senderId ?? confirmed.sender_id ?? myUserId ?? "me",
+            createdAt: confirmed.createdAt ?? new Date().toISOString(),
+          },
+        }));
+      }
+    } catch (e) {
+      console.error("send failed", e);
+    }
+  }, [selectedChat, myUserId, dispatch, sendChatMessage]);
+
+  useEffect(() => {
     if (completed && activeTraining === "teamchat" && !completedTrainings.settings) {
       startTraining("settings", settingsTrainingSteps);
       navigate("/");
@@ -208,8 +333,7 @@ const TeamChats: React.FC = () => {
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ boxShadow: "0px -3px 0px 0px #E5E5EA inset" }}
               />
-              <img src={searchIcon} alt="search"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#BDBDBD]" />
+              <img src={searchIcon} alt="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#BDBDBD]" />
             </div>
           </div>
 
@@ -231,15 +355,12 @@ const TeamChats: React.FC = () => {
 
           <div className="flex-1 overflow-y-auto min-h-0 h-full flex flex-col px-2 md:px-0">
             {!token ? (
-              <div className="text-center py-10 text-red-500">
-                Your session has expired. Please log in again.
-              </div>
+              <div className="text-center py-10 text-red-500">Your session has expired. Please log in again.</div>
             ) : loadingList ? (
               <div className="text-center py-10 text-gray-500">Loading conversations...</div>
             ) : error ? (
               <div className="text-center py-10 text-red-500">
-                {error.toLowerCase().includes("token") ||
-                error.toLowerCase().includes("access denied")
+                {error.toLowerCase().includes("token") || error.toLowerCase().includes("access denied")
                   ? "Your session has expired. Please log in again."
                   : error}
               </div>
@@ -274,8 +395,10 @@ const TeamChats: React.FC = () => {
               messages={messages}
               isMobile={isMobile}
               onBack={handleBack}
-              leftPanelRef={leftPanelRef}
               loading={loadingChat}
+              onSend={handleSend}
+              socketConnected={connected}
+              myUserId={myUserId}
             />
           )}
         </div>

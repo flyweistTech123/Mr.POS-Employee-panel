@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import LeftPanel from '@/components/common/LeftPanel';
-import {
-  useForgetPasswordSendOtpMutation,
-  useForgetPasswordResendOtpMutation,
-} from '@/api/apiSlice';
+import { useForgetPasswordSendOtpMutation } from '@/api/apiSlice';
 
 import TriaxxLogoImg from '@/assets/tiaxx_logo.svg';
 
@@ -25,14 +22,14 @@ const extractErrorMessage = (err: any, fallback: string): string => {
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [challengeId, setChallengeId] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
+  const navigate = useNavigate();
   const [sendOtp] = useForgetPasswordSendOtpMutation();
-  const [resendOtp] = useForgetPasswordResendOtpMutation();
 
   const handleResetRequest = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,28 +37,20 @@ const ForgotPasswordPage: React.FC = () => {
     setError(null);
 
     try {
-      // 1. Call the API
       const response = await sendOtp({ email }).unwrap();
-      
-      // 2. Log to console to verify what is received
-      console.log("API Response:", response);
 
-      // 3. Safely grab the message (uses fallback if response.message is missing)
-      const successMessage = response?.message || 'OTP sent successfully to your email address.';
-      
-      // 4. Show the toast
-      toast.success(successMessage, {
-        duration: 4000,
-        position: 'top-right',
-      });
-      
-      // 5. UPDATE STATE TO SHOW SCREEN 2
-      // If this line runs, the screen WILL change.
+      setChallengeId(response.data.challenge_id);
       setEmailSubmitted(true);
-      
+
+      toast.success(
+        response?.message || 'OTP sent successfully to your email address.',
+        { duration: 4000, position: 'top-right' },
+      );
     } catch (err: any) {
-      console.error('Send OTP Error:', err);
-      const msg = extractErrorMessage(err, 'Failed to send reset instructions. Please try again.');
+      const msg = extractErrorMessage(
+        err,
+        'Failed to send reset instructions. Please try again.',
+      );
       setError(msg);
       toast.error(msg, { duration: 5000, position: 'top-right' });
     } finally {
@@ -75,7 +64,11 @@ const ForgotPasswordPage: React.FC = () => {
     setError(null);
 
     try {
-      const result = await resendOtp({ email }).unwrap();
+      // Backend has no dedicated /resend-otp endpoint.
+      // Re-issuing via send-otp produces a fresh challenge_id.
+      const result = await sendOtp({ email }).unwrap();
+      setChallengeId(result.data.challenge_id);
+
       toast.success(result?.message || 'OTP resent successfully.', {
         duration: 4000,
         position: 'top-right',
@@ -90,8 +83,11 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   const handleNavigateToVerify = () => {
-    // Navigate to Screen 3 and pass the email
-    navigate('/verify-otp', { state: { email } });
+    if (!challengeId) {
+      toast.error('Session expired. Please request a new OTP.');
+      return;
+    }
+    navigate('/verify-otp', { state: { email, challengeId } });
   };
 
   return (
@@ -112,10 +108,11 @@ const ForgotPasswordPage: React.FC = () => {
                 ? 'An authentication code has been sent to your email'
                 : 'We will send you instructions for reset in registered email'}
             </p>
-            {emailSubmitted && <p className="font-bold text-sm text-black mt-1">{email}</p>}
+            {emailSubmitted && (
+              <p className="font-bold text-sm text-black mt-1">{email}</p>
+            )}
           </div>
 
-          {/* Conditionally render Screen 1 or Screen 2 based on emailSubmitted state */}
           {!emailSubmitted ? (
             <form onSubmit={handleResetRequest} className="space-y-6">
               <div>
@@ -149,7 +146,8 @@ const ForgotPasswordPage: React.FC = () => {
 
               <button
                 onClick={handleNavigateToVerify}
-                className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90"
+                disabled={!challengeId}
+                className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 disabled:opacity-70"
               >
                 Verify OTP
               </button>
