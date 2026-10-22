@@ -339,7 +339,7 @@ export const apiSlice = createApi({
     respondToShiftSwap: builder.mutation<any, RespondSwapArgs>({
       query: ({ swapId, status }) => ({
         url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
-        method: 'PUT',
+        method: 'PATCH',
         body: { status },
       }),
       invalidatesTags: ['ShiftDashboard'],

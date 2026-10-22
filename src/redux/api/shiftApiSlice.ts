@@ -20,19 +20,17 @@ export const shiftApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ['ShiftDashboard'],
     }),
 
-    respondToShiftSwap: builder.mutation<any, { swapId: string; status: string }>({
-      query: ({ swapId, status }) => {
-        // 👇 THIS LOG WILL PROVE IF THE NEW CODE IS RUNNING
-        console.log("🔥 RESPONDING TO SWAP WITH METHOD: PATCH 🔥");
-        
-        return {
-          url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
-          method: 'PATCH', // Force PATCH
-          body: { status },
-        };
-      },
-      invalidatesTags: ['ShiftDashboard'],
-    }),
+    respondToShiftSwap: builder.mutation<any, { swapId: string; status: 'accepted' | 'rejected' }>({
+  query: ({ swapId, status }) => ({
+    url: `/api/v1/employee/shifts/swap/${swapId}/respond`,
+    method: 'PATCH' as const, // ✅ typed as literal
+    body: { status },
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }),
+  invalidatesTags: ['ShiftDashboard'],
+}),
 
     clockOut: builder.mutation<any, void>({
       query: () => ({
