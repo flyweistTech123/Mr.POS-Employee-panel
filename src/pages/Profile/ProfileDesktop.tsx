@@ -210,7 +210,7 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({
           >
             Personal
           </button>
-          <button
+          {/* <button
             className={`px-4 py-2 rounded-lg font-medium text-white profile-security-tab ${
               selectedTab === "security" ? "selected" : ""
             }`}
@@ -218,7 +218,7 @@ const ProfileDesktop: React.FC<ProfileDesktopProps> = ({
             onClick={() => setSelectedTab("security")}
           >
             Security
-          </button>
+          </button> */}
           <button
             className="px-4 py-2 rounded-lg font-medium text-white profile-sign-out-tab"
             style={{ background: tabGradient, opacity: selectedTab === "sign-out" ? 1 : 0.4 }}

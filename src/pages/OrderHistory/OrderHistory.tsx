@@ -42,9 +42,9 @@ const getDateRange = (filter: string) => {
 // ============================================================
 
 const OrderHistory = () => {
-  // 'orders' corresponds to the PURPLE toggle, 'dining' corresponds to the ORANGE toggle (formerly 'invoices'/'bar')
+  // 'orders' corresponds to the PURPLE toggle, 'dining' corresponds to the ORANGE toggle
   const [activeTab, setActiveTab] = useState<'orders' | 'dining'>('orders');
-  
+
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -55,7 +55,7 @@ const OrderHistory = () => {
   const [dateFilter, setDateFilter] = useState('Today');
   const [statusFilter, setStatusFilter] = useState('');
   const navigate = useNavigate();
-  
+
   const {
     completed,
     activeTraining,
@@ -148,11 +148,7 @@ const OrderHistory = () => {
     }
   }, [completed, activeTraining, completedTrainings, startTraining, navigate]);
 
-  // If 'dining' tab is active, we render the Invoice component. 
-  // The user screenshot shows a toggle switch, so we keep the toolbar consistent, but if Invoice replaces the whole page, we'll conditionally render it below the header.
-  // For this example, I will keep the Invoice return behavior if you click the toggle, as per original logic.
-
-  // The new API returns an array directly in `data.data` 
+  // The new API returns an array directly in `data.data`
   let orders = Array.isArray(data?.data) ? data.data : (data?.data?.orders || []);
   let timePeriod = dateFilter ? dateFilter.toLowerCase() : 'all time';
 
@@ -166,7 +162,7 @@ const OrderHistory = () => {
       orderId: order.POS_Order_id,
       status: order.order_status || order.Order_Status,
       tableInfo: { tableId: order.Table?.table_name || 'Takeaway' },
-      items: order.items.map((i: any) => ({
+      items: (order.items || []).map((i: any) => ({
         itemId: i.item_id,
         name: i.Item?.item_name || 'Unknown Item',
         quantity: i.item_Quentry || 1,
@@ -196,10 +192,10 @@ const OrderHistory = () => {
         </h1>
 
         <div className="flex flex-wrap gap-3 items-center">
-          
+
           {/* 1. Date Filter Dropdown */}
           <div className="relative">
-            <div 
+            <div
               className="bg-[#F3F4F6] rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer min-w-[110px] justify-between transition-colors hover:bg-gray-200"
               onClick={() => setShowDateDropdown(!showDateDropdown)}
             >
@@ -264,61 +260,41 @@ const OrderHistory = () => {
             })}
           </div>
 
-          {/* 3. Toggle Switch (ORDERS / DINING) */}
-          <div className="flex items-center gap-3">
-            
-            {/* Orders Toggle (Purple) */}
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`relative flex items-center w-[100px] h-[34px] rounded-full transition-colors duration-300 focus:outline-none ${
-                activeTab === 'orders' ? 'bg-[#6A1B9A]' : 'bg-[#F3F4F6]'
-              }`}
-            >
-              {/* Text inside the toggle */}
-              <span className={`text-[10px] font-bold tracking-wider pl-3 ${
-                activeTab === 'orders' ? 'text-white' : 'text-gray-500'
-              }`}>
-                ORDERS
-              </span>
-              
-              {/* The Knob (White Circle) */}
-              <div 
-                className={`absolute top-1 w-[26px] h-[26px] bg-white rounded-full shadow-md transition-all duration-300 ${
-                  activeTab === 'orders' ? 'left-[70px]' : 'left-1'
-                }`} 
-              />
-            </button>
+ {/* 3. Single Toggle Switch (ORDERS ↔ DINING) */}
+<div className="flex items-center gap-3">
+  <button
+    onClick={() =>
+      setActiveTab((prev) => (prev === 'orders' ? 'dining' : 'orders'))
+    }
+    className={`relative flex items-center w-[110px] h-[30px] rounded-full transition-colors duration-300 focus:outline-none ${
+      activeTab === 'orders' ? 'bg-[#6A1B9A]' : 'bg-[#FF9800]'
+    }`}
+    aria-label="Toggle Orders / Dining"
+  >
+    {/* Label — opposite side of the knob */}
+    <span
+      className={`absolute top-1/2 -translate-y-1/2 text-[9px] font-bold tracking-wider text-white transition-all duration-300 ${
+        activeTab === 'orders' ? 'right-2.5' : 'left-2.5'
+      }`}
+    >
+      {activeTab === 'orders' ? 'ORDERS' : 'DINING'}
+    </span>
 
-            {/* Dining/Bar Toggle (Orange) */}
-            <button
-              onClick={() => setActiveTab('dining')}
-              className={`relative flex items-center justify-end w-[100px] h-[34px] rounded-full transition-colors duration-300 focus:outline-none ${
-                activeTab === 'dining' ? 'bg-[#FF9800]' : 'bg-[#F3F4F6]'
-              }`}
-            >
-              {/* Text inside the toggle */}
-              <span className={`text-[10px] font-bold tracking-wider pr-3 ${
-                activeTab === 'dining' ? 'text-white' : 'text-gray-500'
-              }`}>
-                DINING
-              </span>
-              
-              {/* The Knob (White Circle) */}
-              <div 
-                className={`absolute top-1 w-[26px] h-[26px] bg-white rounded-full shadow-md transition-all duration-300 ${
-                  activeTab === 'dining' ? 'left-[70px]' : 'left-1'
-                }`} 
-              />
-            </button>
-          </div>
+    {/* Knob */}
+    <div
+      className={`absolute top-[3px] w-[24px] h-[24px] bg-white rounded-full shadow-md transition-all duration-300 ${
+        activeTab === 'orders' ? 'left-[3px]' : 'left-[83px]'
+      }`}
+    />
+  </button>
+</div>
 
         </div>
       </div>
 
       {/* ============== Content Area ============== */}
-      {/* If you need the Invoice component to take over, you'd use activeTab === 'dining' here */}
       {activeTab === 'dining' ? (
-         <Invoice onBack={() => setActiveTab('orders')} />
+        <Invoice onBack={() => setActiveTab('orders')} />
       ) : (
         <>
           {isLoading ? (
