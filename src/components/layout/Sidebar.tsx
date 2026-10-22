@@ -2,6 +2,18 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiCalendar, FiUserCheck, FiTrendingUp, FiClock } from 'react-icons/fi';
 
+// Sidebar PNG icons
+import quickOrder from '@/assets/sidebar/quickorder.png';
+import table from '@/assets/sidebar/table.png';
+import shift from '@/assets/sidebar/shift.png';
+import training from '@/assets/sidebar/training.png';
+import reservation from '@/assets/sidebar/reservation.png';
+import logoutIcon from '@/assets/sidebar/logout.png';
+import chat from '@/assets/sidebar/chat.png';
+import calender from '@/assets/sidebar/calendar.png';
+import setting from '@/assets/sidebar/settings.png';
+import saleperfomance from '@/assets/sidebar/sp.png';
+
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
 import QuickOrderIcon from '@/assets/navbar/quick_order_icon.svg';
 import TableIcon from '@/assets/navbar/table_icon.svg';
@@ -12,23 +24,23 @@ import SettingIcon from '@/assets/navbar/settings_icon.svg';
 import SignOutIcon from '@/assets/navbar/logout_icon.svg';
 
 const navItems = [
-  { label: 'Quick order', icon: QuickOrderIcon, path: '/orders', isSvg: true },
-  { label: 'Table', icon: TableIcon, path: '/table', isSvg: true },
+  { label: 'Quick order', icon: quickOrder, path: '/orders', isSvg: false },
+  { label: 'Table', icon: table, path: '/table', isSvg: false },
   { label: 'Order History', icon: OrderHistoryIcon, path: '/order-history', isSvg: true },
-  { label: 'Reservations', icon: FiCalendar, path: '/reservations', isSvg: false },
+  { label: 'Reservations', icon: reservation, path: '/reservations', isSvg: false },
 ];
 
 const trainingItems = [
-  { label: 'Training', icon: TrainingIcon, path: '/training', isSvg: true },
-  { label: 'Team chats', icon: TeamChatsIcon, path: '/team-chats', isSvg: true },
+  { label: 'Training', icon: training, path: '/training', isSvg: false },
+  { label: 'Team chats', icon: chat, path: '/team-chats', isSvg: false },
   { label: 'Attendance', icon: FiUserCheck, path: '/attendance', isSvg: false },
-  { label: 'Sales Performance', icon: FiTrendingUp, path: '/sales-performance', isSvg: false },
-  { label: 'Work Shifts', icon: FiClock, path: '/work-shifts', isSvg: false },
+  { label: 'Sales Performance', icon: saleperfomance, path: '/sales-performance', isSvg: false },
+  { label: 'Work Shifts', icon: shift, path: '/work-shifts', isSvg: false },
 ];
 
 const bottomItems = [
-  { label: 'Setting', icon: SettingIcon, path: '/settings', isSvg: true },
-  { label: 'sign out', icon: SignOutIcon, path: '/logout', isSvg: true },
+  { label: 'Setting', icon: setting, path: '/settings', isSvg: false },
+  { label: 'sign out', icon: logoutIcon, path: '/logout', isSvg: false },
 ];
 
 interface SidebarProps {
@@ -46,6 +58,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
           src={item.icon}
           alt={item.label}
           className={`h-5 w-5 shrink-0 ${active ? 'brightness-0 invert' : 'opacity-70'}`}
+        />
+      );
+    }
+    // If icon is a string (PNG asset), render as <img>
+    if (typeof item.icon === 'string') {
+      return (
+        <img
+          src={item.icon}
+          alt={item.label}
+          className={`h-5 w-5 shrink-0 object-contain ${active ? 'brightness-0 invert' : 'opacity-70'}`}
         />
       );
     }
@@ -106,7 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
             return (
               <button
                 key={item.label}
-                onClick={onLogoutClick} // 👈 Trigger modal from AppLayout
+                onClick={onLogoutClick}
                 className="flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium text-gray-700 hover:bg-[#F3E5F5] transition-all duration-200"
               >
                 <img src={item.icon} alt={item.label} className="h-5 w-5 opacity-70 shrink-0" />
