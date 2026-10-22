@@ -19,7 +19,7 @@ import { orderHistoryApi } from './api/orderHistoryApi';
 import { quickOrderApi } from './api/quickOrderSlice';
 import { userApi } from './api/userApi';
 import chatReducer from './slice/chatSlice';
-
+import { floorPlanApi } from '@/redux/api/floorPlanApi';
 // 👇 Side-effect import: runs the file to inject endpoints into apiSlice,
 // but does NOT import the settingsApi variable itself.
 import './api/settingsApi';
@@ -35,6 +35,7 @@ const rootReducer = combineReducers({
   [orderHistoryApi.reducerPath]: orderHistoryApi.reducer,
   [quickOrderApi.reducerPath]: quickOrderApi.reducer,
   [userApi.reducerPath]: userApi.reducer,
+   [floorPlanApi.reducerPath]: floorPlanApi.reducer,
   auth: authReducer,
   chat: chatReducer,
 });
@@ -53,6 +54,7 @@ export const store = configureStore({
       orderHistoryApi.middleware,
       quickOrderApi.middleware,
       userApi.middleware,
+       floorPlanApi.middleware,
     ),
 });
 

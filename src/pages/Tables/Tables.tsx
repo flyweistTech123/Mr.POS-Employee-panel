@@ -34,13 +34,15 @@ const TablePage: React.FC = () => {
   const { data: floorsData } = useGetAllFloorsQuery();
   const floors = floorsData?.data || [];
 
+  // Resolve the numeric floor id (used for both RTK Query and EditFloorPlan).
   const floorId = useMemo(() => {
     if (globalFloorId) return globalFloorId;
     const match = floors.find((f: any) => f.Floor_Name === globalFloor);
     return match ? match.Floor_id : floors[0]?.Floor_id;
   }, [floors, globalFloor, globalFloorId]);
 
-  const { data: floorTables, isLoading } = useGetFloorWithTablesQuery(
+  // `refetch` lets us refresh the display view after EditFloorPlan saves.
+  const { data: floorTables, isLoading, refetch } = useGetFloorWithTablesQuery(
     String(floorId),
     { skip: !floorId }
   );
@@ -163,11 +165,10 @@ const TablePage: React.FC = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  activeTab === tab
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === tab
                     ? "bg-white text-black shadow-sm"
                     : "text-gray-500 hover:text-gray-800"
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -225,8 +226,13 @@ const TablePage: React.FC = () => {
       {isEditing ? (
         <div className="mt-4">
           <EditFloorPlan
-            floor={globalFloor}
-            onSave={() => setIsEditing(false)}
+            floorId={floorId}
+            tables={tables}
+            onSaved={() => {
+              setIsEditing(false);
+              refetch();
+            }}
+            onCancel={() => setIsEditing(false)}
           />
         </div>
       ) : (
@@ -257,9 +263,8 @@ const TablePage: React.FC = () => {
                             ? handleTableSelectForGuest(table)
                             : handleTableSelect(table)
                         }
-                        className={`cursor-pointer transition-transform hover:scale-105 snap-start ${
-                          busy ? "opacity-50 pointer-events-none" : ""
-                        }`}
+                        className={`cursor-pointer transition-transform hover:scale-105 snap-start ${busy ? "opacity-50 pointer-events-none" : ""
+                          }`}
                       >
                         <TableSlot table={table} size={size} status={status} />
                       </div>
@@ -311,17 +316,16 @@ const TableSlot = ({
       />
       {status && status !== "Available" && (
         <div
-          className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${
-            status === "Served"
+          className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${status === "Served"
               ? "bg-green-100 text-green-700"
               : status === "Reserved"
-              ? "bg-purple-100 text-purple-700"
-              : status === "Ready"
-              ? "bg-yellow-100 text-yellow-700"
-              : status === "Occupied"
-              ? "bg-red-100 text-red-700"
-              : "bg-gray-100 text-gray-600"
-          }`}
+                ? "bg-purple-100 text-purple-700"
+                : status === "Ready"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : status === "Occupied"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-gray-100 text-gray-600"
+            }`}
         >
           {status === "Served" && "✓ "}
           {status === "Ready" && "🔔 "}

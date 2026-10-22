@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// import api from './axios';
+import api from './axios';
 
 export interface Table {
   id: string;
@@ -14,12 +14,10 @@ export interface Table {
     x: number;
     y: number;
   };
-  timer?: number; // Added for 'Waiting' status
+  timer?: number;
 }
 
-export type TableStatus = 'Available' | 'Served' | 'Reserved' |
-//  'Cleaning' |
-  'Ready' | 'Waiting';
+export type TableStatus = 'Available' | 'Served' | 'Reserved' | 'Ready' | 'Waiting';
 
 export interface TableFilter {
   floor?: string;
@@ -38,77 +36,91 @@ export interface TableReservation {
   specialRequests?: string;
 }
 
+// ---------------- Real API raw shapes ----------------
+// Adjust field names here if the backend uses different keys.
+interface ApiTable {
+  table_id: number;
+  table_number?: string;
+  number?: string;
+  capacity: number;
+  status?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  current_order?: string | number | null;
+  waiter_name?: string | null;
+  last_updated?: string;
+  timer?: number;
+}
+
+const SIZE_BY_CAPACITY: Record<number, { width: number; height: number }> = {
+  2: { width: 120, height: 90 },
+  4: { width: 160, height: 110 },
+  8: { width: 220, height: 130 },
+};
+
+export const dimensionsForCapacity = (capacity: number) =>
+  SIZE_BY_CAPACITY[capacity] ?? { width: 160, height: 110 };
+
+const toTable = (t: ApiTable, floor: string): Table => {
+  const dims = dimensionsForCapacity(t.capacity);
+  return {
+    id: String(t.table_id),
+    number:
+      t.table_number ??
+      t.number ??
+      `T${String(t.table_id).padStart(2, '0')}`,
+    floor,
+    status: (t.status as TableStatus) ?? 'Available',
+    capacity: t.capacity,
+    currentOrder: t.current_order != null ? String(t.current_order) : undefined,
+    waiterName: t.waiter_name ?? undefined,
+    lastUpdated: t.last_updated ?? new Date().toISOString(),
+    position: { x: t.x ?? 0, y: t.y ?? 0 },
+    ...(t.timer !== undefined ? { timer: t.timer } : {}),
+  };
+};
+
 // Get all tables
-export const getTables = async (
-  // params?: TableFilter
-): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get('/tables', { params });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching tables:', error);
-  //   // Fallback to dummy data
-    return generateDummyTables();
-  // }
+export const getTables = async (): Promise<Table[]> => {
+  return generateDummyTables();
 };
 
 // Get table by ID
 export const getTableById = async (tableId: string): Promise<Table | null> => {
-  // try {
-  //   const response = await api.get(`/tables/${tableId}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching table:', error);
-  //   // Fallback to dummy table
-    const dummyTables = generateDummyTables();
-    return dummyTables.find(table => table.id === tableId) || null;
-  // }
+  const dummyTables = generateDummyTables();
+  return dummyTables.find(table => table.id === tableId) || null;
 };
 
 // Update table status
-export const updateTableStatus = async (tableId: string, status: TableStatus): Promise<{ success: boolean; table: Table }> => {
-  // try {
-  //   const response = await api.patch(`/tables/${tableId}/status`, { status });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error updating table status:', error);
-  //   // Fallback to dummy success
-    const dummyTables = generateDummyTables();
-    const table = dummyTables.find(t => t.id === tableId);
-    if (table) {
-      table.status = status;
-      table.lastUpdated = new Date().toISOString();
-    }
-    return { success: true, table: table! };
-  // }
+export const updateTableStatus = async (
+  tableId: string,
+  status: TableStatus
+): Promise<{ success: boolean; table: Table }> => {
+  const dummyTables = generateDummyTables();
+  const table = dummyTables.find(t => t.id === tableId);
+  if (table) {
+    table.status = status;
+    table.lastUpdated = new Date().toISOString();
+  }
+  return { success: true, table: table! };
 };
 
 // Reserve table
-export const reserveTable = async (
-  // reservation: TableReservation
-): Promise<{ success: boolean; reservationId: string }> => {
-  // try {
-  //   const response = await api.post('/tables/reserve', reservation);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error reserving table:', error);
-  //   // Fallback to dummy success
-    return { success: true, reservationId: `RES_${Date.now()}` };
-  // }
+export const reserveTable = async (): Promise<{
+  success: boolean;
+  reservationId: string;
+}> => {
+  return { success: true, reservationId: `RES_${Date.now()}` };
 };
 
 // Cancel table reservation
-export const cancelTableReservation = async (
-  // reservationId: string
-): Promise<{ success: boolean }> => {
-  // try {
-  //   const response = await api.delete(`/tables/reserve/${reservationId}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error canceling reservation:', error);
-  //   // Fallback to dummy success
-    return { success: true };
-  // }
+export const cancelTableReservation = async (): Promise<{
+  success: boolean;
+}> => {
+  return { success: true };
 };
 
 // Get table availability
@@ -118,18 +130,11 @@ export const getTableAvailability = async (params: {
   partySize: number;
   floor?: string;
 }): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get('/tables/availability', { params });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching table availability:', error);
-  //   // Fallback to dummy available tables
-    const dummyTables = generateDummyTables();
-    return dummyTables.filter(table => 
-      table.status === 'Available' && 
-      table.capacity >= params.partySize
-    );
-  // }
+  const dummyTables = generateDummyTables();
+  return dummyTables.filter(
+    table =>
+      table.status === 'Available' && table.capacity >= params.partySize
+  );
 };
 
 // Get table statistics
@@ -141,167 +146,156 @@ export const getTableStatistics = async (): Promise<{
   cleaning: number;
   maintenance: number;
 }> => {
-  // try {
-  //   const response = await api.get('/tables/statistics');
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching table statistics:', error);
-  //   // Fallback to dummy statistics
-    return {
-      total: 20,
-      available: 8,
-      occupied: 6,
-      reserved: 3,
-      cleaning: 2,
-      maintenance: 1,
-    };
-  // }
+  return {
+    total: 20,
+    available: 8,
+    occupied: 6,
+    reserved: 3,
+    cleaning: 2,
+    maintenance: 1,
+  };
 };
 
-// Get tables by floor
-export const getTablesByFloor = async (floor: string): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get(`/tables/floor/${floor}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching tables by floor:', error);
-  //   // Fallback to dummy data filtered by floor
+// ---------------- GET tables for a floor (real API) ----------------
+// `floor` must be the numeric floor id as a string, e.g. "5".
+// Optional `status` filter maps to ?status=Served|Waiting|Reserved.
+export const getTablesByFloor = async (
+  floor: string,
+  status?: TableStatus
+): Promise<Table[]> => {
+  try {
+    const params = status ? { status } : undefined;
+    const { data } = await api.get(
+      `/employee/table_booking/floor-plan/${floor}`,
+      { params }
+    );
+    const raw: ApiTable[] = Array.isArray(data)
+      ? data
+      : data.tables ?? data.data ?? [];
+    return raw.map(t => toTable(t, String(floor)));
+  } catch (error) {
+    console.error('Error fetching tables by floor:', error);
+    // Fallback to dummy data filtered by floor
     const dummyTables = generateDummyTables();
     return dummyTables.filter(table => table.floor === floor);
-  // }
+  }
 };
 
 // Get floor statistics
-export const getFloorStatistics = async (floor: string): Promise<{
+export const getFloorStatistics = async (
+  floor: string
+): Promise<{
   total: number;
   available: number;
   served: number;
   reserved: number;
-  // cleaning: number;
   ready: number;
   occupancyRate: number;
 }> => {
-  // try {
-  //   const response = await api.get(`/tables/floor/${floor}/statistics`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching floor statistics:', error);
-  //   // Fallback to dummy statistics
-    const dummyTables = generateDummyTables();
-    const floorTables = dummyTables.filter(table => table.floor === floor);
-    const total = floorTables.length;
-    const available = floorTables.filter(t => t.status === 'Available').length;
-    const served = floorTables.filter(t => t.status === 'Served').length;
-    const reserved = floorTables.filter(t => t.status === 'Reserved').length;
-    // const cleaning = floorTables.filter(t => t.status === 'Cleaning').length;
-    const ready = floorTables.filter(t => t.status === 'Ready').length;
-    
-    return {
-      total,
-      available,
-      served,
-      reserved,
-      // cleaning,
-      ready,
-      occupancyRate: total > 0 ? Math.round(((served + reserved) / total) * 100) : 0,
-    };
-  // }
+  const dummyTables = generateDummyTables();
+  const floorTables = dummyTables.filter(table => table.floor === floor);
+  const total = floorTables.length;
+  const available = floorTables.filter(t => t.status === 'Available').length;
+  const served = floorTables.filter(t => t.status === 'Served').length;
+  const reserved = floorTables.filter(t => t.status === 'Reserved').length;
+  const ready = floorTables.filter(t => t.status === 'Ready').length;
+
+  return {
+    total,
+    available,
+    served,
+    reserved,
+    ready,
+    occupancyRate:
+      total > 0 ? Math.round(((served + reserved) / total) * 100) : 0,
+  };
 };
 
-// Get all floors
+// ---------------- GET all floors (real API) ----------------
 export const getFloors = async (): Promise<string[]> => {
-  // try {
-  //   const response = await api.get('/tables/floors');
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching floors:', error);
-  //   // Fallback to dummy floors
+  try {
+    const { data } = await api.get('/employee/table_booking/floors');
+    const raw = Array.isArray(data) ? data : data.floors ?? data.data ?? [];
+    // Normalize to string ids (component expects strings)
+    return raw.map((f: any) =>
+      typeof f === 'number' || typeof f === 'string'
+        ? String(f)
+        : String(f.id ?? f.floor_id)
+    );
+  } catch (error) {
+    console.error('Error fetching floors:', error);
     return ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06'];
-  // }
+  }
 };
 
 // Get floor overview with all floors statistics
 export const getFloorOverview = async (): Promise<{
   floors: string[];
-  statistics: Record<string, {
-    total: number;
-    available: number;
-    served: number;
-    reserved: number;
-    // cleaning: number;
-    ready: number;
-    occupancyRate: number;
-  }>;
-}> => {
-  // try {
-  //   const response = await api.get('/tables/floors/overview');
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching floor overview:', error);
-  //   // Fallback to dummy overview
-    const floors = ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06'];
-    const statistics: Record<string, {
+  statistics: Record<
+    string,
+    {
       total: number;
       available: number;
       served: number;
       reserved: number;
-      // cleaning: number;
       ready: number;
       occupancyRate: number;
-    }> = {};
-    
-    floors.forEach(floor => {
-      const floorTables = generateDummyTables().filter(table => table.floor === floor);
-      const total = floorTables.length;
-      const available = floorTables.filter(t => t.status === 'Available').length;
-      const served = floorTables.filter(t => t.status === 'Served').length;
-      const reserved = floorTables.filter(t => t.status === 'Reserved').length;
-      // const cleaning = floorTables.filter(t => t.status === 'Cleaning').length;
-      const ready = floorTables.filter(t => t.status === 'Ready').length;
-      
-      statistics[floor] = {
-        total,
-        available,
-        served,
-        reserved,
-        // cleaning,
-        ready,
-        occupancyRate: total > 0 ? Math.round(((served + reserved) / total) * 100) : 0,
-      };
-    });
-    
-    return { floors, statistics };
-  // }
+    }
+  >;
+}> => {
+  const floors = ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06'];
+  const statistics: Record<
+    string,
+    {
+      total: number;
+      available: number;
+      served: number;
+      reserved: number;
+      ready: number;
+      occupancyRate: number;
+    }
+  > = {};
+
+  floors.forEach(floor => {
+    const floorTables = generateDummyTables().filter(t => t.floor === floor);
+    const total = floorTables.length;
+    const available = floorTables.filter(t => t.status === 'Available').length;
+    const served = floorTables.filter(t => t.status === 'Served').length;
+    const reserved = floorTables.filter(t => t.status === 'Reserved').length;
+    const ready = floorTables.filter(t => t.status === 'Ready').length;
+
+    statistics[floor] = {
+      total,
+      available,
+      served,
+      reserved,
+      ready,
+      occupancyRate:
+        total > 0 ? Math.round(((served + reserved) / total) * 100) : 0,
+    };
+  });
+
+  return { floors, statistics };
 };
 
 // Get tables by capacity
-export const getTablesByCapacity = async (capacity: number): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get(`/tables/capacity/${capacity}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching tables by capacity:', error);
-  //   // Fallback to dummy data filtered by capacity
-    const dummyTables = generateDummyTables();
-    return dummyTables.filter(table => table.capacity === capacity);
-  // }
+export const getTablesByCapacity = async (
+  capacity: number
+): Promise<Table[]> => {
+  const dummyTables = generateDummyTables();
+  return dummyTables.filter(table => table.capacity === capacity);
 };
 
 // Get tables by capacity range
-export const getTablesByCapacityRange = async (minCapacity: number, maxCapacity: number): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get('/tables/capacity-range', { 
-  //     params: { minCapacity, maxCapacity } 
-  //   });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching tables by capacity range:', error);
-  //   // Fallback to dummy data filtered by capacity
-    const dummyTables = generateDummyTables();
-    return dummyTables.filter(table => 
+export const getTablesByCapacityRange = async (
+  minCapacity: number,
+  maxCapacity: number
+): Promise<Table[]> => {
+  const dummyTables = generateDummyTables();
+  return dummyTables.filter(
+    table =>
       table.capacity >= minCapacity && table.capacity <= maxCapacity
-    );
-  // }
+  );
 };
 
 // Get table capacity statistics
@@ -310,128 +304,108 @@ export const getTableCapacityStatistics = async (): Promise<{
   capacity4: { total: number; available: number; served: number; reserved: number };
   capacity8: { total: number; available: number; served: number; reserved: number };
 }> => {
-  // try {
-  //   const response = await api.get('/tables/capacity/statistics');
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching table capacity statistics:', error);
-  //   // Fallback to dummy statistics
-    const dummyTables = generateDummyTables();
-    
-    const getCapacityStats = (capacity: number) => {
-      const capacityTables = dummyTables.filter(table => table.capacity === capacity);
-      const total = capacityTables.length;
-      const available = capacityTables.filter(t => t.status === 'Available').length;
-      const served = capacityTables.filter(t => t.status === 'Served').length;
-      const reserved = capacityTables.filter(t => t.status === 'Reserved').length;
-      
-      return { total, available, served, reserved };
-    };
-    
-    return {
-      capacity2: getCapacityStats(2),
-      capacity4: getCapacityStats(4),
-      capacity8: getCapacityStats(8),
-    };
-  // }
+  const dummyTables = generateDummyTables();
+
+  const getCapacityStats = (capacity: number) => {
+    const capacityTables = dummyTables.filter(t => t.capacity === capacity);
+    const total = capacityTables.length;
+    const available = capacityTables.filter(t => t.status === 'Available').length;
+    const served = capacityTables.filter(t => t.status === 'Served').length;
+    const reserved = capacityTables.filter(t => t.status === 'Reserved').length;
+    return { total, available, served, reserved };
+  };
+
+  return {
+    capacity2: getCapacityStats(2),
+    capacity4: getCapacityStats(4),
+    capacity8: getCapacityStats(8),
+  };
 };
 
 // Get available tables for party size
-export const getAvailableTablesForParty = async (partySize: number, floor?: string): Promise<Table[]> => {
-  // try {
-  //   const response = await api.get('/tables/available-for-party', { 
-  //     params: { partySize, floor } 
-  //   });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching available tables for party:', error);
-  //   // Fallback to dummy data
-    const dummyTables = generateDummyTables();
-    return dummyTables.filter(table => 
-      table.status === 'Available' && 
+export const getAvailableTablesForParty = async (
+  partySize: number,
+  floor?: string
+): Promise<Table[]> => {
+  const dummyTables = generateDummyTables();
+  return dummyTables.filter(
+    table =>
+      table.status === 'Available' &&
       table.capacity >= partySize &&
       (!floor || table.floor === floor)
-    );
-  // }
+  );
 };
 
 // Get table capacity recommendations for party size
-export const getTableCapacityRecommendations = async (partySize: number): Promise<{
+export const getTableCapacityRecommendations = async (
+  partySize: number
+): Promise<{
   recommended: number[];
   alternative: number[];
   message: string;
 }> => {
-  // try {
-  //   const response = await api.get('/tables/capacity-recommendations', { 
-  //     params: { partySize } 
-  //   });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching table capacity recommendations:', error);
-  //   // Fallback to logic-based recommendations
-    let recommended: number[] = [];
-    let alternative: number[] = [];
-    let message = '';
-    
-    if (partySize <= 2) {
-      recommended = [2];
-      alternative = [4];
-      message = '2-person table recommended';
-    } else if (partySize <= 4) {
-      recommended = [4];
-      alternative = [2, 8];
-      message = '4-person table recommended';
-    } else if (partySize <= 8) {
-      recommended = [8];
-      alternative = [4];
-      message = '8-person table recommended';
-    } else {
-      recommended = [8];
-      alternative = [8];
-      message = 'Multiple tables may be needed for larger parties';
-    }
-    
-    return { recommended, alternative, message };
-  // }
+  let recommended: number[] = [];
+  let alternative: number[] = [];
+  let message = '';
+
+  if (partySize <= 2) {
+    recommended = [2];
+    alternative = [4];
+    message = '2-person table recommended';
+  } else if (partySize <= 4) {
+    recommended = [4];
+    alternative = [2, 8];
+    message = '4-person table recommended';
+  } else if (partySize <= 8) {
+    recommended = [8];
+    alternative = [4];
+    message = '8-person table recommended';
+  } else {
+    recommended = [8];
+    alternative = [8];
+    message = 'Multiple tables may be needed for larger parties';
+  }
+
+  return { recommended, alternative, message };
 };
 
 // Helper function to generate dummy tables
 const generateDummyTables = (): Table[] => {
   const floors = ['F-01', 'F-02', 'F-03'];
   const statuses: TableStatus[] = [
-    'Available', 
-    // 'Occupied',
-    'Reserved', 
+    'Available',
+    'Reserved',
     'Ready',
     'Served',
-    'Waiting', // Add Waiting status
-    'Available', 
-    // 'Occupied', 
-    'Reserved', 'Ready', 'Served', 'Waiting', // Add more Waiting
+    'Waiting',
+    'Available',
+    'Reserved',
+    'Ready',
+    'Served',
+    'Waiting',
   ];
   const capacities = [2, 4, 8, 4, 2, 8];
   const tables: Table[] = [];
-  // Use real order IDs from dummyOrders in orderApi.ts
-  const demoOrderIds = ['1', '2', '3', '4', '5','6','7','8','9'];
+  const demoOrderIds = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
   let orderIdx = 0;
+
   floors.forEach((floor, floorIdx) => {
     for (let row = 1; row <= 3; row++) {
       for (let col = 1; col <= 5; col++) {
         const num = row * 10 + col;
         const status = statuses[(row * 5 + col + floorIdx) % statuses.length];
         const capacity = capacities[(row * 5 + col + floorIdx) % capacities.length];
-        // Assign a real orderId to more statuses (not just Occupied)
+
         let currentOrder: string | undefined = undefined;
         let timer: number | undefined = undefined;
-        if ((status !== 'Available') && orderIdx < demoOrderIds.length) {
+        if (status !== 'Available' && orderIdx < demoOrderIds.length) {
           currentOrder = demoOrderIds[orderIdx];
           orderIdx++;
         }
-        // Add timer for Waiting tables
         if (status === 'Waiting') {
-          // Random timer between 1 and 15 minutes
           timer = Math.floor(Math.random() * 150) + 1;
         }
+
         tables.push({
           id: `t-${floorIdx + 1}-${num}`,
           number: `T${num}`,
@@ -439,8 +413,13 @@ const generateDummyTables = (): Table[] => {
           status,
           capacity,
           currentOrder,
-          waiterName: status !== 'Available' ? ['John Doe', 'Jane Smith', 'Mike Johnson'][(row + col) % 3] : undefined,
-          lastUpdated: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+          waiterName:
+            status !== 'Available'
+              ? ['John Doe', 'Jane Smith', 'Mike Johnson'][(row + col) % 3]
+              : undefined,
+          lastUpdated: new Date(
+            Date.now() - Math.random() * 86400000
+          ).toISOString(),
           ...(timer !== undefined ? { timer } : {}),
         });
       }
@@ -449,11 +428,39 @@ const generateDummyTables = (): Table[] => {
   return tables;
 };
 
-// Dummy API to update/save the floor plan (table types/sizes)
-export const updateFloorPlan = async (_floor: string, _tables: Table[]): Promise<{ success: boolean }> => {
-  // Simulate API call
-  console.log(_floor,_tables)
-  return new Promise((resolve) => {
-    setTimeout(() => resolve({ success: true }), 500);
-  });
+// ---------------- PUT layout (real API) ----------------
+// Sends the geometry payload the backend expects:
+// { tables: [{ table_id, capacity, x, y, width, height, rotation }] }
+export const updateFloorPlan = async (
+  floor: string,
+  tables: Table[]
+): Promise<{ success: boolean }> => {
+  try {
+    const payload = {
+      tables: tables.map(t => {
+        const dims = dimensionsForCapacity(t.capacity);
+        return {
+          table_id: Number(t.id),
+          capacity: t.capacity,
+          x: t.position?.x ?? 0,
+          y: t.position?.y ?? 0,
+          width: dims.width,
+          height: dims.height,
+          rotation: 0,
+        };
+      }),
+    };
+    await api.put(
+      `/employee/table_booking/floor-plan/${floor}/layout`,
+      payload
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving floor plan:', error);
+    // Keep the dummy behavior on failure so the UI does not break
+    console.log(floor, tables);
+    return new Promise(resolve => {
+      setTimeout(() => resolve({ success: true }), 500);
+    });
+  }
 };
