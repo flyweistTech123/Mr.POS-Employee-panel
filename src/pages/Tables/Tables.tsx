@@ -166,8 +166,8 @@ const TablePage: React.FC = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === tab
-                    ? "bg-white text-black shadow-sm"
-                    : "text-gray-500 hover:text-gray-800"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-500 hover:text-gray-800"
                   }`}
               >
                 {tab}
@@ -289,7 +289,8 @@ const TablePage: React.FC = () => {
       <ReserveTableModal
         open={showReserve}
         onClose={() => setShowReserve(false)}
-        tables={tables}
+        floorId={floorId}
+        floorName={globalFloor}
       />
     </div>
   );
@@ -317,14 +318,14 @@ const TableSlot = ({
       {status && status !== "Available" && (
         <div
           className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${status === "Served"
-              ? "bg-green-100 text-green-700"
-              : status === "Reserved"
-                ? "bg-purple-100 text-purple-700"
-                : status === "Ready"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : status === "Occupied"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-600"
+            ? "bg-green-100 text-green-700"
+            : status === "Reserved"
+              ? "bg-purple-100 text-purple-700"
+              : status === "Ready"
+                ? "bg-yellow-100 text-yellow-700"
+                : status === "Occupied"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-gray-100 text-gray-600"
             }`}
         >
           {status === "Served" && "✓ "}

@@ -241,6 +241,21 @@ export const quickOrderApi = createApi({
       }),
       invalidatesTags: (_r, _e, arg) => [{ type: 'BarTabs', id: arg.tabId }, 'BarTabs'],
     }),
+    cancelOrder: builder.mutation<
+  ApiResponse<ServerPosOrder>,
+  { id: number | string; reason: string }
+>({
+  query: (body) => ({
+    url: '/api/v1/restaurant/pos_order/cancel',
+    method: 'PATCH',
+    body,
+  }),
+  invalidatesTags: (_r, _e, arg) => [
+    { type: 'Order', id: arg.id },
+    'OrderList',
+    'TableStatus',
+  ],
+}),
   }),
 });
 
@@ -276,4 +291,5 @@ export const {
   useCreateBarTabMutation,
   useAddBarTabItemMutation,
   useCloseBarTabWithPaymentMutation,
+   useCancelOrderMutation,
 } = quickOrderApi;

@@ -12,6 +12,7 @@ export const orderHistoryApi = createApi({
       return headers;
     },
   }),
+  tagTypes: ['OrderHistory', 'QrOrders'],
   endpoints: (builder) => ({
     getAllOrderHistory: builder.query<any, any>({
       query: ({ page = 1, limit = 10, search = '', order_status = '', client_mobile_no = '', table_id = '', floor_id = '' }) =>
@@ -20,7 +21,7 @@ export const orderHistoryApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
+              ...(result.data || []).map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],
@@ -32,7 +33,7 @@ export const orderHistoryApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
+              ...(result.data || []).map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],
@@ -44,12 +45,39 @@ export const orderHistoryApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.data.map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
+              ...(result.data || []).map((order: any) => ({ type: 'OrderHistory' as const, id: order._id })),
               { type: 'OrderHistory' as const, id: 'LIST' },
             ]
           : [{ type: 'OrderHistory' as const, id: 'LIST' }],
     }),
+
+    // ============================================================
+    // NEW: QR Dining Orders
+    // GET {{baseurl}}/api/v1/restaurant/qr-orders/getall?status=Pending&limit=50
+    // ============================================================
+    getAllQrOrders: builder.query<any, { status?: string; limit?: number; restaurant_id?: number | string }>({
+      query: ({ status = 'Pending', limit = 50, restaurant_id }) => {
+        const params = new URLSearchParams();
+        if (status) params.set('status', status);
+        params.set('limit', String(limit));
+        if (restaurant_id !== undefined) params.set('Restaurant_id', String(restaurant_id));
+        return `/api/v1/restaurant/qr-orders/getall?${params.toString()}`;
+      },
+      transformResponse: (response: any) => response,
+      providesTags: (result) =>
+        result && Array.isArray(result.data)
+          ? [
+              ...result.data.map((order: any) => ({ type: 'QrOrders' as const, id: order._id })),
+              { type: 'QrOrders' as const, id: 'LIST' },
+            ]
+          : [{ type: 'QrOrders' as const, id: 'LIST' }],
+    }),
   }),
 });
 
-export const { useGetAllOrderHistoryQuery, useGetOrderHistoryByDateRangeQuery, useGetOrderHistoryByStatusQuery } = orderHistoryApi;
+export const {
+  useGetAllOrderHistoryQuery,
+  useGetOrderHistoryByDateRangeQuery,
+  useGetOrderHistoryByStatusQuery,
+  useGetAllQrOrdersQuery,
+} = orderHistoryApi;
