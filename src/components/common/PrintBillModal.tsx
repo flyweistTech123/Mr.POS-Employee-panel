@@ -13,14 +13,21 @@ interface PrintBillModalProps {
 
 const BillContent: React.FC<{ order: Order | null; forPrint?: boolean }> = ({ order, forPrint }) => {
   if (!order) return null;
+  
   const receipt = {
     orderNumber: order.orderId,
     date: new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
     time: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    paymentType: order.paymentDetails?.method || '',
-    customerName: order.customerInfo?.name || '',
-    total: order.pricingSummary.totalAmount,
+    
+    // Safely extract the payment method string
+    paymentType: typeof order.paymentDetails?.method === 'object' 
+      ? order.paymentDetails?.method?.option 
+      : order.paymentDetails?.method || '',
+      
+    customerName: order.customerInfo?.name || order.customerInfo?.Name || '',
+    total: order.pricingSummary?.totalAmount || 0,
   };
+
   return (
     <div className={forPrint ? "p-6 w-full max-w-xs mx-auto" : "bg-white rounded-2xl shadow p-6 w-full max-w-xs mx-auto flex flex-col items-center print:shadow-none print:rounded-none print:max-w-full print:p-2"} style={forPrint ? { background: 'white', color: 'black' } : {}}>
       <img src={successReceiptIcon} alt="success" className="mb-3" />
@@ -59,21 +66,21 @@ const BillContent: React.FC<{ order: Order | null; forPrint?: boolean }> = ({ or
       <div className="w-full mt-4">
         <div className="flex justify-between border-b border-[#D32F2F] pb-1 mb-1">
           <span className="text-base">Items Net Total</span>
-          <span className="text-base font-semibold">{order.pricingSummary.subtotal.toLocaleString()} XOF</span>
+          <span className="text-base font-semibold">{(order.pricingSummary?.subtotal || 0).toLocaleString()} XOF</span>
         </div>
         <div className="flex justify-between border-b border-[#D32F2F] pb-1 mb-1">
           <span className="text-base">Taxes</span>
-          <span className="text-base font-semibold">{order.pricingSummary.tax.toLocaleString()} XOF</span>
+          <span className="text-base font-semibold">{(order.pricingSummary?.tax || 0).toLocaleString()} XOF</span>
         </div>
-        {order.pricingSummary.discount > 0 && (
+        {(order.pricingSummary?.discount || 0) > 0 && (
           <div className="flex justify-between border-b border-[#D32F2F] pb-1 mb-1">
             <span className="text-base">Discount</span>
-            <span className="text-base font-semibold">-{order.pricingSummary.discount.toLocaleString()} XOF</span>
+            <span className="text-base font-semibold">-{(order.pricingSummary?.discount || 0).toLocaleString()} XOF</span>
           </div>
         )}
         <div className="flex justify-between">
           <span className="text-lg font-bold">Total</span>
-          <span className="text-lg font-bold">{order.pricingSummary.totalAmount.toLocaleString()} XOF</span>
+          <span className="text-lg font-bold">{(order.pricingSummary?.totalAmount || 0).toLocaleString()} XOF</span>
         </div>
       </div>
     </div>
@@ -150,4 +157,4 @@ const PrintBillModal: React.FC<PrintBillModalProps> = ({ open, onClose, order })
   );
 };
 
-export default PrintBillModal; 
+export default PrintBillModal;

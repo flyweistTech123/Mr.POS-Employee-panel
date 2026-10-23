@@ -365,6 +365,7 @@ const OrderHistory = () => {
                 pricingSummary: {
                   subtotal,
                   tax,
+                  total,
                   taxPercentage: 6,
                   discount: 0,
                   serviceCharge: 0,

@@ -67,8 +67,8 @@ export interface OrderItem {
   quantity: number;
   size?: string | null;
   notes?: string;
-  description?: string;                       // <-- added (ItemDetailsModal)
-  itemType?: string;                          // <-- added (ItemDetailsModal)
+  description?: string;
+  itemType?: string;
   addOns?: { id: string; name: string; price: number }[];
   preparationStation?: PreparationStation;
   categoryName?: string;
@@ -226,10 +226,15 @@ export interface FloorWithTablesResponse {
 // --- 6. CUSTOMERS ---
 // ==========================================
 
+/** 
+ * Using a safe intersection type so both `Name` (API) and `name` (UI) 
+ * work without breaking existing code.
+ */
 export interface Customer {
-  Customer_id: number;
-  Name: string;
-  phone: string;
+  Customer_id?: number;
+  Name?: string;           // Kept for backwards compatibility
+  name?: string;           // Added for UI components
+  phone?: string;
   email?: string | null;
   Table_id?: number | null;
   Notes?: string | null;
@@ -285,52 +290,56 @@ export interface BarTabClosePaymentBody {
 // --- 8. UI ORDER MODELS (CLIENT) ---
 // ==========================================
 
-/** Info about the table an order is assigned to. */
+/** 
+ * Info about the table an order is assigned to. 
+ * Added optional `id` to prevent breaking older components that use `id`.
+ */
 export interface OrderTableInfo {
-  id: number;
+  tableId: number;         // Used by orderApi.ts
+  id?: number;             // Kept for backwards compatibility
   name: string;
   number?: number;
   floorName?: string;
 }
 
 /**
- * UI-facing order used across the app (orderApi, modals, redux).
- * This is the shape client code expects — NOT the raw server shape
- * (`ServerPosOrder` is the raw API response).
+ * UI-facing order used across the app.
  */
 export interface Order {
   id: string | number;
-  orderId: string;                          // human-friendly id
+  orderId: string;
   items: OrderItem[];
-  status: OrderStatus;                      // <-- was missing
+  status: OrderStatus;
   paymentStatus?: PaymentStatus;
-  createdAt: string | Date;                 // <-- was missing (PrintBillModal)
+  createdAt: string | Date;
   updatedAt?: string | Date;
-  tableInfo?: OrderTableInfo;               // <-- was missing (orderApi:418)
-  waiterName?: string;                      // <-- was missing (orderApi:430)
+  tableInfo?: OrderTableInfo;
+  waiterName?: string;
   customerInfo?: Customer | null;
+  
+  // Made required to fix PrintBillModal math errors
   pricingSummary?: {
-    subtotal?: number;
-    tax?: number;
-    total?: number;
+    subtotal: number;
+    tax: number;
+    total: number;
     currency?: string;
-     taxPercentage?: number;   
-    discount?: number;        
-    serviceCharge?: number;   
-    totalAmount?: number;    
+    taxPercentage: number;
+    discount: number;
+    serviceCharge: number;
+    totalAmount: number;
   };
+
   paymentDetails?: {
     method?: PaymentMethod | { option: string; paymentOptionId: number };
     transactionId?: string | null;
-     status?: string;  
+    status?: string;
     paidAt?: string | null;
+    kitchenNotes?: string;
   };
 }
 
 /**
- * Payload used when CREATING an order — status/createdAt may be omitted
- * because the server assigns them. Used to silence TS2353 in orderApi.ts
- * if you annotate new-order literals with this type instead of `Order`.
+ * Payload used when CREATING an order.
  */
 export type NewOrderPayload = Omit<Order, 'status' | 'createdAt'> & {
   status?: OrderStatus;
