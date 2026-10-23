@@ -14,6 +14,7 @@ export interface ApiConversation {
   title: string;
   type: "individual" | "group";
   unread_count: number;
+  
   last_message?: {
     chat_message_id: number;
     message: string;

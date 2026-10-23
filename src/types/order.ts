@@ -38,6 +38,28 @@ export interface PaymentOptionsResponse {
 // --- 2. CART & UI ITEMS ---
 // ==========================================
 
+/** Preparation stations used by menu/kitchen routing. */
+export type PreparationStation = 'Kitchen' | 'Counter' | 'Bar';
+
+/** Payment status used by paymentApi and orderApi. */
+export type PaymentStatus =
+  | 'Pending'
+  | 'Success'
+  | 'Failed'
+  | 'Paid'
+  | 'Refunded'
+  | 'Partial';
+
+/** Order lifecycle status used by orderApi / filters. */
+export type OrderStatus =
+  | 'Pending'
+  | 'Confirmed'
+  | 'Preparing'
+  | 'Ready'
+  | 'Served'
+  | 'Completed'
+  | 'Cancelled';
+
 export interface OrderItem {
   itemId: string;
   name: string;
@@ -45,8 +67,10 @@ export interface OrderItem {
   quantity: number;
   size?: string | null;
   notes?: string;
+  description?: string;                       // <-- added (ItemDetailsModal)
+  itemType?: string;                          // <-- added (ItemDetailsModal)
   addOns?: { id: string; name: string; price: number }[];
-  preparationStation?: "Kitchen" | "Counter" | "Bar";
+  preparationStation?: PreparationStation;
   categoryName?: string;
   image?: string | null;
   serverItemId?: string;
@@ -258,10 +282,66 @@ export interface BarTabClosePaymentBody {
 }
 
 // ==========================================
-// --- 8. LEGACY & WRAPPERS ---
+// --- 8. UI ORDER MODELS (CLIENT) ---
 // ==========================================
 
+/** Info about the table an order is assigned to. */
+export interface OrderTableInfo {
+  id: number;
+  name: string;
+  number?: number;
+  floorName?: string;
+}
+
+/**
+ * UI-facing order used across the app (orderApi, modals, redux).
+ * This is the shape client code expects — NOT the raw server shape
+ * (`ServerPosOrder` is the raw API response).
+ */
 export interface Order {
+  id: string | number;
+  orderId: string;                          // human-friendly id
+  items: OrderItem[];
+  status: OrderStatus;                      // <-- was missing
+  paymentStatus?: PaymentStatus;
+  createdAt: string | Date;                 // <-- was missing (PrintBillModal)
+  updatedAt?: string | Date;
+  tableInfo?: OrderTableInfo;               // <-- was missing (orderApi:418)
+  waiterName?: string;                      // <-- was missing (orderApi:430)
+  customerInfo?: Customer | null;
+  pricingSummary?: {
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+    currency?: string;
+     taxPercentage?: number;   
+    discount?: number;        
+    serviceCharge?: number;   
+    totalAmount?: number;    
+  };
+  paymentDetails?: {
+    method?: PaymentMethod | { option: string; paymentOptionId: number };
+    transactionId?: string | null;
+     status?: string;  
+    paidAt?: string | null;
+  };
+}
+
+/**
+ * Payload used when CREATING an order — status/createdAt may be omitted
+ * because the server assigns them. Used to silence TS2353 in orderApi.ts
+ * if you annotate new-order literals with this type instead of `Order`.
+ */
+export type NewOrderPayload = Omit<Order, 'status' | 'createdAt'> & {
+  status?: OrderStatus;
+  createdAt?: string | Date;
+};
+
+// ==========================================
+// --- 9. LEGACY WRAPPER ---
+// ==========================================
+
+export interface LegacyOrderWrapper {
   orderId: string;
   items: OrderItem[];
   pricingSummary?: any;
@@ -274,13 +354,4 @@ export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
   count?: number;
-}
-// Add or replace this in @/types/order.ts
-export interface FloorWithTablesResponse {
-  success: boolean;
-  data: {
-    floor: any; // Or your specific Floor type
-    tables: any[]; // Or your specific Table type
-    server_time: string;
-  };
 }
