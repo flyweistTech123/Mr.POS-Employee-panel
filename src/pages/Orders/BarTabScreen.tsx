@@ -253,7 +253,7 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
 
           <button
             onClick={() => setShowAddTabModal(true)}
-            className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm hover:opacity-90 transition-all flex items-center gap-1 whitespace-nowrap"
+            className="bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm hover:opacity-90 transition-all flex items-center gap-1 whitespace-nowrap"
           >
             + Open New Tab
           </button>
@@ -325,7 +325,7 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
                       onClick={() =>
                         setShowAddItemModal({ tabId: tab.Bar_Tab_id, tabName: tab.client_name })
                       }
-                      className="flex-1 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white py-1.5 rounded-md text-xs font-bold shadow-sm hover:opacity-90 transition-all"
+                      className="flex-1 bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-1.5 rounded-md text-xs font-bold shadow-sm hover:opacity-90 transition-all"
                     >
                       + Add Item
                     </button>
@@ -477,7 +477,7 @@ const BarTabScreen: React.FC<Props> = ({ onBack }) => {
       {showAddItemModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-[#8E24AA] to-[#E53935] p-5 text-white relative">
+            <div className="bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] p-5 text-white relative">
               <h2 className="text-xl font-bold mb-1">Add Item</h2>
               <p className="text-xs text-white/80">
                 Tab: {showAddItemModal.tabName} (#{showAddItemModal.tabId})

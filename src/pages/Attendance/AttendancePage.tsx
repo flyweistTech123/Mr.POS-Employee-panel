@@ -507,7 +507,7 @@ const AttendancePage = () => {
           <button
             onClick={handlePrimaryAction}
             disabled={clockingIn || clockingOut}
-            className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+            className="w-full py-2.5 rounded-lg bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
           >
             {isClockedIn ? (onBreak ? 'End Break & Clock Out' : 'Clock Out') : 'Clock In'}
           </button>
@@ -713,7 +713,7 @@ const AttendancePage = () => {
                   <button
                     onClick={handleSendFile}
                     disabled={!selectedFile || isUploading}
-                    className="w-full bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="w-full bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isUploading ? (
                       <span className="flex items-center gap-2">

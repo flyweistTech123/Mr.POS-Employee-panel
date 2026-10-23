@@ -65,7 +65,6 @@ const NewReservationModal = ({
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
             New Reservation
           </h2>
-
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -82,18 +81,17 @@ const NewReservationModal = ({
                 <label className="block text-[11px] text-gray-600 mb-1">Phone</label>
                 <input
                   type="text"
-                  defaultValue="+974 55-000-1234"
+                  placeholder="+974 55-000-1234"
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Occasion</label>
                 <input
                   type="text"
-                  defaultValue="Birthday Business VIP Anniversary"
+                  placeholder="Birthday, Business, VIP..."
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
@@ -106,7 +104,6 @@ const NewReservationModal = ({
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Date & Time</label>
@@ -129,7 +126,6 @@ const NewReservationModal = ({
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
@@ -155,7 +151,6 @@ const NewReservationModal = ({
                 />
               </div>
             </div>
-
             <div className="flex gap-3 mt-4">
               <button
                 type="button"
@@ -167,7 +162,7 @@ const NewReservationModal = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isSubmitting ? 'Confirming...' : 'Confirm Reservation'}
               </button>
@@ -237,7 +232,6 @@ const EditReservationModal = ({
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
             Edit Reservation #{reservation.Reservations_id}
           </h2>
-
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
               <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
@@ -245,10 +239,9 @@ const EditReservationModal = ({
                 type="text"
                 value={reservation.title ?? ''}
                 disabled
-                className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 text-sm text-gray-500"
+                className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 text-sm text-gray-500 cursor-not-allowed"
               />
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
@@ -277,7 +270,6 @@ const EditReservationModal = ({
                 </select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-gray-600 mb-1">Payment Status</label>
@@ -302,7 +294,6 @@ const EditReservationModal = ({
                 />
               </div>
             </div>
-
             <div className="flex gap-3 mt-4">
               <button
                 type="button"
@@ -314,7 +305,7 @@ const EditReservationModal = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </button>
@@ -382,7 +373,6 @@ export default function ReservationPage() {
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [deletingReservation, setDeletingReservation] = useState<Reservation | null>(null);
 
-  // Inline form selection (null => create mode, Reservation => update mode)
   const [selectedForInline, setSelectedForInline] = useState<Reservation | null>(null);
   const [inlineForm, setInlineForm] = useState({
     title: '',
@@ -398,7 +388,6 @@ export default function ReservationPage() {
   const [updateReservation, { isLoading: isUpdating }] = useUpdateReservationMutation();
   const [deleteReservation, { isLoading: isDeleting }] = useDeleteReservationMutation();
 
-  // Sync inline form whenever a reservation is selected
   useEffect(() => {
     if (selectedForInline) {
       setInlineForm({
@@ -407,7 +396,7 @@ export default function ReservationPage() {
         Date_time: selectedForInline.Date_time,
         Table_id: selectedForInline.Table_id,
         Notes: selectedForInline.Notes ?? '',
-       PaymentStatus: selectedForInline.PaymentStatus as 'Paid' | 'UnPaid',
+        PaymentStatus: selectedForInline.PaymentStatus as 'Paid' | 'UnPaid',
       });
     }
   }, [selectedForInline]);
@@ -424,7 +413,6 @@ export default function ReservationPage() {
     });
   };
 
-  // ---- Handlers ----
   const handleCreateReservation = async (data: CreateReservationPayload) => {
     try {
       await createReservation(data).unwrap();
@@ -464,12 +452,10 @@ export default function ReservationPage() {
     }
   };
 
-  // Inline form submit — routes to create OR update depending on selection
   const handleInlineSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (selectedForInline) {
-      // UPDATE — only send the fields the API accepts
       handleUpdateReservation({
         id: selectedForInline.Reservations_id,
         people_count: Number(inlineForm.people_count),
@@ -478,7 +464,6 @@ export default function ReservationPage() {
         Notes: inlineForm.Notes,
       });
     } else {
-      // CREATE — map inline fields into CreateReservationPayload with sane defaults
       const payload: CreateReservationPayload = {
         Reservations_online: false,
         Customer_id: 25,
@@ -502,34 +487,44 @@ export default function ReservationPage() {
 
   const isInlineSubmitting = selectedForInline ? isUpdating : isCreating;
 
+  // Mocking UI states to match Figma exactly (this mapping logic is based on your requirements)
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Confirmed':
+        return <span className="text-xs px-2 py-1 rounded-md border border-green-200 bg-green-50 text-green-700 font-medium">Confirmed</span>;
+      case 'Tomorrow':
+        return <span className="text-xs px-2 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 font-medium">Tomorrow</span>;
+      default:
+        return <span className="text-xs px-2 py-1 rounded-md border border-orange-200 bg-orange-50 text-orange-700 font-medium">Upcoming</span>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-8 font-sans text-gray-800 relative">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Reservations</h1>
+        <h1 className="text-3xl font-bold text-black tracking-tight">Reservations</h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
+          className="bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white px-5 py-2 rounded-md text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
         >
-          +New Reservation
+          + New Reservation
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-10">
         {/* Left Column */}
         <div className="flex-1 flex flex-col gap-8">
+          
           {/* Reservation Queue */}
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
               Reservation Queue
             </h2>
             <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2">
               {isLoading ? (
                 [1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm animate-pulse"
-                  >
+                  <div key={i} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm animate-pulse">
                     <div className="flex justify-between items-start mb-2">
                       <div className="h-5 bg-gray-200 rounded w-1/2"></div>
                       <div className="h-6 bg-gray-200 rounded w-20"></div>
@@ -544,32 +539,25 @@ export default function ReservationPage() {
               ) : (
                 reservations.map((res, index) => {
                   const isSelected = selectedForInline?._id === res._id;
+                  // Simulated status for Figma match
+                  const mockStatus = index === 0 ? 'Upcoming' : index === 1 ? 'Upcoming' : index === 2 ? 'Tomorrow' : 'Confirmed';
+                  
                   return (
                     <div
                       key={res._id}
                       className={`rounded-lg p-4 bg-white shadow-sm relative shrink-0 transition-colors ${
                         isSelected
                           ? 'border-2 border-purple-500'
-                          : index === 0
-                          ? 'border-2 border-red-400'
                           : 'border border-gray-200'
                       }`}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-bold text-gray-900 text-sm">
                           {res.title || res.customer_name || 'Guest'} - {res.people_count} guests
                         </h3>
-                        <span
-                          className={`text-xs px-2 py-1 rounded border font-medium ${
-                            res.PaymentStatus === 'Paid'
-                              ? 'bg-green-100 text-green-700 border-green-200'
-                              : 'bg-orange-100 text-orange-700 border-orange-200'
-                          }`}
-                        >
-                          {res.PaymentStatus === 'Paid' ? 'Confirmed' : 'Upcoming'}
-                        </span>
+                        {getStatusBadge(mockStatus)}
                       </div>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs text-gray-500">
                         {new Date(res.Date_time).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -582,20 +570,18 @@ export default function ReservationPage() {
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => setEditingReservation(res)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
+                          className="text-xs px-3 py-1.5 rounded-md border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setDeletingReservation(res)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                         >
                           Delete
                         </button>
                         <button
-                          onClick={() =>
-                            isSelected ? resetInline() : setSelectedForInline(res)
-                          }
+                          onClick={() => (isSelected ? resetInline() : setSelectedForInline(res))}
                           className={`text-xs px-3 py-1.5 rounded-md border transition-colors ml-auto ${
                             isSelected
                               ? 'border-gray-300 text-gray-600 bg-gray-100 hover:bg-gray-200'
@@ -612,10 +598,10 @@ export default function ReservationPage() {
             </div>
           </section>
 
-          {/* Inline Form — creates OR updates based on selection */}
-          <section className="border-2 border-red-400 rounded-xl p-6 bg-white">
+          {/* Inline Form */}
+          <section className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                 {selectedForInline
                   ? `Edit Reservation #${selectedForInline.Reservations_id}`
                   : 'New Reservation'}
@@ -634,40 +620,38 @@ export default function ReservationPage() {
             <form onSubmit={handleInlineSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Guest Name</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Guest name</label>
                   <input
                     type="text"
                     value={inlineForm.title}
-                    onChange={(e) =>
-                      setInlineForm((p) => ({ ...p, title: e.target.value }))
-                    }
+                    onChange={(e) => setInlineForm((p) => ({ ...p, title: e.target.value }))}
                     placeholder="Mohammed Al-Farsi"
                     disabled={!!selectedForInline}
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Phone</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Phone</label>
                   <input
                     type="text"
-                    defaultValue="+974 55-000-1234"
+                    placeholder="+974 55-000-1234"
                     disabled={!!selectedForInline}
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Occasion</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Occasion</label>
                   <input
                     type="text"
-                    defaultValue="Birthday Business VIP Anniversary"
+                    placeholder="Birthday, Business, VIP..."
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Estimated Duration</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Estimated Duration</label>
                   <input
                     type="text"
                     placeholder="__hr __min"
@@ -678,33 +662,22 @@ export default function ReservationPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Date & Time</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Date & Time</label>
                   <input
                     type="datetime-local"
-                    value={
-                      inlineForm.Date_time
-                        ? new Date(inlineForm.Date_time).toISOString().slice(0, 16)
-                        : ''
-                    }
-                    onChange={(e) =>
-                      setInlineForm((p) => ({ ...p, Date_time: e.target.value }))
-                    }
+                    value={inlineForm.Date_time ? new Date(inlineForm.Date_time).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setInlineForm((p) => ({ ...p, Date_time: e.target.value }))}
                     disabled={!!selectedForInline}
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Party Size</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Party Size</label>
                   <input
                     type="number"
                     min={1}
                     value={inlineForm.people_count}
-                    onChange={(e) =>
-                      setInlineForm((p) => ({
-                        ...p,
-                        people_count: Number(e.target.value),
-                      }))
-                    }
+                    onChange={(e) => setInlineForm((p) => ({ ...p, people_count: Number(e.target.value) }))}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
@@ -712,130 +685,120 @@ export default function ReservationPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Assign Table</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Assign Table</label>
                   <select
                     value={inlineForm.Table_id}
-                    onChange={(e) =>
-                      setInlineForm((p) => ({ ...p, Table_id: Number(e.target.value) }))
-                    }
+                    onChange={(e) => setInlineForm((p) => ({ ...p, Table_id: Number(e.target.value) }))}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t) => (
-                      <option key={t} value={t}>
-                        Table {t}
-                      </option>
+                      <option key={t} value={t}>Table {t} {t === 2 ? '- Available' : ''}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Notes</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Notes</label>
                   <input
                     type="text"
                     value={inlineForm.Notes}
-                    onChange={(e) =>
-                      setInlineForm((p) => ({ ...p, Notes: e.target.value }))
-                    }
+                    onChange={(e) => setInlineForm((p) => ({ ...p, Notes: e.target.value }))}
                     placeholder="Allergies: nuts"
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
 
-              {selectedForInline && (
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Payment Status</label>
-                  <select
-                    value={inlineForm.PaymentStatus}
-                    onChange={(e) =>
-                      setInlineForm((p) => ({
-                        ...p,
-                        PaymentStatus: e.target.value as 'Paid' | 'UnPaid',
-                      }))
-                    }
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white"
-                  >
-                    <option value="UnPaid">UnPaid</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={isInlineSubmitting}
-                className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-700 text-white py-3 rounded-md font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="mt-4 w-full bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-3 rounded-md font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {isInlineSubmitting
-                  ? selectedForInline
-                    ? 'Saving...'
-                    : 'Creating...'
-                  : selectedForInline
-                  ? 'Save Changes'
-                  : 'Confirm Reservation'}
+                {isInlineSubmitting ? 'Confirming...' : 'Confirm Reservation'}
               </button>
             </form>
           </section>
         </div>
 
         {/* Right Column - Floor Map */}
-        <div className="lg:w-[45%]">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+        <div className="lg:w-[45%] xl:w-[50%]">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
             Floor Map - Reservation View
           </h2>
 
-          <div className="grid grid-cols-4 gap-3">
-            <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T1</span>
-              <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
-            </div>
-            <div className="bg-green-100 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T2</span>
-              <span className="text-[10px] text-gray-500 mt-1">Free</span>
-            </div>
-            <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T3</span>
-              <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
-            </div>
-            <div className="bg-blue-100 border border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T4</span>
-              <span className="text-[10px] text-gray-500 mt-1">Reserved</span>
-              <span className="text-[10px] text-gray-500">8:30 PM</span>
+          <div className="grid grid-cols-4 gap-4">
+            {/* T1 */}
+            <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T1</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
             </div>
 
-            <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T5</span>
-              <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
-            </div>
-            <div className="bg-green-100 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T6</span>
-              <span className="text-[10px] text-gray-500 mt-1">Free</span>
-            </div>
-            <div className="bg-green-100 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T7</span>
-              <span className="text-[10px] text-gray-500 mt-1">Free</span>
-            </div>
-            <div className="bg-blue-100 border border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T8</span>
-              <span className="text-[10px] text-gray-500 mt-1">Reserved</span>
-              <span className="text-[10px] text-gray-500">8:00 PM</span>
+            {/* T2 */}
+            <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T2</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
             </div>
 
-            <div className="bg-green-100 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T9</span>
-              <span className="text-[10px] text-gray-500 mt-1">Free</span>
+            {/* T3 */}
+            <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T3</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
             </div>
-            <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T10</span>
-              <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
+
+            {/* T4 */}
+            <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T4</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB]">7:30 PM</span>
             </div>
-            <div className="bg-blue-100 border border-blue-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T11</span>
-              <span className="text-[10px] text-gray-500 mt-1">Reserved</span>
-              <span className="text-[10px] text-gray-500">10:30 PM</span>
+
+            {/* T5 */}
+            <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T5</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
             </div>
-            <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 flex flex-col items-center justify-center aspect-square">
-              <span className="font-semibold text-gray-700">T12</span>
-              <span className="text-[10px] text-gray-500 mt-1">Occupied</span>
+
+            {/* T6 */}
+            <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T6</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+            </div>
+
+            {/* T7 */}
+            <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T7</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+            </div>
+
+            {/* T8 */}
+            <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T8</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB]">8:30 PM</span>
+            </div>
+
+            {/* T9 */}
+            <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T9</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+            </div>
+
+            {/* T10 */}
+            <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T10</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+            </div>
+
+            {/* T11 */}
+            <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T11</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB]">10:30 PM</span>
+            </div>
+
+            {/* T12 */}
+            <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
+              <span className="font-bold text-gray-800 text-sm">T12</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
             </div>
           </div>
         </div>

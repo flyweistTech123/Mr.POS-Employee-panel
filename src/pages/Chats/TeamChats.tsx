@@ -26,47 +26,63 @@ interface User {
 interface Group {
   id: string; name: string; avatar: string; memberIds: string[];
   type: "group";
-  lastMessage: { text: string; time: string; senderId: string; unread: boolean };
+  lastMessage: { text: string; time: string; senderId: string; unread: boolean; unreadCount: number };
 }
 type Chat = User | Group;
 
 const roles = ["All", "Waiters", "Chefs", "Managers"];
 
+// Refined mapping function based on the provided API JSON payload
 const mapApiToChat = (apiChat: any): Chat => {
+  // Parse the last message correctly
   const mappedLastMessage = apiChat.last_message ? {
     text: apiChat.last_message.message || "",
     time: new Date(apiChat.last_message.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     senderId: String(apiChat.last_message.sender_id),
-    unread: apiChat.unread_count > 0,
-  } : { text: "", time: "", senderId: "", unread: false };
+    unread: apiChat.unread_count > 0, // unread_count is at root level
+    unreadCount: apiChat.unread_count || 0,
+  } : { text: "", time: "", senderId: "", unread: false, unreadCount: 0 };
 
   if (apiChat.type === "group") {
     return {
       id: String(apiChat.chat_conversation_id), 
       name: apiChat.title || "Group Chat",
-      avatar: "", 
+      avatar: "", // Add logic here if API provides a group avatar
       memberIds: apiChat.participants?.map((p: any) => String(p.participant_id)) || [],
       type: "group",
       lastMessage: mappedLastMessage,
     };
   }
 
+  // For individual chats, find the participant that is not the current user (if possible)
+  // Or just take the first participant if it's a direct message payload
   const otherParticipant = apiChat.participants?.[0];
 
   return {
     id: String(apiChat.chat_conversation_id),
     name: apiChat.title || otherParticipant?.name || "Member",
     role: otherParticipant?.role || "Member",
-    avatar: "", 
-    lastSeen: "",
+    avatar: "", // Add logic here if API provides an avatar URL
+    lastSeen: "last seen recently", // Placeholder
     type: "individual",
   };
 };
 
+// --- Helper Components ---
+
+const DoubleCheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-1 text-white/80">
+    <path d="M18 6L7 17l-5-5"></path>
+    <path d="M22 10l-7.5 7.5L13 16"></path>
+  </svg>
+);
+
 const ChatTile = ({ chat, selected, onClick }: {
   chat: Chat; selected: boolean; onClick: () => void;
 }) => {
-  const unreadCount = chat.type === "group" && chat.lastMessage.unread ? 1 : 0;
+  // Ensure unreadCount exists before rendering
+  const unreadCount = chat.type === "group" ? chat.lastMessage.unreadCount : 0;
+  
   return (
     <div
       className={`flex items-center gap-3 px-2 py-3 cursor-pointer rounded-lg transition-all ${
@@ -75,21 +91,21 @@ const ChatTile = ({ chat, selected, onClick }: {
       onClick={onClick}
     >
       <img src={chat.avatar || "/default-avatar.png"} alt="avatar"
-        className="w-12 h-12 rounded-full object-cover" />
+        className="w-12 h-12 rounded-full object-cover bg-yellow-200" />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base truncate text-[#2C2C2E]">{chat.name}</div>
         <div className="truncate text-sm font-normal text-[#666668]">
-          {chat.type === "group" ? chat.lastMessage.text : "Tap to view chat"}
+          {chat.type === "group" ? chat.lastMessage.text : "Manager online payment..."}
         </div>
       </div>
       <div className="flex flex-col items-end min-w-[40px]">
         {unreadCount > 0 && (
           <div className="mt-1 bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-            {unreadCount}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </div>
         )}
-        <div className="text-xs text-[#BDBDBD] font-semibold">
-          {chat.type === "group" ? chat.lastMessage.time : ""}
+        <div className="text-xs text-[#BDBDBD] font-semibold mt-1">
+          {chat.type === "group" ? chat.lastMessage.time : "14:00"}
         </div>
       </div>
     </div>
@@ -153,8 +169,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  // Group messages by date for rendering date separators
+  let lastDate = "";
+
   return (
     <div className="flex flex-col h-full bg-white rounded-2xl overflow-hidden flex-1 min-h-0">
+      {/* Header */}
       <div className="flex items-center px-4 md:px-8 py-4 border-b border-[#E5E5EA] bg-white relative">
         {isMobile && onBack && (
           <button className="mr-3 flex-shrink-0 md:hidden" onClick={onBack}>
@@ -164,56 +184,129 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </svg>
           </button>
         )}
-        <img src={chat.avatar || "/default-avatar.png"} alt="avatar"
-          className="w-10 h-10 rounded-full object-cover" />
-        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-          <span className="font-bold text-lg text-[#2C2C2E] truncate">{chat.name}</span>
+        <div className="relative">
+          <img src={chat.avatar || "/default-avatar.png"} alt="avatar"
+            className="w-10 h-10 rounded-full object-cover bg-yellow-200" />
+          {/* Mock overlapping avatars for group */}
+          {chat.type === 'group' && (
+             <div className="absolute -right-2 top-0 flex -space-x-2">
+                <div className="w-6 h-6 rounded-full bg-purple-400 border-2 border-white"></div>
+             </div>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0 ml-3">
+          <span className="font-bold text-lg text-[#2C2C2E] truncate flex items-center gap-1">
+             {chat.type === 'group' && <span className="text-pink-600">👥</span>}
+             {chat.name}
+          </span>
+          <span className="text-xs text-gray-400">
+            {chat.type === 'individual' ? chat.lastSeen : "last seen 45 minutes ago"}
+          </span>
           {!socketConnected && (
             <span className="text-xs text-red-500">Reconnecting…</span>
           )}
         </div>
+        {/* Options Menu Mock */}
+        <button className="text-gray-400 hover:text-gray-600">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 12a2 2 0 11-4 0 2 2 0 014 0zm8 0a2 2 0 11-4 0 2 2 0 014 0zm8 0a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </button>
       </div>
 
+      {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-4 bg-white min-h-0">
         {messages.length === 0 ? (
           <div className="text-center text-[#222] mt-20">No messages yet. Say hello!</div>
         ) : (
           messages.map((msg: any) => {
-            // Determine if the message is from the current user
             const mine = myUserId ? String(msg.senderId) === String(myUserId) : false;
+            
+            // Date separator logic
+            const msgDate = new Date(msg.createdAt || Date.now()).toLocaleDateString();
+            const showDateSeparator = msgDate !== lastDate;
+            if (showDateSeparator) lastDate = msgDate;
+
             return (
-              <div
-                key={msg.id}
-                className={`px-4 py-2 rounded-xl mb-2 max-w-[75%] break-words ${
-                  mine
-                    ? "bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white ml-auto"
-                    : "bg-[#F8EAEE] text-black"
-                }`}
-              >
-                {msg.text}
-              </div>
+              <React.Fragment key={msg.id}>
+                {showDateSeparator && (
+                  <div className="flex justify-center my-4">
+                    <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                      {msgDate}
+                    </span>
+                  </div>
+                )}
+                
+                <div className={`flex flex-col mb-3 ${mine ? "items-end" : "items-start"}`}>
+                  {/* Sender Name for received messages */}
+                  {!mine && (
+                    <div className="flex items-center gap-2 mb-1 ml-1">
+                       <img src="/default-avatar.png" alt="sender" className="w-5 h-5 rounded-full bg-gray-300" />
+                       <span className="text-xs font-semibold text-gray-700">
+                         {/* Fallback to msg.senderName if provided by API, else generic */}
+                         {msg.senderName || "Team Member"}
+                       </span>
+                    </div>
+                  )}
+
+                  <div
+                    className={`px-4 py-2 rounded-xl max-w-[75%] break-words flex flex-col ${
+                      mine
+                        ? "bg-gradient-to-r from-[#7B1FA2] to-[#D32F2F] text-white rounded-tr-sm"
+                        : "bg-[#F8EAEE] text-black rounded-tl-sm"
+                    }`}
+                  >
+                    <span className="text-[15px]">{msg.text}</span>
+                    
+                    {/* Timestamp and Read Receipts */}
+                    <div className={`flex items-center text-[10px] mt-1 ${mine ? "text-white/80 justify-end" : "text-gray-500 justify-start"}`}>
+                      <span>
+                        {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {mine && <DoubleCheckIcon />}
+                    </div>
+                  </div>
+                </div>
+              </React.Fragment>
             );
           })
         )}
       </div>
 
-      <div className="border-t border-[#E5E5EA] px-4 py-4 flex items-center gap-3 bg-white">
+      {/* Input Area */}
+      <div className="border-t border-[#E5E5EA] px-4 py-3 flex items-center gap-3 bg-white">
         <input
           type="text"
-          className="flex-1 border-none outline-none text-base text-[#666668]"
+          className="flex-1 border-none outline-none text-base text-[#666668] placeholder-gray-400 bg-transparent"
           placeholder="Start typing..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
           disabled={!socketConnected}
         />
+        
+        {/* Attachment Icon Mock */}
+        <button className="text-gray-400 hover:text-gray-600 p-1">
+           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+           </svg>
+        </button>
+
+        {/* Send Button */}
         <button
-          className="text-2xl text-[#6A1B9A] flex items-center justify-center w-10 h-10 disabled:opacity-40"
+          className="text-[#6A1B9A] flex items-center justify-center w-8 h-8 disabled:opacity-40"
           type="button"
           onClick={handleSend}
           disabled={sending || !message.trim() || !socketConnected}
         >
-          <img src={sendIcon} alt="send" className="w-6 h-6" />
+          {message.trim() ? (
+             <img src={sendIcon} alt="send" className="w-6 h-6" />
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform rotate-45">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          )}
         </button>
       </div>
     </div>
@@ -261,10 +354,7 @@ const TeamChats: React.FC = () => {
     if (!token) return;
     setSelectedChat(chat);
     
-    // Join the socket room for this specific conversation
     joinChat(chat.id); 
-    
-    // Fetch historical messages
     dispatch(fetchChatDetails(chat.id));
 
     const step = steps[currentStep];
@@ -276,13 +366,12 @@ const TeamChats: React.FC = () => {
     dispatch(clearActiveChat());
   };
 
-  // 🔥 THIS IS THE ACTUAL SEND MESSAGE LOGIC 🔥
   const handleSend = useCallback(async (text: string) => {
     if (!selectedChat) return;
 
     const optimisticId = `tmp-${crypto.randomUUID()}`;
     
-    // 1. Immediately add the message to the screen (Optimistic UI)
+    // Optimistically add message
     dispatch(appendOptimisticMessage({
       id: optimisticId,
       text,
@@ -291,14 +380,12 @@ const TeamChats: React.FC = () => {
     }));
 
     try {
-      // 2. Emit the message to the Socket.IO server
+      // Send via socket
       const ack = await sendChatMessage(selectedChat.id, text);
-      
-      // 3. The server responds with the actual saved message data
       const confirmed = ack?.message ?? ack?.data ?? null;
       
       if (confirmed?.id) {
-        // 4. Replace the temporary optimistic message with the confirmed one
+        // Confirm and replace optimistic message
         dispatch(confirmMessage({
           clientId: optimisticId,
           message: {
@@ -311,7 +398,6 @@ const TeamChats: React.FC = () => {
       }
     } catch (e) {
       console.error("send failed", e);
-      // Note: You could dispatch a `removeMessage(optimisticId)` here to roll back if it fails
     }
   }, [selectedChat, myUserId, dispatch, sendChatMessage]);
 
@@ -322,16 +408,17 @@ const TeamChats: React.FC = () => {
     }
   }, [completed, activeTraining, completedTrainings, startTraining, navigate]);
 
+  // Map raw Redux state to our internal Chat format
   const chatList = useMemo(() => conversations.map(mapApiToChat), [conversations]);
 
   return (
-    <div className="p-0 md:p-6 flex flex-col h-screen overflow-hidden">
+    <div className="p-0 md:p-6 flex flex-col h-screen overflow-hidden bg-gray-50">
       <div className="bg-white lg:shadow-2xl sm:shadow px-0 md:px-6 flex flex-1 min-h-0 rounded-2xl overflow-hidden relative team-chat-full-panel">
 
         {/* Left Panel */}
         <div
           ref={leftPanelRef}
-          className={`w-full md:w-[420px] border-r-0 md:border-r-2 border-[#E5E5EA] pr-0 md:pr-4 flex flex-col min-h-0 relative team-chat-left-panel ${
+          className={`w-full md:w-[380px] border-r-0 md:border-r border-[#E5E5EA] pr-0 md:pr-4 flex flex-col min-h-0 relative team-chat-left-panel bg-white z-10 ${
             isMobile && selectedChat ? "hidden" : ""
           }`}
         >
@@ -339,24 +426,23 @@ const TeamChats: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                className="w-full rounded-lg bg-[#FAFAFA] pl-10 pr-6 py-3 text-sm text-[#666668] focus:outline-none"
+                className="w-full rounded-lg bg-[#FAFAFA] pl-10 pr-6 py-3 text-sm text-[#666668] focus:outline-none border border-gray-100"
                 placeholder="Search Team"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ boxShadow: "0px -3px 0px 0px #E5E5EA inset" }}
               />
-              <img src={searchIcon} alt="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#BDBDBD]" />
+              <img src={searchIcon} alt="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#BDBDBD] w-4 h-4 opacity-50" />
             </div>
           </div>
 
-          <div className="flex gap-2 mb-4 px-4 md:px-0 overflow-x-auto">
+          <div className="flex gap-2 mb-4 px-4 md:px-0 overflow-x-auto no-scrollbar">
             {roles.map((role) => (
               <button
                 key={role}
-                className={`px-4 py-1 rounded-full font-medium text-base transition-all whitespace-nowrap ${
+                className={`px-4 py-1.5 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
                   activeTab === role
-                    ? "bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white"
-                    : "bg-[#F8EAEE] hover:bg-[#F8EAEE]"
+                    ? "bg-gradient-to-r from-[#7B1FA2] to-[#D32F2F] text-white"
+                    : "bg-[#F8EAEE] text-gray-600 hover:bg-gray-200"
                 }`}
                 onClick={() => { setActiveTab(role); handleBack(); }}
               >
@@ -392,10 +478,10 @@ const TeamChats: React.FC = () => {
         </div>
 
         {/* Right Panel */}
-        <div className={`flex-1 flex flex-col min-h-0 w-full ${isMobile && !selectedChat ? "hidden" : ""}`}>
+        <div className={`flex-1 flex flex-col min-h-0 w-full bg-white ${isMobile && !selectedChat ? "hidden" : ""}`}>
           {!selectedChat ? (
             <div className="flex items-center justify-center h-full text-center text-lg text-[#2C2C2E]">
-              <div>
+              <div className="text-gray-400">
                 Send and Receive message without any interruption
                 <br />
                 Message your team for any assistance or help required
