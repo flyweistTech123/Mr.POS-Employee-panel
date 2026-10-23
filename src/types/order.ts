@@ -275,3 +275,12 @@ export interface ApiResponse<T = any> {
   data?: T;
   count?: number;
 }
+// Add or replace this in @/types/order.ts
+export interface FloorWithTablesResponse {
+  success: boolean;
+  data: {
+    floor: any; // Or your specific Floor type
+    tables: any[]; // Or your specific Table type
+    server_time: string;
+  };
+}

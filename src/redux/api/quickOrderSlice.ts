@@ -78,9 +78,15 @@ export const quickOrderApi = createApi({
       providesTags: ['TableStatus'],
     }),
 
-    getFloorWithTables: builder.query<FloorWithTablesResponse, string>({
-      query: (id) => `/api/v1/admin/floor/getWithTables/${id}`,
-      providesTags: (_r, _e, id) => [{ type: 'TableStatus', id }],
+       getFloorWithTables: builder.query<
+      FloorWithTablesResponse, // <- Use the fixed type here
+      { floorId: string; status: "All" | "Served" | "Waiting" | "Reserved" }
+    >({
+      query: ({ floorId, status }) =>
+        `/api/v1/employee/table_booking/floor-plan/${floorId}?status=${status}`,
+      providesTags: (_r, _e, { floorId }) => [
+        { type: "FloorTables" as const, id: floorId },
+      ],
     }),
 
     getTableCurrentOrder: builder.query<ApiResponse<ServerPosOrder>, number>({
@@ -241,21 +247,22 @@ export const quickOrderApi = createApi({
       }),
       invalidatesTags: (_r, _e, arg) => [{ type: 'BarTabs', id: arg.tabId }, 'BarTabs'],
     }),
+
     cancelOrder: builder.mutation<
-  ApiResponse<ServerPosOrder>,
-  { id: number | string; reason: string }
->({
-  query: (body) => ({
-    url: '/api/v1/restaurant/pos_order/cancel',
-    method: 'PATCH',
-    body,
-  }),
-  invalidatesTags: (_r, _e, arg) => [
-    { type: 'Order', id: arg.id },
-    'OrderList',
-    'TableStatus',
-  ],
-}),
+      ApiResponse<ServerPosOrder>,
+      { id: number | string; reason: string }
+    >({
+      query: (body) => ({
+        url: '/api/v1/restaurant/pos_order/cancel',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'Order', id: arg.id },
+        'OrderList',
+        'TableStatus',
+      ],
+    }),
   }),
 });
 
@@ -282,7 +289,7 @@ export const {
   useSendToKitchenMutation,
   useUpdateOrderItemStatusMutation,
   useUpdateOrderStatusMutation,
-  useCreatePaymentMutation, 
+  useCreatePaymentMutation,
   useGetOrderByIdQuery,
   useGetOrderPdfUrlQuery,
   useGetAllOrdersQuery,
@@ -291,5 +298,5 @@ export const {
   useCreateBarTabMutation,
   useAddBarTabItemMutation,
   useCloseBarTabWithPaymentMutation,
-   useCancelOrderMutation,
+  useCancelOrderMutation,
 } = quickOrderApi;

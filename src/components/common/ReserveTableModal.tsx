@@ -4,6 +4,7 @@ import {
   useCreateEmployeeReservationMutation,
 } from "@/redux/api/reservationApi";
 import type { FloorMapTable } from "@/types/reservation";
+import toast from "react-hot-toast"; // <--- ADDED TOAST IMPORT (Change to 'react-toastify' if you use that)
 
 interface ReserveTableModalProps {
   open: boolean;
@@ -51,7 +52,7 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
   );
   const [error, setError] = useState<string | null>(null);
 
-  // Full ISO with IST offset — sent as `date_time` to both endpoints.
+  // Full ISO with IST offset (+05:30) — sent as `date_time` to the backend.
   const dateTime = useMemo(() => {
     if (!dateStr || !timeStr) return "";
     return `${dateStr}T${timeStr}:00+05:30`;
@@ -97,6 +98,7 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
   const handleSubmit = async () => {
     setError(null);
 
+    // Frontend validation
     if (!name.trim()) return setError("Guest name is required.");
     if (!phone.trim()) return setError("Contact number is required.");
     if (!dateTime) return setError("Pick a date and time.");
@@ -105,6 +107,9 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
     if (!selectedTable) return setError("Select a table.");
     if (!isTableSelectable(selectedTable))
       return setError("That table is not available for this slot.");
+
+    // Show loading toast while saving
+    const loadingToast = toast.loading("Creating reservation...");
 
     try {
       await createReservation({
@@ -115,12 +120,19 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
         floor_id: floorId,
         table_id: selectedTable.Table_id,
         duration_minutes: duration,
-        notes: "",
       }).unwrap();
+
+      // Show success toast
+      toast.success("Reservation created successfully!", { id: loadingToast });
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to create reservation", e);
-      setError("Failed to create reservation. Please try again.");
+      
+      const msg = e?.data?.message || e?.message || "Failed to create reservation. Please try again.";
+      
+      // Show error toast
+      toast.error(msg, { id: loadingToast });
+      setError(msg);
     }
   };
 
@@ -267,7 +279,7 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isCreating || !selectedTable}
+            disabled={isCreating}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isCreating ? "Reserving…" : "Confirm Reservation"}
