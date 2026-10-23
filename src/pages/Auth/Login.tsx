@@ -41,6 +41,43 @@ const extractErrorMessage = (err: any, fallback: string): string => {
   return fallback;
 };
 
+/**
+ * Pulls the access token out of the OTP-verify response regardless of
+ * the exact shape the backend uses. Returns null if nothing is found.
+ */
+const extractToken = (result: any): string | null => {
+  const candidates = [
+    result?.data?.access_token,
+    result?.data?.access,
+    result?.data?.token,
+    result?.data?.tokens?.access,
+    result?.data?.tokens?.access_token,
+    result?.access_token,
+    result?.access,
+    result?.token,
+    result?.tokens?.access,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.length > 0) return c;
+  }
+  return null;
+};
+
+const extractRefreshToken = (result: any): string | null => {
+  const candidates = [
+    result?.data?.refresh_token,
+    result?.data?.refresh,
+    result?.data?.tokens?.refresh,
+    result?.refresh_token,
+    result?.refresh,
+    result?.tokens?.refresh,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.length > 0) return c;
+  }
+  return null;
+};
+
 const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('Employee');
   const [step, setStep] = useState<Step>('credentials');
@@ -134,7 +171,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Moved navigate() and toast OUTSIDE the try/catch block
+  // ✅ Stores token in localStorage (or sessionStorage if "remember me" is off)
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -149,15 +186,41 @@ const LoginPage: React.FC = () => {
     let succeeded = false;
 
     try {
-      // Only the API call is inside the try block
-      await verifyEmployeeOtp({
+      const result = await verifyEmployeeOtp({
         challenge_id: challengeId,
         otp,
       }).unwrap();
-      
+
+      const token = extractToken(result);
+      const refreshToken = extractRefreshToken(result);
+
+      if (token) {
+        // Choose storage based on "Remember me"
+        const storage = rememberMe ? localStorage : sessionStorage;
+
+        // Clear the other storage so stale tokens don't linger
+        if (rememberMe) {
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('refresh_token');
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token');
+        }
+
+        storage.setItem('token', token);
+        if (refreshToken) storage.setItem('refresh_token', refreshToken);
+        storage.setItem('rememberMe', String(rememberMe));
+      } else {
+        console.warn('No token found in OTP verify response:', result);
+        toast.error('Login succeeded but no token was returned.', {
+          duration: 5000,
+        });
+        // Still not marking succeeded → prevents navigation with missing token
+        return;
+      }
+
       succeeded = true;
     } catch (err: any) {
-      // ONLY real API errors trigger this block
       console.error('OTP verify error:', err?.status, err?.data, err);
       toast.error(
         extractErrorMessage(err, 'Invalid or expired OTP. Please try again.'),
@@ -167,7 +230,6 @@ const LoginPage: React.FC = () => {
       setIsLoading(false);
     }
 
-    // Navigation and success toast happen AFTER the try/catch finishes
     if (succeeded) {
       toast.success('Login successful!', { duration: 4000 });
       navigate('/');

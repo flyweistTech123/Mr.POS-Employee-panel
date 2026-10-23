@@ -22,7 +22,10 @@ import BarTabScreen from "./BarTabScreen";
 import { KitchenSuccessModal } from "@/components/common/CustomSuccessModals";
 import CancelOrderModal from "@/components/common/CancelOrderModal";
 
-import TrashIcon from "@/assets/Trash.svg";
+// ✅ React Icons
+import { FiMinus, FiPlus } from "react-icons/fi";
+import { LuTrash2 } from "react-icons/lu";
+
 import successIcon from "@/assets/order/success_icon_large.svg";
 
 // ✅ 1st Modal: Payment Received Success (Green Buttons)
@@ -44,7 +47,6 @@ const PaymentReceivedModal = ({
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
-        {/* Custom Checkmark Icon with floating dots */}
         <div className="relative mb-6">
           <div className="w-20 h-20 rounded-full bg-[#E8F5E9] flex items-center justify-center">
             <div className="w-14 h-14 rounded-full bg-[#00C853] flex items-center justify-center">
@@ -53,10 +55,6 @@ const PaymentReceivedModal = ({
               </svg>
             </div>
           </div>
-          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00C853] rounded-full opacity-60"></div>
-          <div className="absolute -bottom-2 -left-2 w-3 h-3 border-2 border-[#00C853] rounded-full opacity-60"></div>
-          <div className="absolute top-1/2 -left-4 w-1.5 h-1.5 bg-[#00C853] rounded-full opacity-80"></div>
-          <div className="absolute top-0 -left-1 w-2 h-2 border border-[#00C853] rounded-full opacity-40"></div>
         </div>
 
         <h2 className="text-[22px] font-bold text-[#00C853] mb-3">Payment Received Successful !</h2>
@@ -94,7 +92,7 @@ const PaymentReceivedModal = ({
   );
 };
 
-// ✅ 2nd Modal: Order Summary / Receipt (Purple Gradient Button)
+// ✅ 2nd Modal: Order Summary / Receipt
 const ReceiptModal = ({
   open,
   onClose,
@@ -123,7 +121,6 @@ const ReceiptModal = ({
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-[420px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
         <div className="px-6 py-5 flex justify-between items-center border-b border-gray-100">
           <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
@@ -134,10 +131,8 @@ const ReceiptModal = ({
         </div>
 
         <div className="p-6 flex flex-col items-center bg-[#FAFAFA]">
-          {/* Receipt Card Container */}
-          <div className="w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] relative mb-6">
+          <div className="w-full bg-white rounded-2xl shadow-sm relative mb-6">
             <div className="p-6 flex flex-col items-center pb-8">
-              {/* Green Check Icon */}
               <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-4">
                 <div className="w-10 h-10 rounded-full bg-[#00C853] flex items-center justify-center">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -158,7 +153,6 @@ const ReceiptModal = ({
                 <p className="text-2xl font-bold text-gray-900">{total.toLocaleString()} XOF</p>
               </div>
 
-              {/* Details Grid */}
               <div className="grid grid-cols-2 gap-4 w-full px-2">
                 <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
                   <p className="text-[10px] text-gray-400 mb-0.5">Order Number</p>
@@ -170,39 +164,17 @@ const ReceiptModal = ({
                   <p className="text-[10px] text-gray-400 mb-0.5">Date & Time</p>
                   <p className="text-xs font-bold text-gray-800">{currentDate}</p>
                 </div>
-                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
-                  <p className="text-[10px] text-gray-400 mb-0.5">Payment Type</p>
-                  <p className="text-xs font-bold text-gray-800">Credit Card</p>
-                </div>
-                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
-                  <p className="text-[10px] text-gray-400 mb-0.5">Customer Name</p>
-                  <p className="text-xs font-bold text-gray-800">Jimmy Jonson</p>
-                </div>
               </div>
-            </div>
-
-            {/* Scalloped Edge Effect */}
-            <div className="absolute bottom-0 left-0 w-full h-3 flex overflow-hidden">
-              {[...Array(15)].map((_, i) => (
-                <div key={i} className="flex-1 aspect-square bg-[#FAFAFA] rounded-full -mb-1.5" />
-              ))}
             </div>
           </div>
 
-          {/* Print Receipt Button */}
           <button
             onClick={onPrint}
             className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-6 transition-colors"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
             Print Receipt
           </button>
 
-          {/* Start New Order Button */}
           <button
             onClick={onClose}
             className="w-full py-3.5 rounded-xl text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all shadow-md"
@@ -249,7 +221,6 @@ const Orders: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReadyToPayModal, setShowReadyToPayModal] = useState(false);
 
-  // ✅ Success modals
   const [showPaymentReceivedModal, setShowPaymentReceivedModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
@@ -262,7 +233,6 @@ const Orders: React.FC = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // ✅ Enhanced Toast State
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -270,10 +240,15 @@ const Orders: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ✅ API Hooks
-  const { data: itemTypesData } = useGetAllItemTypesQuery({ type: activeMode });
-  const { data: itemsData, isLoading: isLoadingItems } = useGetAllItemsQuery({ type: activeMode });
+  // ✅ API Hooks (added isFetching to catch refetches)
+  const { data: itemTypesData, isFetching: isFetchingTypes } = useGetAllItemTypesQuery({ type: activeMode });
+  const { data: itemsData, isLoading: isLoadingItems, isFetching: isFetchingItems } = useGetAllItemsQuery({ type: activeMode });
   const { data: floorsData } = useGetAllFloorsQuery();
+
+  // ✅ FIX: Reset category when switching between Food and Bar
+  useEffect(() => {
+    setSelectedCategory("all");
+  }, [activeMode, setSelectedCategory]);
 
   const [createOrder] = useCreateOrderMutation();
   const [sendToKitchen] = useSendToKitchenMutation();
@@ -302,6 +277,7 @@ const Orders: React.FC = () => {
       price: item["item-price"],
       image: item.image_url || item.image,
       itemType: item.Category?.Items_types_id?.toString(),
+      itemTypeName: item.Category?.Name || "General",
     }));
   }, [itemsData]);
 
@@ -322,7 +298,6 @@ const Orders: React.FC = () => {
     currentOrder?.orderStatus === "Cooking" ||
     currentOrder?.orderStatus === "Ready";
 
-  // ✅ Flow guards — single source of truth
   const isOrderLocked = isOrderSentToKitchen || isOrderPaid;
   const canCancel = !!currentOrder && items.length > 0 && !isOrderPaid && !isCancelling;
   const canSendToKitchen =
@@ -331,12 +306,19 @@ const Orders: React.FC = () => {
 
   const showSuccessPanel = isOrderPaid;
   const showOrderSummary =
-    !isOrderPaid &&
-    panelMode === "order" &&
-    currentOrder &&
-    items.length > 0;
+    !isOrderPaid && panelMode === "order" && currentOrder && items.length > 0;
 
-  // ✅ Effect: Sync Cart with Toast
+  // ✅ Group items by Category for the UI
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, OrderItem[]> = {};
+    items.forEach((item: any) => { 
+      const cat = item.itemTypeName || "General";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [items]);
+
   useEffect(() => {
     if (pendingCustomizedItem && currentOrder) {
       addItemToOrder(pendingCustomizedItem);
@@ -345,7 +327,6 @@ const Orders: React.FC = () => {
     }
   }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem]);
 
-  // ✅ Navigation / State sync
   useEffect(() => {
     const navState = location.state as { tableId?: number; floor?: string; persons?: number };
     if (navState?.tableId) {
@@ -363,7 +344,6 @@ const Orders: React.FC = () => {
     } else {
       setPanelMode("idle");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
   const handleAddToCart = (item: any) => {
@@ -386,13 +366,17 @@ const Orders: React.FC = () => {
 
   const handleAddonsSave = ({ addons, note }: { addons: string[]; note: string }) => {
     if (!modalItem) return;
+    const addonPrice = 20;
+    const totalAddonPrice = addons.length * addonPrice;
+
     const customizedItem = {
       ...modalItem,
+      price: modalItem.price + totalAddonPrice, 
       size: "M",
-      addOns: addons.map((a, i) => ({ id: String(i), name: a, price: 0 })),
+      addOns: addons.map((a, i) => ({ id: String(i), name: a, price: addonPrice })),
       notes: note,
     };
-
+    
     addItemToOrder(customizedItem);
     setShowAddonModal(false);
     showToast(`${modalItem.name} added to order!`, "success");
@@ -400,14 +384,12 @@ const Orders: React.FC = () => {
 
   const handleBack = () => {
     if (isOrderLocked) {
-      // Don't cancel a server order that's in the kitchen — just clear the local view
       resetOrder();
       setPanelMode("idle");
       showToast("Order cleared from screen.", "info");
       return;
     }
     if (items.length === 0) {
-      // Nothing to cancel — just go back
       resetOrder();
       setPanelMode("idle");
       return;
@@ -420,14 +402,11 @@ const Orders: React.FC = () => {
       setShowCancelModal(false);
       return;
     }
-
     setIsCancelling(true);
     try {
-      // Only call the API if the order actually exists on the server
       if (currentOrder.orderId) {
         await cancelOrder({ id: currentOrder.orderId, reason }).unwrap();
       }
-
       resetOrder();
       setShowKitchenSuccess(false);
       setShowPaymentReceivedModal(false);
@@ -437,9 +416,7 @@ const Orders: React.FC = () => {
       setPersons(1);
       showToast("Order cancelled successfully", "info");
     } catch (err: any) {
-      console.error("Cancel Order Error:", err);
-      const msg = err?.data?.message || err?.message || "Failed to cancel order.";
-      showToast(msg, "error");
+      showToast(err?.data?.message || err?.message || "Failed to cancel order.", "error");
     } finally {
       setIsCancelling(false);
     }
@@ -481,28 +458,15 @@ const Orders: React.FC = () => {
       showToast("Order created successfully!", "success");
       return orderId;
     } catch (err: any) {
-      console.error("Create Order Error:", err);
-      const errorMsg =
-        err?.data?.message || err?.message || "Failed to create order on server.";
-      showToast(errorMsg, "error");
+      showToast(err?.data?.message || err?.message || "Failed to create order on server.", "error");
       return null;
     }
   };
 
   const handleSendToKitchen = async () => {
-    // ✅ Validation guards
-    if (isOrderPaid) {
-      showToast("This order is already paid and cannot be re-sent.", "error");
-      return;
-    }
-    if (isOrderSentToKitchen) {
-      showToast("This order has already been sent to the kitchen.", "info");
-      return;
-    }
-    if (items.length === 0) {
-      showToast("Add items before sending to the kitchen.", "error");
-      return;
-    }
+    if (isOrderPaid) return showToast("This order is already paid.", "error");
+    if (isOrderSentToKitchen) return showToast("This order has already been sent.", "info");
+    if (items.length === 0) return showToast("Add items before sending.", "error");
     if (isSendingKitchen) return;
 
     setIsSendingKitchen(true);
@@ -520,7 +484,6 @@ const Orders: React.FC = () => {
 
       await updateOrderStatus({ id: orderId, Order_Status: "In_Kitchen" }).unwrap();
 
-      // Reflect lock locally right away
       useOrderFlowStore.getState().setServerTotals({
         subTotal: currentOrder?.serverSubTotal || subTotal,
         tax: currentOrder?.serverTax || tax,
@@ -531,24 +494,15 @@ const Orders: React.FC = () => {
       setShowKitchenSuccess(true);
       showToast("Order sent to kitchen successfully!", "success");
     } catch (err: any) {
-      console.error("Send to Kitchen Error:", err);
-      const errorMsg =
-        err?.data?.message || err?.message || "Failed to send order to kitchen.";
-      showToast(errorMsg, "error");
+      showToast(err?.data?.message || err?.message || "Failed to send order.", "error");
     } finally {
       setIsSendingKitchen(false);
     }
   };
 
   const handlePaymentInitiation = async () => {
-    if (isOrderPaid) {
-      showToast("This order is already paid.", "info");
-      return;
-    }
-    if (items.length === 0) {
-      showToast("Add items before paying.", "error");
-      return;
-    }
+    if (isOrderPaid) return showToast("This order is already paid.", "info");
+    if (items.length === 0) return showToast("Add items before paying.", "error");
     if (isProcessingPayment) return;
 
     setIsProcessingPayment(true);
@@ -557,7 +511,6 @@ const Orders: React.FC = () => {
       if (!id) return;
       setShowPaymentModal(true);
     } catch (err: any) {
-      console.error("Payment Initiation Error:", err);
       showToast("Failed to open payment options", "error");
     } finally {
       setIsProcessingPayment(false);
@@ -593,11 +546,8 @@ const Orders: React.FC = () => {
         setShowReadyToPayModal(false);
         setShowPaymentReceivedModal(true);
       } catch (err: any) {
-        console.error("Payment Processing Error:", err);
         setShowReadyToPayModal(false);
-        const errorMsg =
-          err?.data?.message || err?.message || "Payment update failed. Please try again.";
-        showToast(errorMsg, "error");
+        showToast(err?.data?.message || err?.message || "Payment update failed.", "error");
       }
     }, 2000);
   };
@@ -610,9 +560,7 @@ const Orders: React.FC = () => {
 
   const handleActualPrint = () => {
     showToast("Sending receipt to printer...", "info");
-    setTimeout(() => {
-      showToast("Receipt printed successfully!", "success");
-    }, 1500);
+    setTimeout(() => showToast("Receipt printed successfully!", "success"), 1500);
   };
 
   const handleNextOrder = () => {
@@ -644,12 +592,12 @@ const Orders: React.FC = () => {
               <span className="text-lg leading-none">+</span> Open Bar Tab
             </button>
           )}
-          <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-100">
+          <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border-[#D32F2F] border">
             <button
               onClick={() => setActiveMode("Food")}
-              className={`px-6 py-2 rounded-md font-semibold text-sm transition-all ${
+              className={`px-6 py-2 rounded-md font-semibold  text-sm transition-all ${
                 activeMode === "Food"
-                  ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white shadow-sm"
+                  ? "bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white shadow-sm"
                   : "text-gray-500 hover:bg-gray-50"
               }`}
             >
@@ -671,9 +619,8 @@ const Orders: React.FC = () => {
 
       <div className="flex gap-6 h-[calc(100vh-140px)]">
         {/* LEFT PANEL */}
-        <div className="flex-1 bg-white rounded-[32px] p-6 flex flex-col overflow-hidden">
-          {/* CATEGORY FILTER UI */}
-          <div className="bg-[#F2F2F2] rounded-full px-2 py-1.5 flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar w-fit max-w-full">
+        <div className="flex-1 bg-white shadow-[0px_0px_15px_8.5px_#0000001A] rounded-[32px] p-6 flex flex-col overflow-hidden">
+          <div className="bg-[#F1F1F1] rounded-full px-2 py-1.5 flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar w-fit max-w-full">
             {categories.map((c) => {
               const isActive = selectedCategory === c.value;
               return (
@@ -693,15 +640,12 @@ const Orders: React.FC = () => {
             })}
           </div>
 
-          {/* SKELETON LOADER FOR ITEMS */}
           <div className="flex-1 overflow-y-auto">
-            {isLoadingItems ? (
+            {/* ✅ Updated loader to handle refetching too */}
+            {isLoadingItems || isFetchingItems || isFetchingTypes ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {[...Array(10)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-white shadow rounded-2xl p-3 flex flex-col items-center animate-pulse"
-                  >
+                  <div key={i} className="bg-white shadow-[0px_0px_10px_2px_#0000001A] rounded-2xl p-3 flex flex-col items-center animate-pulse">
                     <div className="w-20 h-20 bg-gray-200 rounded-full mb-2" />
                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
                     <div className="h-3 bg-gray-200 rounded w-1/2" />
@@ -729,14 +673,12 @@ const Orders: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-[340px] bg-white rounded-[28px] shadow-sm overflow-hidden relative">
+        <div className="w-[340px] bg-white rounded-[28px] shadow-sm overflow-hidden relative flex flex-col">
           {/* SUCCESS PANEL */}
           {showSuccessPanel && (
             <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
               <div className="bg-[#F5F5F5] rounded-t-[28px] p-6 w-full text-left">
-                <div className="text-2xl font-bold text-gray-800">
-                  # {currentOrder?.orderId || "108"}
-                </div>
+                <div className="text-2xl font-bold text-gray-800"># {currentOrder?.orderId || "108"}</div>
                 <div className="flex justify-between mt-1">
                   <div className="text-xs font-medium text-gray-500">Order Created</div>
                   <div className="text-xs font-medium text-gray-500 text-right">
@@ -761,87 +703,45 @@ const Orders: React.FC = () => {
           {/* FLOOR MAP */}
           {!showSuccessPanel && panelMode === "floor" && (
             <div className="w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
-              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 flex-shrink-0">
                 <div className="text-xl font-bold">Floor Map</div>
               </div>
-              <div className="flex-1 p-6">
+              <div className="flex-1 overflow-y-auto p-6">
                 <div className="mb-8 text-center">
                   <div className="font-semibold mb-3 text-left">Select Persons:</div>
                   <div className="flex justify-center items-center gap-4">
-                    <button
-                      onClick={() => {
-                        setPersons((p) => Math.max(1, p - 1));
-                        setPersonsGlobal(persons - 1);
-                      }}
-                      className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl"
-                    >
-                      -
-                    </button>
-                    <div className="w-16 h-10 border rounded-lg flex items-center justify-center font-bold">
-                      {persons}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setPersons((p) => p + 1);
-                        setPersonsGlobal(persons + 1);
-                      }}
-                      className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl"
-                    >
-                      +
-                    </button>
+                    <button onClick={() => { setPersons(p => Math.max(1, p - 1)); setPersonsGlobal(persons - 1); }} className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl">-</button>
+                    <div className="w-16 h-10 border rounded-lg flex items-center justify-center font-bold">{persons}</div>
+                    <button onClick={() => { setPersons(p => p + 1); setPersonsGlobal(persons + 1); }} className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl">+</button>
                   </div>
                 </div>
                 <div className="text-left">
                   <div className="font-semibold mb-3">Select Floor:</div>
                   <div className="grid grid-cols-3 gap-2">
-                    {floorsWithIds.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => setSelectedFloor(f.name)}
-                        className={`py-2 rounded-lg text-sm font-medium ${
-                          selectedFloor === f.name
-                            ? "bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white"
-                            : "bg-gray-50"
-                        }`}
-                      >
+                    {floorsWithIds.map(f => (
+                      <button key={f.id} onClick={() => setSelectedFloor(f.name)} className={`py-2 rounded-lg text-sm font-medium transition-colors ${selectedFloor === f.name ? 'bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white' : 'bg-gray-50 hover:bg-gray-100'}`}>
                         {f.name}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="flex">
-                <button
-                  onClick={() => {
-                    navigate("/table", {
-                      state: {
-                        persons,
-                        floor: selectedFloor,
-                        floorId: floorsWithIds.find((f) => f.name === selectedFloor)?.id,
-                      },
-                    });
-                  }}
-                  className="flex-1 py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] rounded-bl-[28px]"
-                >
+              <div className="flex flex-shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                <button onClick={() => navigate("/table", { state: { persons, floor: selectedFloor, floorId: floorsWithIds.find(f => f.name === selectedFloor)?.id } })} className="flex-1 py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] rounded-bl-[28px] hover:opacity-90 transition-opacity">
                   Select Table
                 </button>
-                <button
-                  onClick={() => {
-                    startOrder({ tableId: "Quick-Table", floor: selectedFloor, persons });
-                    setPanelMode("order");
-                  }}
-                  className="flex-1 py-4 text-[#8E24AA] font-bold bg-white border-l rounded-br-[28px]"
-                >
+                <button onClick={() => { startOrder({ tableId: "Quick-Table", floor: selectedFloor, persons }); setPanelMode("order"); }} className="flex-1 py-4 text-[#8E24AA] font-bold bg-white border-l hover:bg-gray-50 transition-colors rounded-br-[28px]">
                   Quick Order
                 </button>
               </div>
             </div>
           )}
 
-          {/* ORDER SUMMARY */}
+          {/* EXACT ORDER SUMMARY MATCHING THE IMAGE */}
           {showOrderSummary && (
-            <div className="w-full h-full flex flex-col bg-[#F9F5F9] rounded-[28px] overflow-hidden">
-              <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] p-5 flex justify-between items-center">
+            <div className="w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] p-5 flex justify-between items-center flex-shrink-0">
                 <div>
                   <div className="text-xl font-bold text-gray-900">Order Summary</div>
                   <div className="text-xs font-semibold text-gray-700">
@@ -859,73 +759,118 @@ const Orders: React.FC = () => {
                 </button>
               </div>
 
-              <div
-                className={`flex-1 overflow-y-auto p-4 bg-white ${
-                  isOrderLocked ? "pointer-events-none opacity-60" : ""
-                }`}
-              >
-                {items.map((item: OrderItem, idx: number) => (
-                  <div key={idx} className="mb-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="flex-1">
-                        <div className="text-sm font-bold">
-                          {item.quantity} x {item.name}
+              {/* Column Headers */}
+              <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 text-[11px] font-bold text-gray-800 flex-shrink-0">
+                <div className="w-8 text-left">Qty</div>
+                <div className="flex-1 text-left pl-2">Item</div>
+                <div className="w-10 text-center">Size</div>
+                <div className="w-16 text-right pr-2">Total</div>
+              </div>
+
+              {/* Items List */}
+              <div className={`flex-1 overflow-y-auto px-4 py-2 bg-white ${isOrderLocked ? "pointer-events-none opacity-60" : ""}`}>
+                {Object.entries(groupedItems).map(([category, catItems]) => (
+                  <div key={category} className="mb-4">
+                    {/* Category Badge */}
+                    <div className="flex items-center gap-2 mb-3 mt-1">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                        category.toLowerCase().includes('start') ? 'bg-[#FFC107]' : 'bg-[#3B82F6]'
+                      }`}>
+                        {catItems.length}
+                      </div>
+                      <span className={`text-[13px] font-bold ${
+                        category.toLowerCase().includes('start') ? 'text-[#FFC107]' : 'text-[#3B82F6]'
+                      }`}>{category}</span>
+                    </div>
+
+                    {/* Items in category */}
+                    {catItems.map((item: OrderItem, idx: number) => (
+                      <div key={idx} className="flex flex-col mb-4">
+                        <div className="flex justify-between items-start">
+                          <div className="w-8 text-[13px] font-semibold text-gray-800">{item.quantity} xL</div>
+                          <div className="flex-1 pl-2 pr-2">
+                            <div className="text-[13px] font-bold text-gray-900 leading-tight">{item.name}</div>
+                            
+                            {/* Addons (e.g., Add extra cheese) */}
+                            {item.addOns && item.addOns.length > 0 && (
+                              <div className="text-[10px] text-gray-500 mt-0.5">
+                                {item.addOns.map((a: any) => `Add ${a.name}`).join(', ')}
+                              </div>
+                            )}
+                            
+                            {/* Notes (e.g., No onions) */}
+                            {item.notes && (
+                              <div className="text-[10px] text-gray-500">
+                                {item.notes}
+                              </div>
+                            )}
+                          </div>
+                          <div className="w-10 text-center text-[12px] font-medium text-gray-700">{item.size || 'M'}</div>
+                          <div className="w-16 text-right text-[12px] font-bold text-gray-900">
+                            {(item.price * item.quantity).toLocaleString()} XOF
+                          </div>
+                        </div>
+
+                        {/* Quantity Controls & Trash */}
+                        <div className="flex justify-end items-center gap-2 mt-2">
+                          
+                          {/* "Allergy" Tag placeholder for visual match */}
+                          <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex-1 max-w-fit">Allergy</span>
+
+                          <div className="flex items-center border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm h-7">
+                            <button
+                              disabled={isOrderLocked}
+                              onClick={() => updateOrderItem(item.itemId, { quantity: Math.max(1, item.quantity - 1) })}
+                              className="w-7 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 disabled:opacity-50 transition-colors"
+                            >
+                              <FiMinus size={12} />
+                            </button>
+                            <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
+                            <button
+                              disabled={isOrderLocked}
+                              onClick={() => updateOrderItem(item.itemId, { quantity: item.quantity + 1 })}
+                              className="w-7 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 disabled:opacity-50 transition-colors"
+                            >
+                              <FiPlus size={12} />
+                            </button>
+                          </div>
+                          <button
+                            disabled={isOrderLocked}
+                            onClick={() => removeOrderItem(item.itemId)}
+                            className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-md bg-white hover:bg-red-50 hover:text-red-500 text-gray-500 disabled:opacity-50 transition-colors shadow-sm"
+                          >
+                            <LuTrash2 size={14} />
+                          </button>
                         </div>
                       </div>
-                      <div className="text-sm font-bold">
-                        {item.price * item.quantity} XOF
-                      </div>
-                    </div>
-                    <div className="flex justify-end items-center gap-2 mt-2">
-                      <div className="flex items-center border rounded-md">
-                        <button
-                          disabled={isOrderLocked}
-                          onClick={() =>
-                            updateOrderItem(item.itemId, {
-                              quantity: Math.max(1, item.quantity - 1),
-                            })
-                          }
-                          className="px-2 py-1 bg-gray-100 text-xs disabled:opacity-50"
-                        >
-                          -
-                        </button>
-                        <span className="px-3 text-xs">{item.quantity}</span>
-                        <button
-                          disabled={isOrderLocked}
-                          onClick={() =>
-                            updateOrderItem(item.itemId, { quantity: item.quantity + 1 })
-                          }
-                          className="px-2 py-1 bg-gray-100 text-xs disabled:opacity-50"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <button
-                        disabled={isOrderLocked}
-                        onClick={() => removeOrderItem(item.itemId)}
-                        className="p-1 border rounded-md disabled:opacity-50"
-                      >
-                        <img src={TrashIcon} className="w-3 h-3" />
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 ))}
               </div>
 
-              <div className="p-4 bg-[#FDF0F4] border-t">
-                <div className="flex justify-between font-bold">
-                  <span>Subtotal</span>
-                  <span>{total} XOF</span>
+              {/* Footer Summary */}
+              <div className="bg-[#FDF8FA] border-t border-dashed border-gray-300 px-4 py-3 flex-shrink-0">
+                <div className="flex justify-between text-[12px] text-gray-500 mb-1">
+                  <span>Tax 6%</span>
+                  <span>{tax.toFixed(2)} XOF</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="text-[14px] font-bold text-gray-900">
+                    Subtotal <span className="text-[11px] font-medium text-gray-500">(Incl. tax)</span>
+                  </div>
+                  <div className="text-[14px] font-bold text-gray-900">
+                    {total.toLocaleString()} XOF
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col">
-                {/* Cancel Order — only while editable & unpaid */}
+              {/* Action Buttons */}
+              <div className="flex flex-col flex-shrink-0">
                 {canCancel && (
                   <button
                     onClick={() => setShowCancelModal(true)}
                     disabled={isCancelling}
-                    className="w-full py-3 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border-t border-red-100 disabled:opacity-60 transition-colors"
+                    className="w-full py-2.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-60 transition-colors border-t border-red-100"
                   >
                     Cancel Order
                   </button>
@@ -934,59 +879,46 @@ const Orders: React.FC = () => {
                 <button
                   onClick={handleSendToKitchen}
                   disabled={!canSendToKitchen}
-                  className="w-full py-4 text-white font-bold bg-[#00C853] hover:bg-[#00A844] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full py-3.5 text-[14px] text-white font-bold bg-[#00C853] hover:bg-[#00A844] disabled:opacity-50 transition-colors"
                 >
-                  {isSendingKitchen
-                    ? "Sending..."
-                    : isOrderSentToKitchen
-                      ? "Already Sent to Kitchen"
-                      : "Send to Kitchen"}
+                  {isSendingKitchen ? "Sending..." : isOrderSentToKitchen ? "Sent to Kitchen" : "Send to Kitchen"}
                 </button>
 
                 <button
                   onClick={handlePaymentInitiation}
                   disabled={!canPay}
-                  className="w-full py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  className="w-full py-3.5 text-[14px] text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-50 transition-opacity"
                 >
-                  {isProcessingPayment
-                    ? "Processing..."
-                    : isOrderPaid
-                      ? "Paid"
-                      : "Select Payment Option"}
+                  {isProcessingPayment ? "Processing..." : isOrderPaid ? "Paid" : "Select Payment Option"}
                 </button>
               </div>
             </div>
           )}
 
           {/* EMPTY ORDER */}
-          {!showSuccessPanel &&
-            panelMode === "order" &&
-            currentOrder &&
-            items.length === 0 && (
-              <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
-                <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
-                  <div className="text-xl font-bold text-gray-800">Start Order</div>
-                  <div className="text-sm text-gray-600">
-                    Table - {currentOrder.tableId?.replace("t-", "")}
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                  <p className="text-lg">Tap items on the left to add them.</p>
-                </div>
-                <button
-                  onClick={handleBack}
-                  className="w-full py-3 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border-t border-red-100"
-                >
-                  Cancel Order
-                </button>
+          {!showSuccessPanel && panelMode === "order" && currentOrder && items.length === 0 && (
+            <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
+              <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
+                <div className="text-xl font-bold text-gray-800">Start Order</div>
+                <div className="text-sm text-gray-600">Table - {currentOrder.tableId?.replace("t-", "")}</div>
               </div>
-            )}
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                <p className="text-lg">Tap items on the left to add them.</p>
+              </div>
+              <button
+                onClick={handleBack}
+                className="w-full py-3 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border-t border-red-100"
+              >
+                Cancel Order
+              </button>
+            </div>
+          )}
 
           {/* IDLE */}
           {!showSuccessPanel && panelMode === "idle" && (
             <div
               onClick={() => setPanelMode("floor")}
-              className="absolute inset-0 w-full h-full flex flex-col items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors"
+              className="absolute inset-0 w-full h-full flex flex-col items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors rounded-[28px]"
             >
               <div className="text-2xl font-bold text-gray-400 text-center leading-relaxed pointer-events-none">
                 Tap to Select Table
@@ -1028,20 +960,12 @@ const Orders: React.FC = () => {
           <div className="bg-white rounded-3xl p-8 w-[400px] text-center shadow-2xl">
             <h2 className="text-xl font-bold mb-2">Ready to Pay</h2>
             <p className="text-sm text-gray-500 mb-6">Place the card at the payment terminal</p>
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-[#8E24AA] flex items-center justify-center text-3xl">
-              💳
-            </div>
-            <button
-              onClick={() => setShowReadyToPayModal(false)}
-              className="w-full py-3 rounded-xl bg-gray-100 font-semibold"
-            >
-              Cancel
-            </button>
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-[#8E24AA] flex items-center justify-center text-3xl">💳</div>
+            <button onClick={() => setShowReadyToPayModal(false)} className="w-full py-3 rounded-xl bg-gray-100 font-semibold">Cancel</button>
           </div>
         </div>
       )}
 
-      {/* ✅ Modal 1: Payment Received Successful */}
       <PaymentReceivedModal
         open={showPaymentReceivedModal}
         onClose={handleNextOrder}
@@ -1050,7 +974,6 @@ const Orders: React.FC = () => {
         orderId={currentOrder?.orderId}
       />
 
-      {/* ✅ Modal 2: Receipt */}
       <ReceiptModal
         open={showReceiptModal}
         onClose={handleNextOrder}
@@ -1072,37 +995,14 @@ const Orders: React.FC = () => {
         loading={isCancelling}
       />
 
-      {/* ✅ Toast */}
+      {/* Toast */}
       {toast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
           <div
             className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg border ${
-              toast.type === "error"
-                ? "bg-red-50 border-red-200 text-red-800"
-                : toast.type === "success"
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : "bg-blue-50 border-blue-200 text-blue-800"
+              toast.type === "error" ? "bg-red-50 border-red-200 text-red-800" : toast.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-blue-50 border-blue-200 text-blue-800"
             }`}
           >
-            {toast.type === "success" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            )}
-            {toast.type === "error" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="15" y1="9" x2="9" y2="15" />
-                <line x1="9" y1="9" x2="15" y2="15" />
-              </svg>
-            )}
-            {toast.type === "info" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
-            )}
             <span className="font-semibold text-sm">{toast.message}</span>
           </div>
         </div>
