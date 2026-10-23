@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import {
   useGetAttendanceDashboardQuery,
@@ -11,13 +11,13 @@ import {
   useSubmitLeaveRequestMutation,
   useCancelLeaveRequestMutation,
   useUpdateEmergencyContactMutation,
-} from '../../redux/api/attendanceApi'; 
+} from '../../redux/api/attendanceApi';
 
 // --- Icons ---
-const ClockIcon = ({ className = "w-8 h-8" }) => (
+const ClockIcon = ({ className = 'w-8 h-8' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
 );
-const CalendarIcon = ({ className = "w-5 h-5" }) => (
+const CalendarIcon = ({ className = 'w-5 h-5' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
 );
 const PhoneIcon = () => (
@@ -32,6 +32,12 @@ const CloseIcon = () => (
 const FileIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
 );
+const ChevronLeftIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+);
+const ChevronRightIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+);
 
 const fmtTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
@@ -39,12 +45,111 @@ const fmtTime = (iso?: string | null) =>
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '--';
 
+const PAGE_SIZE = 8; // rows per page
+
+// ============================================================
+// ✅ Reusable Pagination Component (client-side)
+// ============================================================
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}
+
+const Pagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+}) => {
+  if (totalPages <= 1) return null;
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  // Compact page list: 1 … 4 [5] 6 … 20
+  const pages: (number | '...')[] = [];
+  const siblings = 1;
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - siblings && i <= currentPage + siblings)
+    ) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== '...') {
+      pages.push('...');
+    }
+  }
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-white border-t border-gray-100">
+      <p className="text-[12px] text-gray-500 order-2 sm:order-1">
+        Showing <span className="font-semibold text-gray-700">{startItem}</span>–
+        <span className="font-semibold text-gray-700">{endItem}</span> of{' '}
+        <span className="font-semibold text-gray-700">{totalItems}</span>
+      </p>
+
+      <div className="flex items-center gap-1 order-1 sm:order-2">
+        <button
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          aria-label="Previous page"
+        >
+          <ChevronLeftIcon />
+        </button>
+
+        {pages.map((p, idx) =>
+          p === '...' ? (
+            <span key={`ell-${idx}`} className="px-1.5 text-gray-400 text-xs select-none">
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              className={`min-w-[32px] h-8 px-2 text-[12px] rounded-lg font-medium transition-all active:scale-95 ${
+                p === currentPage
+                  ? 'bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white shadow-sm'
+                  : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        <button
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          aria-label="Next page"
+        >
+          <ChevronRightIcon />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
 const AttendancePage = () => {
   const [tab, setTab] = useState<'history' | 'leave'>('leave');
-  
+
   // Modal States
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
+  const [isEditContactOpen, setIsEditContactOpen] = useState(false);
+
+  // ✅ Client-side pagination state
+  const [historyPage, setHistoryPage] = useState(1);
+  const [leavePage, setLeavePage] = useState(1);
 
   // Form States
   const [leaveForm, setLeaveForm] = useState({
@@ -55,21 +160,30 @@ const AttendancePage = () => {
     leave_time: 'full_day' as 'full_day' | 'half_day',
     attachment_url: '',
   });
-  
-  const [breakForm, setBreakForm] = useState({
-    break_type: '',
-    note: '',
+
+  const [breakForm, setBreakForm] = useState({ break_type: '', note: '' });
+
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    enabled: true,
   });
 
-  // 🟢 FILE UPLOAD STATE
+  // File upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Queries ---
-  const { data: dash, isLoading, isError } = useGetAttendanceDashboardQuery();
-  const { data: history } = useGetAttendanceHistoryQuery({ limit: 30 });
-  const { data: leaves } = useGetLeaveRequestsQuery();
+  // --- Queries (no page params — backend returns everything) ---
+  const { data: dash, isLoading, isError, refetch: refetchDash } =
+    useGetAttendanceDashboardQuery();
+
+  const { data: history, refetch: refetchHistory } = useGetAttendanceHistoryQuery({
+    limit: 1000,
+  } as any);
+
+  const { data: leaves, refetch: refetchLeaves } = useGetLeaveRequestsQuery();
 
   // --- Mutations ---
   const [clockIn, { isLoading: clockingIn }] = useClockInMutation();
@@ -78,12 +192,13 @@ const AttendancePage = () => {
   const [endBreak] = useEndBreakMutation();
   const [submitLeave, { isLoading: submittingLeave }] = useSubmitLeaveRequestMutation();
   const [cancelLeave] = useCancelLeaveRequestMutation();
-  const [updateEmergencyContact] = useUpdateEmergencyContactMutation();
+  const [updateEmergencyContact, { isLoading: savingContact }] =
+    useUpdateEmergencyContactMutation();
 
-  // --- Derived State ---
+  // --- Derived ---
   const employee = dash?.data.employee;
   const current = dash?.data.current_attendance;
-  
+
   const onBreak = useMemo(
     () => current?.breaks?.some((b: any) => b.start_at && !b.end_at),
     [current]
@@ -91,12 +206,41 @@ const AttendancePage = () => {
 
   const isClockedIn = !!current && !current.clock_out;
 
+  // ✅ Client-side pagination
+  const allHistory = history?.data ?? [];
+  const allLeaves = leaves?.data ?? [];
+
+  const historyTotal = allHistory.length;
+  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / PAGE_SIZE));
+  const pagedHistory = useMemo(() => {
+    const start = (historyPage - 1) * PAGE_SIZE;
+    return allHistory.slice(start, start + PAGE_SIZE);
+  }, [allHistory, historyPage]);
+
+  const leaveTotal = allLeaves.length;
+  const leaveTotalPages = Math.max(1, Math.ceil(leaveTotal / PAGE_SIZE));
+  const pagedLeaves = useMemo(() => {
+    const start = (leavePage - 1) * PAGE_SIZE;
+    return allLeaves.slice(start, start + PAGE_SIZE);
+  }, [allLeaves, leavePage]);
+
+  // Snap back if current page no longer exists (after delete/cancel)
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
+
+  useEffect(() => {
+    if (leavePage > leaveTotalPages) setLeavePage(leaveTotalPages);
+  }, [leavePage, leaveTotalPages]);
+
   // --- Handlers ---
   const handlePrimaryAction = async () => {
     if (!isClockedIn) {
       const toastId = toast.loading('Clocking in...');
       try {
         await clockIn().unwrap();
+        await refetchDash();
+        await refetchHistory();
         toast.success('Successfully clocked in!', { id: toastId });
       } catch (error: any) {
         toast.error(error?.data?.message || 'Failed to clock in', { id: toastId });
@@ -106,8 +250,10 @@ const AttendancePage = () => {
 
     const toastId = toast.loading(onBreak ? 'Ending break & clocking out...' : 'Clocking out...');
     try {
-      if (onBreak) await endBreak().unwrap(); 
-      await clockOut().unwrap(); 
+      if (onBreak) await endBreak().unwrap();
+      await clockOut().unwrap();
+      await refetchDash();
+      await refetchHistory();
       toast.success('Successfully clocked out!', { id: toastId });
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to update attendance', { id: toastId });
@@ -120,10 +266,10 @@ const AttendancePage = () => {
       toast.error('Please select a break type');
       return;
     }
-    
     const toastId = toast.loading('Starting break...');
     try {
       await startBreak({ break_type: breakForm.break_type, note: breakForm.note }).unwrap();
+      await refetchDash();
       toast.success('Break started', { id: toastId });
       setIsBreakModalOpen(false);
       setBreakForm({ break_type: '', note: '' });
@@ -136,6 +282,7 @@ const AttendancePage = () => {
     const toastId = toast.loading('Ending break...');
     try {
       await endBreak().unwrap();
+      await refetchDash();
       toast.success('Break ended', { id: toastId });
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to end break', { id: toastId });
@@ -148,17 +295,19 @@ const AttendancePage = () => {
       toast.error('Please select start and end dates');
       return;
     }
-
     const toastId = toast.loading('Submitting leave request...');
     try {
       await submitLeave({
         ...leaveForm,
         attachment_url: leaveForm.attachment_url || undefined,
       }).unwrap();
-      
+
+      setLeavePage(1); // jump to page 1 so new item is visible
+      await refetchDash();
+      await refetchLeaves();
+
       toast.success('Leave request submitted successfully!', { id: toastId });
       setIsLeaveModalOpen(false);
-      
       setLeaveForm({
         leave_type: 'Sick Leave',
         start_date: '',
@@ -174,10 +323,11 @@ const AttendancePage = () => {
 
   const handleCancelLeave = async (id: string | number) => {
     if (!window.confirm('Are you sure you want to cancel this leave request?')) return;
-    
     const toastId = toast.loading('Cancelling request...');
     try {
       await cancelLeave(id).unwrap();
+      await refetchDash();
+      await refetchLeaves();
       toast.success('Leave request cancelled', { id: toastId });
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to cancel leave', { id: toastId });
@@ -185,52 +335,78 @@ const AttendancePage = () => {
   };
 
   const handleToggleEmergencyContact = async () => {
-    const newStatus = !employee?.emergency_contact.enabled;
-    const toastId = toast.loading('Updating contact settings...');
-    
+    if (!employee) return;
+    const newStatus = !employee.emergency_contact.enabled;
+    const toastId = toast.loading(
+      newStatus ? 'Enabling emergency contact...' : 'Disabling emergency contact...'
+    );
     try {
       await updateEmergencyContact({
         enabled: newStatus,
-        name: employee?.emergency_contact.name ?? undefined,
-        phone: employee?.emergency_contact.phone ?? undefined,
-        email: employee?.emergency_contact.email ?? undefined,
+        name: employee.emergency_contact.name ?? undefined,
+        phone: employee.emergency_contact.phone ?? undefined,
+        email: employee.emergency_contact.email ?? undefined,
       }).unwrap();
-      toast.success(`Emergency contact ${newStatus ? 'enabled' : 'disabled'}`, { id: toastId });
+      await refetchDash();
+      toast.success(
+        `Emergency contact ${newStatus ? 'enabled' : 'disabled'}`,
+        { id: toastId }
+      );
     } catch (error: any) {
-      toast.error('Failed to update emergency contact', { id: toastId });
+      toast.error(error?.data?.message || 'Failed to update emergency contact', { id: toastId });
     }
   };
 
-  // 🟢 FILE UPLOAD HANDLERS
+  const openEditContact = () => {
+    setContactForm({
+      name: employee?.emergency_contact.name ?? '',
+      phone: employee?.emergency_contact.phone ?? '',
+      email: employee?.emergency_contact.email ?? '',
+      enabled: employee?.emergency_contact.enabled ?? true,
+    });
+    setIsEditContactOpen(true);
+  };
+
+  const handleEditContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const toastId = toast.loading('Saving contact...');
+    try {
+      await updateEmergencyContact({
+        enabled: contactForm.enabled,
+        name: contactForm.name || undefined,
+        phone: contactForm.phone || undefined,
+        email: contactForm.email || undefined,
+      }).unwrap();
+      await refetchDash();
+      toast.success('Emergency contact updated', { id: toastId });
+      setIsEditContactOpen(false);
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update contact', { id: toastId });
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size exceeds the 5MB limit.');
       return;
     }
-    
     setSelectedFile(file);
   };
 
   const handleSendFile = async () => {
     if (!selectedFile) return;
-    
     setIsUploading(true);
     const toastId = toast.loading('Uploading attachment...');
-    
-    // Simulate API call for file upload
     setTimeout(() => {
       toast.success('Attachment sent successfully!', { id: toastId });
       setIsUploading(false);
-      setSelectedFile(null); // Reset after success
-      if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }, 1500);
   };
 
-  // --- Loading & Error States ---
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -248,19 +424,17 @@ const AttendancePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-gray-800 max-w-[1200px]  relative">
+    <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-gray-800 max-w-[1200px] relative">
       <h1 className="text-2xl font-bold mb-6">Employee Attendance & Leave</h1>
 
       {/* --- TOP SECTION --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        
-        {/* Profile & Status Card */}
         <div className="lg:col-span-2 border border-gray-200 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div className="flex items-center gap-4">
-              <img 
-                src={employee.profile_image || "https://via.placeholder.com/150"} 
-                alt={employee.full_name} 
+              <img
+                src={employee.profile_image || 'https://via.placeholder.com/150'}
+                alt={employee.full_name}
                 className="w-14 h-14 rounded-full object-cover"
               />
               <div>
@@ -268,13 +442,14 @@ const AttendancePage = () => {
                 <p className="text-gray-400 text-xs mt-0.5">{employee.role}</p>
               </div>
             </div>
-            
             <div className="mt-4 md:mt-0 text-left md:text-right">
               <div className="flex items-center md:justify-end gap-2 mb-1">
                 <span className="font-medium text-xs text-gray-700">Current Shift</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
-                  isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
-                }`}>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
+                    isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
                   <span className={`w-1.5 h-1.5 rounded-full ${isClockedIn ? 'bg-[#1EA35B]' : 'bg-gray-400'}`}></span>
                   {isClockedIn ? 'On Shift' : 'Off Shift'}
                 </span>
@@ -294,10 +469,8 @@ const AttendancePage = () => {
               <p className="font-semibold text-sm text-gray-900">{current?.total_hours ?? '0h 0m'}</p>
               <p className="text-[11px] text-gray-500 mt-0.5">Worked today</p>
             </div>
-            
-            {/* DYNAMIC BREAK BUTTON */}
             {onBreak ? (
-              <button 
+              <button
                 onClick={handleEndBreakClick}
                 className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] text-white rounded-xl p-3 text-center flex flex-col justify-center hover:opacity-90 transition-opacity shadow-sm"
               >
@@ -305,7 +478,7 @@ const AttendancePage = () => {
                 <p className="text-[11px] opacity-90">Break</p>
               </button>
             ) : (
-              <button 
+              <button
                 onClick={() => setIsBreakModalOpen(true)}
                 disabled={!isClockedIn}
                 className="bg-[#9DF89D] border border-[#86E386] text-gray-900 rounded-xl p-3 text-center flex flex-col justify-center hover:bg-[#8cf08c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
@@ -314,7 +487,6 @@ const AttendancePage = () => {
                 <p className="text-[11px] mt-0.5">Break</p>
               </button>
             )}
-
             <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
               <p className="font-semibold text-sm text-gray-900">{dash?.data.leave_balance ?? 0}</p>
               <p className="text-[11px] text-gray-500 mt-0.5">Leaves Left</p>
@@ -322,7 +494,6 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        {/* Clock In Card */}
         <div className="border-2 border-[#f0c3d0] rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm">
           <div className="w-16 h-16 rounded-full bg-[#fdf1f5] flex items-center justify-center mb-4 text-[#4a1526]">
             <ClockIcon />
@@ -333,42 +504,35 @@ const AttendancePage = () => {
           <p className="text-lg font-bold text-gray-900 mb-6 mt-0.5">
             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
-          <button 
+          <button
             onClick={handlePrimaryAction}
             disabled={clockingIn || clockingOut}
             className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            {isClockedIn 
-              ? (onBreak ? 'End Break & Clock Out' : 'Clock Out') 
-              : 'Clock In'
-            }
+            {isClockedIn ? (onBreak ? 'End Break & Clock Out' : 'Clock Out') : 'Clock In'}
           </button>
         </div>
       </div>
 
       {/* --- BOTTOM SECTION --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Tabs & Apply Leave Button */}
           <div className="flex items-center gap-3">
             <div className="flex bg-[#f4f4f4] rounded-full p-1">
-              <button 
+              <button
                 onClick={() => setTab('history')}
                 className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'history' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Attendance History
               </button>
-              <button 
+              <button
                 onClick={() => setTab('leave')}
                 className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'leave' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Leave status
               </button>
             </div>
-            <button 
+            <button
               onClick={() => setIsLeaveModalOpen(true)}
               className="ml-auto bg-[#40DE53] text-white rounded-full px-6 py-2 text-[13px] font-medium hover:bg-[#36c746] transition-colors"
             >
@@ -376,9 +540,11 @@ const AttendancePage = () => {
             </button>
           </div>
 
-          {/* Tab Content: History */}
+          {/* ============================================================
+              TAB: History — client-side pagination
+             ============================================================ */}
           {tab === 'history' && (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-[#fdf1f5] grid grid-cols-5 p-4 text-xs font-semibold text-gray-800">
                 <div>Date</div>
                 <div className="text-center">Check-in</div>
@@ -386,16 +552,24 @@ const AttendancePage = () => {
                 <div className="text-center">Over Time</div>
                 <div className="text-right">Total Login</div>
               </div>
-              {history?.data && history.data.length > 0 ? (
-                history.data.map((row: any) => (
-                  <div key={row._id} className="grid grid-cols-5 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center hover:bg-gray-50">
+
+              {pagedHistory.length > 0 ? (
+                pagedHistory.map((row: any) => (
+                  <div
+                    key={row._id}
+                    className="grid grid-cols-5 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center hover:bg-gray-50"
+                  >
                     <div>{fmtDate(row.date ?? row.clock_in)}</div>
                     <div className="text-center">{fmtTime(row.clock_in)}</div>
                     <div className="text-center">{fmtTime(row.clock_out)}</div>
                     <div className="text-center font-medium">
                       {row.overtime ? (
-                        <span className={row.overtime.includes('-') ? 'text-red-500' : 'text-green-600'}>{row.overtime}</span>
-                      ) : '-'}
+                        <span className={row.overtime.includes('-') ? 'text-red-500' : 'text-green-600'}>
+                          {row.overtime}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
                     </div>
                     <div className="text-right font-medium">{row.total_hours ?? '-'}</div>
                   </div>
@@ -403,13 +577,24 @@ const AttendancePage = () => {
               ) : (
                 <div className="p-8 text-center text-gray-500 text-sm">No attendance history found.</div>
               )}
+
+              {/* ✅ Pagination */}
+              <Pagination
+                currentPage={historyPage}
+                totalPages={historyTotalPages}
+                totalItems={historyTotal}
+                pageSize={PAGE_SIZE}
+                onPageChange={setHistoryPage}
+              />
             </div>
           )}
 
-          {/* Tab Content: Leave */}
+          {/* ============================================================
+              TAB: Leave — client-side pagination
+             ============================================================ */}
           {tab === 'leave' && (
             <div className="space-y-6">
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="bg-[#fdf1f5] grid grid-cols-6 p-4 text-xs font-semibold text-gray-800">
                   <div>Date</div>
                   <div>Type</div>
@@ -418,31 +603,42 @@ const AttendancePage = () => {
                   <div className="text-center">Status</div>
                   <div className="text-right">Action</div>
                 </div>
-                
-                {leaves?.data && leaves.data.length > 0 ? (
-                  leaves.data.map((l) => (
-                    <div key={l._id} className="grid grid-cols-6 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center">
+
+                {pagedLeaves.length > 0 ? (
+                  pagedLeaves.map((l) => (
+                    <div
+                      key={l._id}
+                      className="grid grid-cols-6 p-4 text-[13px] text-gray-800 border-b border-gray-100 items-center hover:bg-gray-50"
+                    >
                       <div>{fmtDate(l.start_date)} - {fmtDate(l.end_date)}</div>
                       <div>{l.leave_type}</div>
                       <div className="text-center">
-                         {Math.ceil((new Date(l.end_date).getTime() - new Date(l.start_date).getTime()) / (1000 * 3600 * 24)) + 1}
+                        {Math.ceil(
+                          (new Date(l.end_date).getTime() - new Date(l.start_date).getTime()) /
+                            (1000 * 3600 * 24)
+                        ) + 1}
                       </div>
                       <div className="text-center capitalize">{l.leave_time.replace('_', ' ')}</div>
                       <div className="flex justify-center">
-                        <span className={`border px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 capitalize ${
-                          l.status === 'approved' ? 'border-green-400 text-green-600' :
-                          l.status === 'rejected' ? 'border-red-400 text-red-600' :
-                          l.status === 'cancelled' ? 'border-gray-400 text-gray-600' :
-                          'border-[#a78bfa] text-[#a78bfa]'
-                        }`}>
+                        <span
+                          className={`border px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 capitalize ${
+                            l.status === 'approved'
+                              ? 'border-green-400 text-green-600'
+                              : l.status === 'rejected'
+                              ? 'border-red-400 text-red-600'
+                              : l.status === 'cancelled'
+                              ? 'border-gray-400 text-gray-600'
+                              : 'border-[#a78bfa] text-[#a78bfa]'
+                          }`}
+                        >
                           {l.status} {l.status === 'pending' && <ClockIcon className="w-3 h-3" />}
                         </span>
                       </div>
                       <div className="text-right">
                         {l.status === 'pending' && (
                           <button
-                            onClick={() => handleCancelLeave(l._id)}
-                            className="text-gray-600 hover:text-black text-[13px]"
+                            // onClick={() => handleCancelLeave(l._id)}
+                            className="text-gray-600 hover:text-black text-[13px] hover:underline"
                           >
                             Cancel
                           </button>
@@ -453,25 +649,36 @@ const AttendancePage = () => {
                 ) : (
                   <div className="p-8 text-center text-gray-500 text-sm">No leave requests found.</div>
                 )}
+
+                {/* ✅ Pagination */}
+                <Pagination
+                  currentPage={leavePage}
+                  totalPages={leaveTotalPages}
+                  totalItems={leaveTotal}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setLeavePage}
+                />
               </div>
 
-              {/* Lower Grid: Attachments + Manager Approval */}
+              {/* Attachments + Manager */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* 🟢 ATTACHMENT CARD WITH BROWSE & SEND LOGIC */}
                 <div className="border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col">
                   <h3 className="font-semibold text-[15px] mb-1">Attachment</h3>
-                  <p className="text-[11px] text-gray-500 mb-4">Lorem ipsum is simply dummy text.</p>
-                  
-                  <div className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${
-                    selectedFile ? 'border-[#40DE53] bg-green-50/30' : 'border-gray-200 bg-white'
-                  }`}>
+                  <p className="text-[11px] text-gray-500 mb-4">Upload supporting documents</p>
+
+                  <div
+                    className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${
+                      selectedFile ? 'border-[#40DE53] bg-green-50/30' : 'border-gray-200 bg-white'
+                    }`}
+                  >
                     {selectedFile ? (
                       <div className="flex flex-col items-center">
                         <div className="text-[#40DE53] mb-2"><FileIcon /></div>
                         <p className="text-sm font-medium text-gray-800 break-all px-2">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <button 
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                        <button
                           onClick={() => {
                             setSelectedFile(null);
                             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -485,17 +692,14 @@ const AttendancePage = () => {
                       <>
                         <p className="text-sm font-medium text-gray-700 mb-1">Drag and drop file here</p>
                         <p className="text-xs text-gray-400 mb-3">Or</p>
-                        
-                        {/* Hidden File Input */}
-                        <input 
-                          type="file" 
-                          accept=".pdf,.jpg,.jpeg,.png" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
                           ref={fileInputRef}
                           onChange={handleFileChange}
                         />
-                        
-                        <button 
+                        <button
                           onClick={() => fileInputRef.current?.click()}
                           className="border border-[#4c1530] text-[#4c1530] text-xs font-semibold px-6 py-1.5 rounded-md hover:bg-gray-50 mb-3 transition-colors"
                         >
@@ -506,7 +710,7 @@ const AttendancePage = () => {
                     )}
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleSendFile}
                     disabled={!selectedFile || isUploading}
                     className="w-full bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -516,18 +720,19 @@ const AttendancePage = () => {
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Sending...
                       </span>
-                    ) : 'Send'}
+                    ) : (
+                      'Send'
+                    )}
                   </button>
                 </div>
 
-                {/* Manager Approval */}
                 <div className="border border-gray-200 rounded-xl p-5 flex flex-col shadow-sm">
                   <h3 className="font-semibold text-[15px] mb-1">Manager Approval</h3>
                   <p className="text-[11px] text-gray-500 mb-4">Needs the manager's approval</p>
                   <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-3 mb-4">
-                    <img 
-                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                      alt="Manager" 
+                    <img
+                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                      alt="Manager"
                       className="w-10 h-10 rounded-full object-cover"
                     />
                     <div>
@@ -537,7 +742,9 @@ const AttendancePage = () => {
                   </div>
                   <div className="bg-[#EBFAEB] border border-[#D1F2D1] rounded-xl p-4 flex-1 flex flex-col justify-center">
                     <p className="text-[13px] font-semibold text-gray-800 mb-1">Pending Approval</p>
-                    <p className="text-[11px] text-gray-600">Lorem ipsum is simply dummy text.</p>
+                    <p className="text-[11px] text-gray-600">
+                      Requests are reviewed within 24–48 hours.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -545,9 +752,8 @@ const AttendancePage = () => {
           )}
         </div>
 
-        {/* Right Column */}
+        {/* Right column */}
         <div className="space-y-6">
-          {/* Leave Balance */}
           <div className="border-2 border-[#f0c3d0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="bg-[#fdf1f5] p-2 rounded-lg text-[#cc246d]">
@@ -560,14 +766,18 @@ const AttendancePage = () => {
             </div>
             <h2 className="text-xl font-bold mb-2 mt-4">{dash?.data.leave_balance ?? 0} days</h2>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] h-2 rounded-full" 
-                style={{ width: `${Math.min(100, ((dash?.data.leave_balance ?? 0) / (employee.total_leave_days || 1)) * 100)}%` }}
+              <div
+                className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] h-2 rounded-full"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    ((dash?.data.leave_balance ?? 0) / (employee.total_leave_days || 1)) * 100
+                  )}%`,
+                }}
               ></div>
             </div>
           </div>
 
-          {/* Emergency Contact */}
           <div className="border-2 border-[#f0c3d0] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -578,32 +788,41 @@ const AttendancePage = () => {
               </div>
               <button
                 onClick={handleToggleEmergencyContact}
-                className={`w-9 h-5 rounded-full relative transition-colors ${
+                disabled={savingContact}
+                className={`w-9 h-5 rounded-full relative transition-colors disabled:opacity-60 ${
                   employee.emergency_contact.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
                 }`}
+                aria-label="Toggle emergency contact"
               >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
-                  employee.emergency_contact.enabled ? 'right-0.5' : 'left-0.5'
-                }`}></div>
+                <div
+                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
+                    employee.emergency_contact.enabled ? 'right-0.5' : 'left-0.5'
+                  }`}
+                ></div>
               </button>
             </div>
             <div className="space-y-4 text-sm mt-6">
               <div className="flex items-center gap-4">
                 <PhoneIcon />
-                <span className="text-[13px] font-medium text-gray-800">{employee.emergency_contact.phone ?? 'No phone saved'}</span>
+                <span className="text-[13px] font-medium text-gray-800">
+                  {employee.emergency_contact.phone ?? 'No phone saved'}
+                </span>
               </div>
               <div className="pl-8 text-gray-500 text-[11px] -mt-3">
                 {employee.emergency_contact.name ?? 'No name saved'}
               </div>
               <div className="flex items-center gap-4">
                 <MailIcon />
-                <span className="text-[13px] font-medium text-gray-800 break-all">{employee.emergency_contact.email ?? 'No email saved'}</span>
+                <span className="text-[13px] font-medium text-gray-800 break-all">
+                  {employee.emergency_contact.email ?? 'No email saved'}
+                </span>
               </div>
-              <div className="pl-8 text-gray-500 text-[11px] -mt-3">
-                Email
-              </div>
+              <div className="pl-8 text-gray-500 text-[11px] -mt-3">Email</div>
             </div>
-            <button className="w-full mt-6 border border-[#4c1530] text-[#4c1530] py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors">
+            <button
+              onClick={openEditContact}
+              className="w-full mt-6 border border-[#4c1530] text-[#4c1530] py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+            >
               Edit Contact
             </button>
           </div>
@@ -623,7 +842,7 @@ const AttendancePage = () => {
             <form onSubmit={handleStartBreakSubmit}>
               <div className="mb-5">
                 <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Break Type</label>
-                <select 
+                <select
                   value={breakForm.break_type}
                   onChange={(e) => setBreakForm({ ...breakForm, break_type: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
@@ -636,7 +855,7 @@ const AttendancePage = () => {
               </div>
               <div className="mb-8">
                 <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Note (optional)</label>
-                <textarea 
+                <textarea
                   value={breakForm.note}
                   onChange={(e) => setBreakForm({ ...breakForm, note: e.target.value })}
                   placeholder="..."
@@ -667,7 +886,7 @@ const AttendancePage = () => {
             <form onSubmit={handleLeaveSubmit} className="space-y-5">
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Type</label>
-                <select 
+                <select
                   value={leaveForm.leave_type}
                   onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
@@ -680,38 +899,34 @@ const AttendancePage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Start Date</label>
-                  <div className="relative">
-                    <input 
-                      type="date" 
-                      required
-                      value={leaveForm.start_date}
-                      onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    required
+                    value={leaveForm.start_date}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
+                  />
                 </div>
                 <div>
                   <label className="block text-[13px] font-medium text-gray-700 mb-1.5">End Date</label>
-                  <div className="relative">
-                    <input 
-                      type="date" 
-                      required
-                      value={leaveForm.end_date}
-                      onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    required
+                    value={leaveForm.end_date}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Reason</label>
-                <input 
+                <input
                   type="text"
                   required
                   placeholder="..."
                   value={leaveForm.reason}
                   onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]" 
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
                 />
               </div>
               <div>
@@ -721,25 +936,33 @@ const AttendancePage = () => {
                     Selected Dates
                   </div>
                   <div className="w-[1px] h-6 bg-gray-300"></div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'half_day' })}
-                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'half_day' ? 'bg-[#40DE53] text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${
+                      leaveForm.leave_time === 'half_day'
+                        ? 'bg-[#40DE53] text-white'
+                        : 'bg-white border border-gray-200 text-gray-600'
+                    }`}
                   >
                     Half Day
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'full_day' })}
-                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'full_day' ? 'bg-[#40DE53] text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${
+                      leaveForm.leave_time === 'full_day'
+                        ? 'bg-[#40DE53] text-white'
+                        : 'bg-white border border-gray-200 text-gray-600'
+                    }`}
                   >
                     Full Day
                   </button>
                 </div>
               </div>
               <div className="pt-4">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={submittingLeave}
                   className="w-full md:w-auto mx-auto block bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white px-10 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
@@ -751,6 +974,76 @@ const AttendancePage = () => {
         </div>
       )}
 
+      {/* --- EDIT CONTACT MODAL --- */}
+      {isEditContactOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Edit Emergency Contact</h2>
+              <button onClick={() => setIsEditContactOpen(false)} className="text-gray-500 hover:text-gray-800">
+                <CloseIcon />
+              </button>
+            </div>
+            <form onSubmit={handleEditContactSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={contactForm.name}
+                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#d9467b]"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Phone</label>
+                <input
+                  type="tel"
+                  value={contactForm.phone}
+                  onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#d9467b]"
+                  placeholder="+1 987 654 3210"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#d9467b]"
+                  placeholder="john.doe@example.com"
+                />
+              </div>
+              <div className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                <span className="text-[13px] font-medium text-gray-700">Enable emergency contact</span>
+                <button
+                  type="button"
+                  onClick={() => setContactForm({ ...contactForm, enabled: !contactForm.enabled })}
+                  className={`w-9 h-5 rounded-full relative transition-colors ${
+                    contactForm.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
+                      contactForm.enabled ? 'right-0.5' : 'left-0.5'
+                    }`}
+                  ></div>
+                </button>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingContact}
+                  className="w-full bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+                >
+                  {savingContact ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import LeftPanel from '@/components/common/LeftPanel';
 import { useForgetPasswordSendOtpMutation } from '@/api/apiSlice';
 
@@ -22,7 +22,6 @@ const extractErrorMessage = (err: any, fallback: string): string => {
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
-  const [challengeId, setChallengeId] = useState('');
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -38,13 +37,10 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       const response = await sendOtp({ email }).unwrap();
-
-      setChallengeId(response.data.challenge_id);
       setEmailSubmitted(true);
-
       toast.success(
         response?.message || 'OTP sent successfully to your email address.',
-        { duration: 4000, position: 'top-right' },
+        { duration: 4000 },
       );
     } catch (err: any) {
       const msg = extractErrorMessage(
@@ -52,7 +48,7 @@ const ForgotPasswordPage: React.FC = () => {
         'Failed to send reset instructions. Please try again.',
       );
       setError(msg);
-      toast.error(msg, { duration: 5000, position: 'top-right' });
+      toast.error(msg, { duration: 5000 });
     } finally {
       setIsLoading(false);
     }
@@ -64,30 +60,25 @@ const ForgotPasswordPage: React.FC = () => {
     setError(null);
 
     try {
-      // Backend has no dedicated /resend-otp endpoint.
-      // Re-issuing via send-otp produces a fresh challenge_id.
       const result = await sendOtp({ email }).unwrap();
-      setChallengeId(result.data.challenge_id);
-
       toast.success(result?.message || 'OTP resent successfully.', {
         duration: 4000,
-        position: 'top-right',
       });
     } catch (err: any) {
       const msg = extractErrorMessage(err, 'Failed to resend OTP.');
       setError(msg);
-      toast.error(msg, { duration: 5000, position: 'top-right' });
+      toast.error(msg, { duration: 5000 });
     } finally {
       setResending(false);
     }
   };
 
   const handleNavigateToVerify = () => {
-    if (!challengeId) {
+    if (!email) {
       toast.error('Session expired. Please request a new OTP.');
       return;
     }
-    navigate('/verify-otp', { state: { email, challengeId } });
+    navigate('/verify-otp', { state: { email } });
   };
 
   return (
@@ -146,7 +137,7 @@ const ForgotPasswordPage: React.FC = () => {
 
               <button
                 onClick={handleNavigateToVerify}
-                disabled={!challengeId}
+                disabled={!email}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 disabled:opacity-70"
               >
                 Verify OTP
@@ -170,8 +161,6 @@ const ForgotPasswordPage: React.FC = () => {
           </Link>
         </div>
       </div>
-
-      <Toaster position="top-right" />
     </div>
   );
 };

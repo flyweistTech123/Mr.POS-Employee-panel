@@ -93,35 +93,29 @@ interface ForgotPasswordSendOtpResponse {
   success: boolean;
   message: string;
   data: {
-    challenge_id: string;
+    user_id: number;
+    employee_id: number;
+    account_type: string;
     email: string;
-    expires_at: string;
-    expires_in_seconds: number;
+    messageId: string;
   };
 }
 
 interface ForgotPasswordVerifyOtpArgs {
-  challenge_id: string;
+  email: string;
   otp: string;
+  newPassword: string;
 }
 
 interface ForgotPasswordVerifyOtpResponse {
   success: boolean;
   message: string;
   data: {
-    reset_token: string;
+    user_id: number;
+    employee_id: number;
+    account_type: string;
+    email: string;
   };
-}
-
-interface ForgotPasswordResetArgs {
-  reset_token: string;
-  new_password: string;
-  confirm_password: string;
-}
-
-interface ForgotPasswordResetResponse {
-  success: boolean;
-  message: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -216,6 +210,8 @@ export const apiSlice = createApi({
         method: 'POST',
         body: credentials,
       }),
+      // ✅ FIX: Explicitly define invalidatesTags to prevent RTK Query crash
+      invalidatesTags: ['User'],
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
@@ -237,6 +233,8 @@ export const apiSlice = createApi({
         method: 'POST',
         body,
       }),
+      // ✅ FIX
+      invalidatesTags: [],
     }),
 
     verifyEmployeeOtp: builder.mutation<VerifyOtpResponse, VerifyOtpArgs>({
@@ -245,6 +243,8 @@ export const apiSlice = createApi({
         method: 'POST',
         body,
       }),
+      // ✅ FIX
+      invalidatesTags: ['User'],
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
@@ -266,19 +266,23 @@ export const apiSlice = createApi({
         method: 'POST',
         body,
       }),
+      // ✅ FIX
+      invalidatesTags: [],
     }),
 
-    /* ---------- Forgot Password (3-step challenge flow) ---------- */
+    /* ---------- Forgot Password (2-step flow: send-otp → verify-otp) ---------- */
 
     forgetPasswordSendOtp: builder.mutation<
       ForgotPasswordSendOtpResponse,
       ForgotPasswordSendOtpArgs
     >({
       query: (body) => ({
-        url: '/api/v1/employee/forgot-password/send-otp',
+        url: '/api/v1/user/forget-password/send-otp',
         method: 'POST',
         body,
       }),
+      // ✅ FIX
+      invalidatesTags: [],
     }),
 
     forgetPasswordVerifyOtp: builder.mutation<
@@ -286,25 +290,18 @@ export const apiSlice = createApi({
       ForgotPasswordVerifyOtpArgs
     >({
       query: (body) => ({
-        url: '/api/v1/employee/forgot-password/verify-otp',
+        url: '/api/v1/user/forget-password/verify-otp',
         method: 'POST',
         body,
       }),
-    }),
-
-    forgetPasswordReset: builder.mutation<
-      ForgotPasswordResetResponse,
-      ForgotPasswordResetArgs
-    >({
-      query: (body) => ({
-        url: '/api/v1/employee/forgot-password/reset-password',
-        method: 'POST',
-        body,
-      }),
+      // ✅ FIX
+      invalidatesTags: [],
     }),
 
     fetchUserProfile: builder.query<User, void>({
       query: () => '/api/v1/user/profile',
+      // ✅ FIX: Queries use providesTags
+      providesTags: ['User'],
     }),
 
     getEmployeePerformance: builder.query<EmployeePerformanceResponse, string | number>({
@@ -318,7 +315,7 @@ export const apiSlice = createApi({
     }),
 
     getRestaurantDashboard: builder.query<RestaurantDashboardResponse, { filter: string }>({
-      query: ({ filter }) => `/api/v1/restaurant/reports/restaurant-dashboard?filter=${filter}`,
+      query: ({ filter }) => `/api/v1/restaurant/reports/dashboard?filter=${filter}`,
       providesTags: ['Dashboard'],
     }),
   }),
@@ -331,7 +328,6 @@ export const {
   useResendEmployeeOtpMutation,
   useForgetPasswordSendOtpMutation,
   useForgetPasswordVerifyOtpMutation,
-  useForgetPasswordResetMutation,
   useFetchUserProfileQuery,
   useGetEmployeePerformanceQuery,
   useGetDashboardStatsQuery,

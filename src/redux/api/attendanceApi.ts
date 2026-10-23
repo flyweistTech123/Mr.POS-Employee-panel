@@ -180,7 +180,10 @@ export const attendanceApi = apiSlice.injectEndpoints({
       providesTags: ['LeaveRequests'],
     }),
 
-    submitLeaveRequest: builder.mutation<{ success: boolean; message: string; data: LeaveRequest }, LeaveCreateArgs>({
+    submitLeaveRequest: builder.mutation<
+      { success: boolean; message: string; data: LeaveRequest },
+      LeaveCreateArgs
+    >({
       query: (body) => ({
         url: '/api/v1/employee/attendance/leave',
         method: 'POST',
@@ -206,11 +209,11 @@ export const attendanceApi = apiSlice.injectEndpoints({
       invalidatesTags: ['LeaveRequests', 'AttendanceDashboard'],
     }),
 
-    // Emergency contact
+    
     updateEmergencyContact: builder.mutation<any, EmergencyContactArgs>({
       query: (body) => ({
         url: '/api/v1/employee/attendance/emergency-contact',
-        method: 'POST',
+        method: 'PUT',
         body,
       }),
       invalidatesTags: ['AttendanceDashboard'],

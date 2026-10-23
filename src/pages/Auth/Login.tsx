@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   useLoginEmployeeMutation,
   useVerifyEmployeeOtpMutation,
@@ -117,75 +117,60 @@ const LoginPage: React.FC = () => {
 
         toast.success(result.message || 'OTP sent to your email', {
           duration: 4000,
-          position: 'top-right',
         });
       } else {
         toast.error('Unexpected response from server.', {
           duration: 4000,
-          position: 'top-right',
         });
       }
     } catch (err: any) {
       console.error('Login error:', err?.status, err?.data, err);
       toast.error(
         extractErrorMessage(err, 'Login failed. Please try again.'),
-        { duration: 5000, position: 'top-right' },
+        { duration: 5000 },
       );
     } finally {
       setIsLoading(false);
     }
   };
 
- // src/pages/Auth/Login.tsx
-
+  // ✅ FIXED: Moved navigate() and toast OUTSIDE the try/catch block
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (otp.length !== OTP_LENGTH) {
       toast.error(`Please enter the ${OTP_LENGTH}-digit OTP.`, {
         duration: 4000,
-        position: 'top-right',
       });
       return;
     }
 
     setIsLoading(true);
+    let succeeded = false;
+
     try {
-      const result = await verifyEmployeeOtp({
+      // Only the API call is inside the try block
+      await verifyEmployeeOtp({
         challenge_id: challengeId,
         otp,
       }).unwrap();
-
-      // ✅ FIX: Cast result.data to 'any' to bypass the strict type check,
-      // and grab the 'token' which your type definition says exists.
-      const data = result?.data as any; 
-      const token = data?.token || data?.access_token || (result as any)?.token;
-
-      if (token) {
-        localStorage.setItem("token", token);
-      } else {
-        console.warn("No token found in verify response:", result);
-      }
-
-      // Save the user data
-      if (data?.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
-
-      toast.success('Login successful!', {
-        duration: 4000,
-        position: 'top-right',
-      });
-
-      navigate('/');
+      
+      succeeded = true;
     } catch (err: any) {
+      // ONLY real API errors trigger this block
       console.error('OTP verify error:', err?.status, err?.data, err);
       toast.error(
         extractErrorMessage(err, 'Invalid or expired OTP. Please try again.'),
-        { duration: 5000, position: 'top-right' },
+        { duration: 5000 },
       );
     } finally {
       setIsLoading(false);
+    }
+
+    // Navigation and success toast happen AFTER the try/catch finishes
+    if (succeeded) {
+      toast.success('Login successful!', { duration: 4000 });
+      navigate('/');
     }
   };
 
@@ -194,7 +179,6 @@ const LoginPage: React.FC = () => {
     if (!challengeId) {
       toast.error('Session expired. Please log in again.', {
         duration: 4000,
-        position: 'top-right',
       });
       backToCredentials();
       return;
@@ -218,13 +202,12 @@ const LoginPage: React.FC = () => {
 
       toast.success(result.message || 'OTP resent successfully!', {
         duration: 4000,
-        position: 'top-right',
       });
     } catch (err: any) {
       console.error('Resend OTP error:', err?.status, err?.data, err);
       toast.error(
         extractErrorMessage(err, 'Failed to resend OTP.'),
-        { duration: 5000, position: 'top-right' },
+        { duration: 5000 },
       );
     } finally {
       setResendLoading(false);
@@ -487,8 +470,6 @@ const LoginPage: React.FC = () => {
           )}
         </div>
       </div>
-
-      <Toaster position="top-right" />
     </div>
   );
 };
