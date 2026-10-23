@@ -5,8 +5,21 @@ import {
   type ApiConversation, type ApiMessage, type ConversationParams,
 } from "@/api/chatApi";
 
+// 1. Define the UI types your app actually uses
+export interface UiConversation {
+  id: string;
+  title: string;
+  lastMessage?: {
+    text: string;
+    time: string;
+    senderId: string;
+    unread: boolean;
+  };
+  messages: ApiMessage[];
+}
+
 interface ChatState {
-  conversations: ApiConversation[];
+  conversations: UiConversation[];
   messages: ApiMessage[];
   activeChatId: string | null;
   loadingList: boolean;
@@ -24,6 +37,19 @@ const initialState: ChatState = {
   sendingMessage: false,
   error: null,
 };
+
+// 2. The Mapper: Converts API shape to UI shape
+const mapApiToUi = (c: ApiConversation): UiConversation => ({
+  id: c._id,
+  title: c.title,
+  lastMessage: c.last_message ? {
+    text: c.last_message.message,
+    time: new Date(c.last_message.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    senderId: String(c.last_message.sender_id),
+    unread: c.unread_count > 0,
+  } : undefined,
+  messages: [],
+});
 
 export const fetchConversations = createAsyncThunk(
   "chat/fetchConversations",
@@ -67,14 +93,12 @@ const chatSlice = createSlice({
     receiveMessage: (state, action: PayloadAction<ApiMessage & { conversationId?: string }>) => {
       const msg = action.payload;
       
-      // If it belongs to the open chat, append (dedupe by id)
       if (state.activeChatId && (msg as any).conversationId === state.activeChatId) {
         if (!state.messages.some((m) => m.id === msg.id)) {
           state.messages.push(msg);
         }
       }
 
-      // Update conversation list preview + unread flag
       const conv = state.conversations.find((c) => c.id === (msg as any).conversationId);
       if (conv) {
         conv.lastMessage = {
@@ -83,7 +107,6 @@ const chatSlice = createSlice({
           senderId: msg.senderId,
           unread: state.activeChatId !== conv.id,
         };
-        // Move this conversation to the top
         state.conversations = [conv, ...state.conversations.filter((c) => c.id !== conv.id)];
       }
     },
@@ -107,14 +130,19 @@ const chatSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchConversations.pending, (s) => { s.loadingList = true; s.error = null; })
-      .addCase(fetchConversations.fulfilled, (s, a) => { s.loadingList = false; s.conversations = a.payload; })
+      // Map the API array to the UI array here!
+      .addCase(fetchConversations.fulfilled, (s, a) => { 
+        s.loadingList = false; 
+        s.conversations = (a.payload as unknown as ApiConversation[]).map(mapApiToUi); 
+      })
       .addCase(fetchConversations.rejected, (s, a) => { s.loadingList = false; s.error = (a.payload as string) ?? "Error"; })
 
       .addCase(fetchChatDetails.pending, (s) => { s.loadingChat = true; s.error = null; })
       .addCase(fetchChatDetails.fulfilled, (s, a) => {
         s.loadingChat = false;
-        s.activeChatId = a.payload.id;
-        s.messages = a.payload.messages ?? [];
+        const details = a.payload as any;
+        s.activeChatId = details.id || details._id;
+        s.messages = details.messages ?? [];
       })
       .addCase(fetchChatDetails.rejected, (s, a) => { s.loadingChat = false; s.error = (a.payload as string) ?? "Error"; })
 

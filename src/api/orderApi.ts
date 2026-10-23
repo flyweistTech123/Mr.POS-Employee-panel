@@ -1,7 +1,6 @@
 import type { Order, PreparationStation, OrderItem } from '../types/order';
 import api from './axios';
 
-// Dummy images for categories
 const burgerImages = [
   'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=400&q=80',
   'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=80',
@@ -42,7 +41,7 @@ const nuggetNames = [
 
 const items = [
   ...burgerNames.map((name, i) => ({
-    itemId: `burger${i+1}`,
+    itemId: `burger${i + 1}`,
     name,
     quantity: 1,
     price: 330 + i * 10,
@@ -55,7 +54,7 @@ const items = [
     preparationStation: 'Kitchen' as PreparationStation,
   })),
   ...beverageNames.map((name, i) => ({
-    itemId: `beverage${i+1}`,
+    itemId: `beverage${i + 1}`,
     name,
     quantity: 1,
     price: 120 + i * 5,
@@ -68,7 +67,7 @@ const items = [
     preparationStation: 'Counter' as PreparationStation,
   })),
   ...crispyNames.map((name, i) => ({
-    itemId: `crispy${i+1}`,
+    itemId: `crispy${i + 1}`,
     name,
     quantity: 1,
     price: 200 + i * 8,
@@ -81,7 +80,7 @@ const items = [
     preparationStation: 'Kitchen' as PreparationStation,
   })),
   ...nuggetNames.map((name, i) => ({
-    itemId: `nugget${i+1}`,
+    itemId: `nugget${i + 1}`,
     name,
     quantity: 1,
     price: 150 + i * 7,
@@ -110,17 +109,11 @@ function calcPricingSummary(
   const subtotal = orderItems.reduce((sum: number, item: { price: number; quantity?: number }) => sum + (item.price * (item.quantity || 1)), 0);
   const tax = Math.round(subtotal * (taxPercentage / 100));
   const totalAmount = subtotal + tax + serviceCharge - discount;
-  console.log({ subtotal,
-    tax,
-    taxPercentage,
-    discount,
-    discountType,
-    discountCode,
-    serviceCharge,
-    totalAmount,})
+
   return {
     subtotal,
     tax,
+    total: totalAmount, // <-- ADDED: Fixes "Property 'total' is missing"
     taxPercentage,
     discount,
     discountType,
@@ -132,306 +125,164 @@ function calcPricingSummary(
 
 const dummyOrders: Order[] = [
   {
+    id: '1', // <-- ADDED: Missing id
     orderId: '1',
     status: 'Served',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T1', floor: '1', status: 'Occupied' },
+    tableInfo: { tableId: 1, name: 'Table 1' }, // <-- CHANGED: string to number
     waiterName: 'John Doe',
-    customerInfo: { name: 'Alice', phoneNumber: '1234567890' },
+    customerInfo: { name: 'Alice', phone: '1234567890' }, // <-- CHANGED: phoneNumber to phone
     items: items.slice(0, 2),
     pricingSummary: calcPricingSummary(items.slice(0, 2), 6, 0, 'Code', 'DISC5', 0),
-    paymentDetails: {
-      method: 'Cash',
-      status: 'Unpaid',
-      transactionId: 'TXN001',
-      kitchenNotes: 'No onions',
-    },
+    paymentDetails: { method: 'Cash', status: 'Unpaid', transactionId: 'TXN001', kitchenNotes: 'No onions' },
     createdAt: twentyMinutesAgo,
     updatedAt: twentyMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: twentyMinutesAgo },
-    ],
   },
   {
+    id: '2',
     orderId: '2',
     status: 'Preparing',
-    orderType: 'Takeout',
-    tableInfo: { tableId: 'T2', floor: '1', status: 'Available' },
+    tableInfo: { tableId: 2, name: 'Table 2' },
     waiterName: 'Jane Smith',
-    customerInfo: { name: 'Bob', phoneNumber: '9876543210' },
+    customerInfo: { name: 'Bob', phone: '9876543210' },
     items: items.slice(2, 5),
     pricingSummary: calcPricingSummary(items.slice(2, 5), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Credit Card',
-      status: 'Paid',
-      transactionId: 'TXN002',
-      kitchenNotes: 'Extra spicy',
-    },
+    paymentDetails: { method: 'Credit Card', status: 'Paid', transactionId: 'TXN002', kitchenNotes: 'Extra spicy' },
     createdAt: twentyMinutesAgo,
     updatedAt: nineMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: twentyMinutesAgo },
-      { status: 'Preparing', at: nineMinutesAgo },
-    ],
   },
   {
+    id: '3',
     orderId: '3',
     status: 'Completed',
-    orderType: 'Delivery',
     waiterName: 'Sam Wilson',
-        tableInfo: { tableId: 'T3', floor: '1', status: 'Available' },
-    customerInfo: { name: 'Charlie', phoneNumber: '5551234567' },
+    tableInfo: { tableId: 3, name: 'Table 3' },
+    customerInfo: { name: 'Charlie', phone: '5551234567' },
     items: items.slice(5, 8),
     pricingSummary: calcPricingSummary(items.slice(5, 8), 6, 0, 'Promo', 'PROMO10', 0),
-    paymentDetails: {
-      method: 'Online',
-      status: 'Paid',
-      transactionId: 'TXN003',
-      kitchenNotes: '',
-    },
+    paymentDetails: { method: 'Online', status: 'Paid', transactionId: 'TXN003', kitchenNotes: '' },
     createdAt: twentyMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: twentyMinutesAgo },
-      { status: 'Preparing', at: nineMinutesAgo },
-      { status: 'Completed', at: fiveMinutesAgo },
-    ],
   },
   {
+    id: '4',
     orderId: '4',
     status: 'Served',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T4', floor: '2', status: 'Served' },
+    tableInfo: { tableId: 4, name: 'Table 4' },
     waiterName: 'Emily Clark',
-    customerInfo: { name: 'David', phoneNumber: '2223334444' },
+    customerInfo: { name: 'David', phone: '2223334444' },
     items: items.slice(8, 10),
     pricingSummary: calcPricingSummary(items.slice(8, 10), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Cash',
-      status: 'Unpaid',
-      transactionId: 'TXN004',
-      kitchenNotes: 'No cheese',
-    },
+    paymentDetails: { method: 'Cash', status: 'Unpaid', transactionId: 'TXN004', kitchenNotes: 'No cheese' },
     createdAt: nineMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: nineMinutesAgo },
-      { status: 'Served', at: fiveMinutesAgo },
-    ],
   },
   {
+    id: '5',
     orderId: '5',
     status: 'Preparing',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T5', floor: '2', status: 'Reserved' },
+    tableInfo: { tableId: 5, name: 'Table 5' },
     waiterName: 'Olivia Brown',
-    customerInfo: { name: 'Eve', phoneNumber: '3334445555' },
+    customerInfo: { name: 'Eve', phone: '3334445555' },
     items: items.slice(10, 13),
     pricingSummary: calcPricingSummary(items.slice(10, 13), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Credit Card',
-      status: 'Paid',
-      transactionId: 'TXN005',
-      kitchenNotes: 'Extra sauce',
-    },
+    paymentDetails: { method: 'Credit Card', status: 'Paid', transactionId: 'TXN005', kitchenNotes: 'Extra sauce' },
     createdAt: fiveMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: fiveMinutesAgo },
-    ],
   },
-  // Additional dummy orders for ids 6-9
   {
+    id: '6',
     orderId: '6',
     status: 'Ready',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T6', floor: '2', status: 'Ready' },
+    tableInfo: { tableId: 6, name: 'Table 6' },
     waiterName: 'Liam Green',
-    customerInfo: { name: 'Frank', phoneNumber: '4445556666' },
+    customerInfo: { name: 'Frank', phone: '4445556666' },
     items: items.slice(13, 15),
     pricingSummary: calcPricingSummary(items.slice(13, 15), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Cash',
-      status: 'Unpaid',
-      transactionId: 'TXN006',
-      kitchenNotes: 'No pickles',
-    },
+    paymentDetails: { method: 'Cash', status: 'Unpaid', transactionId: 'TXN006', kitchenNotes: 'No pickles' },
     createdAt: fiveMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: fiveMinutesAgo },
-      { status: 'Ready', at: fiveMinutesAgo },
-    ],
   },
   {
+    id: '7',
     orderId: '7',
     status: 'Preparing',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T7', floor: '2', status: 'Waiting' },
+    tableInfo: { tableId: 7, name: 'Table 7' },
     waiterName: 'Sophia White',
-    customerInfo: { name: 'Grace', phoneNumber: '5556667777' },
+    customerInfo: { name: 'Grace', phone: '5556667777' },
     items: items.slice(15, 18),
     pricingSummary: calcPricingSummary(items.slice(15, 18), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Credit Card',
-      status: 'Paid',
-      transactionId: 'TXN007',
-      kitchenNotes: 'No salt',
-    },
+    paymentDetails: { method: 'Credit Card', status: 'Paid', transactionId: 'TXN007', kitchenNotes: 'No salt' },
     createdAt: fiveMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: fiveMinutesAgo },
-    ],
   },
   {
+    id: '8',
     orderId: '8',
     status: 'Preparing',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T8', floor: '3', status: 'Occupied' },
+    tableInfo: { tableId: 8, name: 'Table 8' },
     waiterName: 'Noah Black',
-    customerInfo: { name: 'Henry', phoneNumber: '6667778888' },
+    customerInfo: { name: 'Henry', phone: '6667778888' },
     items: items.slice(18, 21),
     pricingSummary: calcPricingSummary(items.slice(18, 21), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Cash',
-      status: 'Unpaid',
-      transactionId: 'TXN008',
-      kitchenNotes: 'No lettuce',
-    },
+    paymentDetails: { method: 'Cash', status: 'Unpaid', transactionId: 'TXN008', kitchenNotes: 'No lettuce' },
     createdAt: fiveMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: fiveMinutesAgo },
-      { status: 'Preparing', at: fiveMinutesAgo },
-    ],
   },
   {
+    id: '9',
     orderId: '9',
     status: 'Served',
-    orderType: 'Dine-In',
-    tableInfo: { tableId: 'T9', floor: '3', status: 'Served' },
+    tableInfo: { tableId: 9, name: 'Table 9' },
     waiterName: 'Mia Blue',
-    customerInfo: { name: 'Ivy', phoneNumber: '7778889999' },
+    customerInfo: { name: 'Ivy', phone: '7778889999' },
     items: items.slice(21, 24),
     pricingSummary: calcPricingSummary(items.slice(21, 24), 6, 0, undefined, undefined, 0),
-    paymentDetails: {
-      method: 'Credit Card',
-      status: 'Paid',
-      transactionId: 'TXN009',
-      kitchenNotes: 'No tomato',
-    },
+    paymentDetails: { method: 'Credit Card', status: 'Paid', transactionId: 'TXN009', kitchenNotes: 'No tomato' },
     createdAt: fiveMinutesAgo,
     updatedAt: fiveMinutesAgo,
-    statusHistory: [
-      { status: 'Pending', at: fiveMinutesAgo },
-      { status: 'Served', at: fiveMinutesAgo },
-    ],
   },
 ];
 
 export const fetchOrders = async (params?: { status?: string; dateRange?: string }): Promise<Order[]> => {
-  // try {
-  //   console.log('Fetching orders with params:', params);
-  //   const response = await api.get('/orders', { params });
-  //   console.log('API response:', response.data);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching orders:', error);
-  //   // Fallback to dummy data if API fails
-    let filtered = dummyOrders;
-    if (params?.status && params.status !== 'All Tables') {
-      filtered = filtered.filter(o => o.status === params.status);
-    }
-    // Add date filtering logic
-    if (params?.dateRange) {
-      filtered = filterOrdersByDate(filtered, params.dateRange);
-    }
-    return filtered;
-  // }
+  let filtered = dummyOrders;
+  if (params?.status && params.status !== 'All Tables') {
+    filtered = filtered.filter(o => o.status === params.status);
+  }
+  if (params?.dateRange) {
+    filtered = filterOrdersByDate(filtered, params.dateRange);
+  }
+  return filtered;
 };
 
 export const createOrder = async (order: Order): Promise<{ success: boolean; order: Order }> => {
-  // try {
-  //   console.log('Creating order:', order);
-  //   const response = await api.post('/orders', order);
-  //   console.log('Create order response:', response.data);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error creating order:', error);
-  //   // Fallback to dummy success
-    return { success: true, order: { ...order, orderId: `ORDER_${Date.now()}` } };
-  // }
+  return { success: true, order: { ...order, orderId: `ORDER_${Date.now()}` } };
 };
 
 export const updateOrder = async (orderId: string, updates: Partial<Order>): Promise<{ success: boolean; orderId: string; updates: Partial<Order> }> => {
-  // try {
-  //   console.log('Updating order:', orderId, updates);
-  //   const response = await api.patch(`/orders/${orderId}`, updates);
-  //   console.log('Update order response:', response.data);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error updating order:', error);
-  //   // Fallback to dummy success
-    return { success: true, orderId, updates };
-  // }
+  return { success: true, orderId, updates };
 };
 
 export const getOrderById = async (orderId: string): Promise<Order | undefined> => {
-  console.log(orderId,"orderId")
-  // try {
-  //   const response = await api.get(`/orders/${orderId}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching order by ID:', error);
-  //   // Fallback to dummy data
-    return dummyOrders.find(order => order.orderId === orderId);
-  // }
+  return dummyOrders.find(order => order.orderId === orderId);
 };
 
 export const deleteOrder = async (orderId: string): Promise<{ success: boolean; orderId: string }> => {
   return Promise.resolve({ success: true, orderId });
 };
 
-// New functions for enhanced order management
-
-// Get orders by status
 export const getOrdersByStatus = async (status: string): Promise<Order[]> => {
-  // try {
-  //   const response = await api.get(`/orders/status/${status}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching orders by status:', error);
-  //   // Fallback to dummy data
-    return dummyOrders.filter(order => order.status === status);
-  // }
+  return dummyOrders.filter(order => order.status === status);
 };
 
-// Get orders by table
 export const getOrdersByTable = async (tableId: string): Promise<Order[]> => {
-//   try {
-//     const response = await api.get(`/orders/table/${tableId}`);
-//     return response.data;
-//   } catch (error) {
-//     console.error('Error fetching orders by table:', error);
-//     // Fallback to dummy data
-    return dummyOrders.filter(order => order.tableInfo?.tableId === tableId);
-  // }
+  // FIXED: Compare string to string safely
+  return dummyOrders.filter(order => String(order.tableInfo?.tableId) === tableId);
 };
 
-// Get orders by waiter
 export const getOrdersByWaiter = async (waiterName: string): Promise<Order[]> => {
-  // try {
-  //   const response = await api.get(`/orders/waiter/${waiterName}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error fetching orders by waiter:', error);
-  //   // Fallback to dummy data
-    return dummyOrders.filter(order => order.waiterName === waiterName);
-  // }
+  return dummyOrders.filter(order => order.waiterName === waiterName);
 };
 
-// Get order statistics
 export const getOrderStatistics = async (params?: {
   startDate?: string;
   endDate?: string;
@@ -445,92 +296,60 @@ export const getOrderStatistics = async (params?: {
   totalRevenue: number;
   averageOrderValue: number;
 }> => {
-  try {
-    const response = await api.get('/orders/statistics', { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching order statistics:', error);
-    // Fallback to dummy statistics
-    const orders = dummyOrders;
-    const total = orders.length;
-    const pending = orders.filter(o => o.status === 'Pending').length;
-    const preparing = orders.filter(o => o.status === 'Preparing').length;
-    const completed = orders.filter(o => o.status === 'Completed').length;
-    const cancelled = orders.filter(o => o.status === 'Cancelled').length;
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.pricingSummary?.totalAmount || 0), 0);
-    const averageOrderValue = total > 0 ? totalRevenue / total : 0;
-    
-    return {
-      total,
-      pending,
-      preparing,
-      completed,
-      cancelled,
-      totalRevenue,
-      averageOrderValue,
-    };
-  }
+  const orders = dummyOrders;
+  const total = orders.length;
+  const pending = orders.filter(o => o.status === 'Pending').length;
+  const preparing = orders.filter(o => o.status === 'Preparing').length;
+  const completed = orders.filter(o => o.status === 'Completed').length;
+  const cancelled = orders.filter(o => o.status === 'Cancelled').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.pricingSummary?.totalAmount || 0), 0);
+  const averageOrderValue = total > 0 ? totalRevenue / total : 0;
+
+  return {
+    total,
+    pending,
+    preparing,
+    completed,
+    cancelled,
+    totalRevenue,
+    averageOrderValue,
+  };
 };
 
-// Update order status
 export const updateOrderStatus = async (orderId: string, status: string): Promise<{ success: boolean; order: Order }> => {
-  // try {
-  //   const response = await api.patch(`/orders/${orderId}/status`, { status });
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error updating order status:', error);
-  //   // Fallback to dummy success
-    const order = dummyOrders.find(o => o.orderId === orderId);
-    if (order) {
-      order.status = status as 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
-    }
-    return { success: true, order: order! };
-  // }
+  const order = dummyOrders.find(o => o.orderId === orderId);
+  if (order) {
+    order.status = status as 'Pending' | 'Confirmed' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled';
+  }
+  return { success: true, order: order! };
 };
 
-// Add item to order
 export const addItemToOrder = async (orderId: string, item: OrderItem): Promise<{ success: boolean; order: Order }> => {
-  // try {
-  //   const response = await api.post(`/orders/${orderId}/items`, item);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error adding item to order:', error);
-  //   // Fallback to dummy success
-    const order = dummyOrders.find(o => o.orderId === orderId);
-    if (order) {
-      order.items.push(item);
-    }
-    return { success: true, order: order! };
-  // }
+  const order = dummyOrders.find(o => o.orderId === orderId);
+  if (order) {
+    order.items.push(item);
+  }
+  return { success: true, order: order! };
 };
 
-// Remove item from order
 export const removeItemFromOrder = async (orderId: string, itemId: string): Promise<{ success: boolean; order: Order }> => {
-  // try {
-  //   const response = await api.delete(`/orders/${orderId}/items/${itemId}`);
-  //   return response.data;
-  // } catch (error) {
-  //   console.error('Error removing item from order:', error);
-  //   // Fallback to dummy success
-    const order = dummyOrders.find(o => o.orderId === orderId);
-    if (order) {
-      order.items = order.items.filter(item => item.itemId !== itemId);
-    }
-    return { success: true, order: order! };
-  // }
+  const order = dummyOrders.find(o => o.orderId === orderId);
+  if (order) {
+    order.items = order.items.filter(item => item.itemId !== itemId);
+  }
+  return { success: true, order: order! };
 };
 
-// Helper function to filter orders by date
 const filterOrdersByDate = (orders: Order[], dateRange: string): Order[] => {
   switch (dateRange) {
     case 'Today':
-      return orders.slice(0, 3); // Return first 3 orders for today
+      return orders.slice(0, 3);
     case 'Yesterday':
-      return orders.slice(1, 4); // Return orders 1-3 for yesterday
+      return orders.slice(1, 4);
     case 'This week':
-      return orders; // Return all orders for this week
+      return orders;
     case 'This Month':
-      return orders; // Return all orders for this month
+      return orders;
     default:
       return orders;
   }

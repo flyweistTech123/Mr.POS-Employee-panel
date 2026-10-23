@@ -232,9 +232,10 @@ export interface FloorWithTablesResponse {
  */
 export interface Customer {
   Customer_id?: number;
-  Name?: string;           // Kept for backwards compatibility
-  name?: string;           // Added for UI components
+  Name?: string;           
+  name?: string;           
   phone?: string;
+  phoneNumber?: string;    // Added to fix orderApi errors
   email?: string | null;
   Table_id?: number | null;
   Notes?: string | null;
@@ -290,21 +291,14 @@ export interface BarTabClosePaymentBody {
 // --- 8. UI ORDER MODELS (CLIENT) ---
 // ==========================================
 
-/** 
- * Info about the table an order is assigned to. 
- * Added optional `id` to prevent breaking older components that use `id`.
- */
 export interface OrderTableInfo {
-  tableId: number;         // Used by orderApi.ts
-  id?: number;             // Kept for backwards compatibility
+  tableId: number;
+  id?: number;
   name: string;
   number?: number;
   floorName?: string;
 }
 
-/**
- * UI-facing order used across the app.
- */
 export interface Order {
   id: string | number;
   orderId: string;
@@ -317,7 +311,6 @@ export interface Order {
   waiterName?: string;
   customerInfo?: Customer | null;
   
-  // Made required to fix PrintBillModal math errors
   pricingSummary?: {
     subtotal: number;
     tax: number;
@@ -338,9 +331,6 @@ export interface Order {
   };
 }
 
-/**
- * Payload used when CREATING an order.
- */
 export type NewOrderPayload = Omit<Order, 'status' | 'createdAt'> & {
   status?: OrderStatus;
   createdAt?: string | Date;
