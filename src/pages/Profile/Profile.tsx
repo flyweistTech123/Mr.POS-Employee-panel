@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // ✅ Added i18n
 import ProfileDesktop from './ProfileDesktop';
 import { ProfileMobile } from './ProfileMobile';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -8,6 +9,8 @@ import { useGetProfileQuery } from '@/redux/api/settingsApi';
 import Loader from '@/components/Loader';
 
 const Profile: React.FC = () => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const isMobile = useMediaQuery('(max-width: 1023px)');
   const { settingsHighlight, setSettingsHighlight } = useWalkthroughStore();
   const navigate = useNavigate();
@@ -36,7 +39,7 @@ const Profile: React.FC = () => {
   if (isError || !profileResponse?.data) {
     return (
       <div className="p-8 text-red-500 text-center font-semibold">
-        Failed to load user profile. Please try again.
+        {t('Failed to load user profile. Please try again.')}
       </div>
     );
   }
@@ -59,18 +62,18 @@ const Profile: React.FC = () => {
     yearsWithus: rawUser.experience_years || 0,
 
     // Add missing fields for the UI
-    shift_timings: rawUser.shift_timings || 'N/A',
+    shift_timings: rawUser.shift_timings || t('N/A'),
     total_leave_days: rawUser.total_leave_days || 0,
     leave_left_days: rawUser.leave_left_days || 0,
 
     // Map flat strings to the nested objects the UI expects
     Role_id: {
       Role_id: 1,
-      role_name: rawUser.role || 'Employee',
+      role_name: rawUser.role || t('Employee'),
     },
     Responsibility_id: {
       Responsibility_id: 1,
-      Responsibility_name: rawUser.responsibility || 'N/A',
+      Responsibility_name: rawUser.responsibility || t('N/A'),
     },
   };
 

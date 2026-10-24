@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next"; // ✅ Added i18n
 import AddGuestDrawer from "./AddGuestDrawer";
 import {
   useGetWaitlistQuery,
@@ -21,6 +22,8 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
   onClose,
   onAddGuestProceed,
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [isAddingGuest, setIsAddingGuest] = useState(false);
   const [showNotificationSuccess, setShowNotificationSuccess] = useState(false);
   const [notifyError, setNotifyError] = useState<string | null>(null);
@@ -64,7 +67,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
       setTimeout(() => setShowNotificationSuccess(false), 3000);
     } catch (err: any) {
       setNotifyError(
-        err?.data?.message || "Failed to send notification. Please try again."
+        err?.data?.message || t("Failed to send notification. Please try again.")
       );
       setTimeout(() => setNotifyError(null), 4000);
     } finally {
@@ -79,7 +82,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
       <div className="relative w-[360px] h-full bg-white shadow-2xl flex flex-col animate-slide-in">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-gray-800">
-            Waitlist ({waitlist.length})
+            {t('Waitlist')} ({waitlist.length})
           </h2>
           <button
             onClick={onClose}
@@ -100,7 +103,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
                 </svg>
               </div>
               <h3 className="text-[#00C853] font-bold text-lg">
-                Notification Sent
+                {t('Notification Sent')}
               </h3>
             </div>
           )}
@@ -112,21 +115,21 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
           )}
 
           {isLoading && (
-            <div className="text-center text-gray-500 py-10">Loading waitlist…</div>
+            <div className="text-center text-gray-500 py-10">{t('Loading waitlist…')}</div>
           )}
 
           {isError && (
             <div className="text-center text-red-500 py-10">
-              Failed to load waitlist.
+              {t('Failed to load waitlist.')}
               <button onClick={() => refetch()} className="ml-2 underline">
-                Retry
+                {t('Retry')}
               </button>
             </div>
           )}
 
           {!isLoading && !isError && waitlist.length === 0 && (
             <div className="text-center text-gray-500 py-10">
-              No guests currently waiting.
+              {t('No guests currently waiting.')}
             </div>
           )}
 
@@ -134,7 +137,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
             <div key={item._id} className="border border-pink-200 bg-white rounded-xl p-4 shadow-sm">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">
-                  Name:{" "}
+                  {t('Name')}:{" "}
                   <span className="font-bold text-gray-800">{item.customer_name}</span>
                 </span>
                 <span className="text-xs font-semibold text-[#8E24AA] flex items-center gap-1">
@@ -144,15 +147,15 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  Persons: {item.persons}
+                  {t('Persons')}: {item.persons}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-4 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
-                  ⏱ Waiting: {item.waiting_minutes} Min
+                  ⏱ {t('Waiting')}: {item.waiting_minutes} {t('Min')}
                 </span>
                 <span className="flex items-center gap-1">
-                  📞 Contact No: {item.phone}
+                  📞 {t('Contact No')}: {item.phone}
                 </span>
               </div>
               <button
@@ -164,7 +167,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
-                {notifyingId === item.Waitlist_id ? "Sending…" : "Notify"}
+                {notifyingId === item.Waitlist_id ? t('Sending…') : t('Notify')}
               </button>
             </div>
           ))}
@@ -175,7 +178,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
             onClick={() => setIsAddingGuest(true)}
             className="w-full py-3 rounded-xl text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
           >
-            <span className="text-lg leading-none">+</span> Add Guest
+            <span className="text-lg leading-none">+</span> {t('Add Guest')}
           </button>
         </div>
       </div>

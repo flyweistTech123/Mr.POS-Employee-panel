@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next"; // ✅ Added i18n
 import {
   useGetReservationFloorMapQuery,
   useCreateEmployeeReservationMutation,
 } from "@/redux/api/reservationApi";
 import type { FloorMapTable } from "@/types/reservation";
-import toast from "react-hot-toast"; // <--- ADDED TOAST IMPORT (Change to 'react-toastify' if you use that)
+import toast from "react-hot-toast";
 
 interface ReserveTableModalProps {
   open: boolean;
@@ -24,23 +25,14 @@ const tableLabel = (t: FloorMapTable): string =>
   (t["Table-code"] as string | undefined) ??
   `t-${String(t.Table_id).padStart(2, "0")}`;
 
-const tableSublabel = (t: FloorMapTable): string => {
-  if (!isTableSelectable(t)) {
-    return (
-      (t.reservation_view_status as string | undefined) ??
-      (t.capacity_sufficient === false ? "Too small" : "Unavailable")
-    );
-  }
-  const cap = t.Capacity ?? t["Seating-Persons_Count"];
-  return cap != null ? `Cap ${cap}` : "";
-};
-
 const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
   open,
   onClose,
   floorId,
   floorName,
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [dateStr, setDateStr] = useState(""); // YYYY-MM-DD
@@ -99,17 +91,17 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
     setError(null);
 
     // Frontend validation
-    if (!name.trim()) return setError("Guest name is required.");
-    if (!phone.trim()) return setError("Contact number is required.");
-    if (!dateTime) return setError("Pick a date and time.");
+    if (!name.trim()) return setError(t("Guest name is required."));
+    if (!phone.trim()) return setError(t("Contact number is required."));
+    if (!dateTime) return setError(t("Pick a date and time."));
     if (partySize === "" || Number(partySize) < 1)
-      return setError("Party size must be at least 1.");
-    if (!selectedTable) return setError("Select a table.");
+      return setError(t("Party size must be at least 1."));
+    if (!selectedTable) return setError(t("Select a table."));
     if (!isTableSelectable(selectedTable))
-      return setError("That table is not available for this slot.");
+      return setError(t("That table is not available for this slot."));
 
     // Show loading toast while saving
-    const loadingToast = toast.loading("Creating reservation...");
+    const loadingToast = toast.loading(t("Creating reservation..."));
 
     try {
       await createReservation({
@@ -123,17 +115,28 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
       }).unwrap();
 
       // Show success toast
-      toast.success("Reservation created successfully!", { id: loadingToast });
+      toast.success(t("Reservation created successfully!"), { id: loadingToast });
       onClose();
     } catch (e: any) {
       console.error("Failed to create reservation", e);
       
-      const msg = e?.data?.message || e?.message || "Failed to create reservation. Please try again.";
+      const msg = e?.data?.message || e?.message || t("Failed to create reservation. Please try again.");
       
       // Show error toast
       toast.error(msg, { id: loadingToast });
       setError(msg);
     }
+  };
+
+  // Helper to translate table status sublabels
+  const tableSublabel = (t_item: FloorMapTable): string => {
+    if (!isTableSelectable(t_item)) {
+      const status = t_item.reservation_view_status as string | undefined;
+      if (status) return t(status);
+      return t_item.capacity_sufficient === false ? t("Too small") : t("Unavailable");
+    }
+    const cap = t_item.Capacity ?? t_item["Seating-Persons_Count"];
+    return cap != null ? `${t('Cap')} ${cap}` : "";
   };
 
   if (!open) return null;
@@ -149,14 +152,14 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-gray-800">
-            Reserve Table
+            {t('Reserve Table')}
             {floorName ? (
               <span className="text-gray-400 font-normal"> — {floorName}</span>
             ) : null}
           </h2>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('Close')}
             className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
           >
             <svg
@@ -176,20 +179,20 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
 
         {/* Body */}
         <div className="p-6 overflow-y-auto">
-          <h3 className="text-lg font-bold mb-4">Customize Table</h3>
+          <h3 className="text-lg font-bold mb-4">{t('Customize Table')}</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Person Name"
+              placeholder={t('Person Name')}
               className="bg-[#F9F5F9] px-4 py-3 rounded-lg text-sm outline-none w-full"
             />
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="Contact No"
+              placeholder={t('Contact No')}
               className="bg-[#F9F5F9] px-4 py-3 rounded-lg text-sm outline-none w-full"
             />
             <input
@@ -213,49 +216,49 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
                   e.target.value === "" ? "" : Number(e.target.value)
                 )
               }
-              placeholder="No of person"
+              placeholder={t('No of person')}
               className="bg-[#F9F5F9] px-4 py-3 rounded-lg text-sm outline-none w-full"
             />
             <select
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
               className="bg-[#F9F5F9] px-4 py-3 rounded-lg text-sm outline-none w-full text-gray-700"
-              title="Reservation duration — saved with the booking"
+              title={t("Reservation duration — saved with the booking")}
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={d}>
-                  {d} minutes
+                  {d} {t('minutes')}
                 </option>
               ))}
             </select>
           </div>
 
           <h3 className="text-base font-bold mb-4">
-            Available tables for your inputs
+            {t('Available tables for your inputs')}
           </h3>
 
           {!canQuery ? (
             <p className="text-sm text-gray-500">
-              Enter date, time, and party size to see available tables.
+              {t('Enter date, time, and party size to see available tables.')}
             </p>
           ) : isFetching ? (
-            <p className="text-sm text-gray-500">Checking availability…</p>
+            <p className="text-sm text-gray-500">{t('Checking availability…')}</p>
           ) : tables.length === 0 ? (
             <p className="text-sm text-gray-500">
-              No tables available for this slot. Try another time or party size.
+              {t('No tables available for this slot. Try another time or party size.')}
             </p>
           ) : (
             <div className="flex gap-4 overflow-x-auto pb-4">
-              {tables.map((t) => {
-                const selectable = isTableSelectable(t);
+              {tables.map((t_item) => {
+                const selectable = isTableSelectable(t_item);
                 return (
                   <TableCard
-                    key={t.Table_id}
-                    label={tableLabel(t)}
-                    sublabel={tableSublabel(t)}
-                    selected={selectedTable?.Table_id === t.Table_id}
+                    key={t_item.Table_id}
+                    label={tableLabel(t_item)}
+                    sublabel={tableSublabel(t_item)}
+                    selected={selectedTable?.Table_id === t_item.Table_id}
                     disabled={!selectable}
-                    onClick={() => selectable && setSelectedTable(t)}
+                    onClick={() => selectable && setSelectedTable(t_item)}
                   />
                 );
               })}
@@ -275,14 +278,14 @@ const ReserveTableModal: React.FC<ReserveTableModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={isCreating}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isCreating ? "Reserving…" : "Confirm Reservation"}
+            {isCreating ? t("Reserving…") : t("Confirm Reservation")}
           </button>
         </div>
       </div>

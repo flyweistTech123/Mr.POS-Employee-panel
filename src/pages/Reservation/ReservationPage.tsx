@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // ✅ Added i18n
 import toast from 'react-hot-toast';
 import {
   useGetReservationsQuery,
@@ -28,6 +29,8 @@ const NewReservationModal = ({
   onSubmit: (data: CreateReservationPayload) => void;
   isSubmitting: boolean;
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [formData, setFormData] = useState<CreateReservationPayload>({
     Reservations_online: false,
     Customer_id: 25,
@@ -63,12 +66,12 @@ const NewReservationModal = ({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100">
         <div className="p-6">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
-            New Reservation
+            {t('New Reservation')}
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Guest Name')}</label>
                 <input
                   type="text"
                   name="title"
@@ -78,35 +81,35 @@ const NewReservationModal = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Phone</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Phone')}</label>
                 <input
                   type="text"
-                  placeholder="+974 55-000-1234"
+                  placeholder={t('+974 55-000-1234')}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Occasion</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Occasion')}</label>
                 <input
                   type="text"
-                  placeholder="Birthday, Business, VIP..."
+                  placeholder={t('Birthday, Business, VIP...')}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Estimated Duration</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Estimated Duration')}</label>
                 <input
                   type="text"
-                  placeholder="__hr __min"
+                  placeholder={t('__hr __min')}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Date & Time</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Date & Time')}</label>
                 <input
                   type="text"
                   name="Date_time"
@@ -116,7 +119,7 @@ const NewReservationModal = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Party Size')}</label>
                 <input
                   type="number"
                   name="people_count"
@@ -128,20 +131,20 @@ const NewReservationModal = ({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Assign Table')}</label>
                 <select
                   name="Table_id"
                   value={formData.Table_id}
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 bg-white"
                 >
-                  <option value={2}>Table 2 - Available</option>
-                  <option value={5}>Table 5 - Available</option>
-                  <option value={7}>Table 7 - Available</option>
+                  <option value={2}>{t('Table')} 2 - {t('Available')}</option>
+                  <option value={5}>{t('Table')} 5 - {t('Available')}</option>
+                  <option value={7}>{t('Table')} 7 - {t('Available')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Notes</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Notes')}</label>
                 <input
                   type="text"
                   name="Notes"
@@ -157,14 +160,14 @@ const NewReservationModal = ({
                 onClick={onClose}
                 className="flex-1 border border-purple-300 text-purple-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-purple-50 transition-colors"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {isSubmitting ? 'Confirming...' : 'Confirm Reservation'}
+                {isSubmitting ? t('Confirming...') : t('Confirm Reservation')}
               </button>
             </div>
           </form>
@@ -188,6 +191,8 @@ const EditReservationModal = ({
   onSubmit: (data: UpdateReservationPayload) => void;
   isSubmitting: boolean;
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [formData, setFormData] = useState<UpdateReservationPayload>({
     id: 0,
     people_count: 1,
@@ -230,11 +235,11 @@ const EditReservationModal = ({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100">
         <div className="p-6">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
-            Edit Reservation #{reservation.Reservations_id}
+            {t('Edit Reservation')} #{reservation.Reservations_id}
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
-              <label className="block text-[11px] text-gray-600 mb-1">Guest Name</label>
+              <label className="block text-[11px] text-gray-600 mb-1">{t('Guest Name')}</label>
               <input
                 type="text"
                 value={reservation.title ?? ''}
@@ -244,7 +249,7 @@ const EditReservationModal = ({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Party Size</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Party Size')}</label>
                 <input
                   type="number"
                   name="people_count"
@@ -255,16 +260,16 @@ const EditReservationModal = ({
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Assign Table</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Assign Table')}</label>
                 <select
                   name="Table_id"
                   value={formData.Table_id}
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t) => (
-                    <option key={t} value={t}>
-                      Table {t}
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t_item) => (
+                    <option key={t_item} value={t_item}>
+                      {t('Table')} {t_item}
                     </option>
                   ))}
                 </select>
@@ -272,19 +277,19 @@ const EditReservationModal = ({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Payment Status</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Payment Status')}</label>
                 <select
                   name="PaymentStatus"
                   value={formData.PaymentStatus}
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                 >
-                  <option value="UnPaid">UnPaid</option>
-                  <option value="Paid">Paid</option>
+                  <option value="UnPaid">{t('UnPaid')}</option>
+                  <option value="Paid">{t('Paid')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 mb-1">Notes</label>
+                <label className="block text-[11px] text-gray-600 mb-1">{t('Notes')}</label>
                 <input
                   type="text"
                   name="Notes"
@@ -300,14 +305,14 @@ const EditReservationModal = ({
                 onClick={onClose}
                 className="flex-1 border border-purple-300 text-purple-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-purple-50 transition-colors"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                {isSubmitting ? t('Saving...') : t('Save Changes')}
               </button>
             </div>
           </form>
@@ -331,17 +336,19 @@ const DeleteConfirmModal = ({
   onConfirm: () => void;
   isDeleting: boolean;
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   if (!reservation) return null;
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-100 p-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-2">Delete Reservation?</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-2">{t('Delete Reservation?')}</h2>
         <p className="text-sm text-gray-500 mb-6">
-          This will permanently delete reservation{' '}
+          {t('This will permanently delete reservation')}{' '}
           <span className="font-medium text-gray-700">
             #{reservation.Reservations_id} — {reservation.title}
           </span>
-          . This action cannot be undone.
+          . {t('This action cannot be undone.')}
         </p>
         <div className="flex gap-3">
           <button
@@ -349,7 +356,7 @@ const DeleteConfirmModal = ({
             onClick={onClose}
             className="flex-1 border border-gray-300 text-gray-700 bg-white py-2.5 rounded-md font-medium text-sm hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
@@ -357,7 +364,7 @@ const DeleteConfirmModal = ({
             disabled={isDeleting}
             className="flex-1 bg-red-600 text-white py-2.5 rounded-md font-medium text-sm shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50"
           >
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            {isDeleting ? t('Deleting...') : t('Delete')}
           </button>
         </div>
       </div>
@@ -369,6 +376,8 @@ const DeleteConfirmModal = ({
 // Main Page
 // ---------------------------------------------------------------------------
 export default function ReservationPage() {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [deletingReservation, setDeletingReservation] = useState<Reservation | null>(null);
@@ -417,9 +426,9 @@ export default function ReservationPage() {
     try {
       await createReservation(data).unwrap();
       setIsModalOpen(false);
-      toast.success('Reservation created successfully!', { style: toastStyle });
+      toast.success(t('Reservation created successfully!'), { style: toastStyle });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to create reservation.', {
+      toast.error(error?.data?.message || t('Failed to create reservation.'), {
         style: toastStyle,
       });
     }
@@ -430,9 +439,9 @@ export default function ReservationPage() {
       await updateReservation(data).unwrap();
       setEditingReservation(null);
       resetInline();
-      toast.success('Reservation updated successfully!', { style: toastStyle });
+      toast.success(t('Reservation updated successfully!'), { style: toastStyle });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update reservation.', {
+      toast.error(error?.data?.message || t('Failed to update reservation.'), {
         style: toastStyle,
       });
     }
@@ -444,9 +453,9 @@ export default function ReservationPage() {
       await deleteReservation(deletingReservation.Reservations_id).unwrap();
       if (selectedForInline?._id === deletingReservation._id) resetInline();
       setDeletingReservation(null);
-      toast.success('Reservation deleted successfully!', { style: toastStyle });
+      toast.success(t('Reservation deleted successfully!'), { style: toastStyle });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to delete reservation.', {
+      toast.error(error?.data?.message || t('Failed to delete reservation.'), {
         style: toastStyle,
       });
     }
@@ -469,7 +478,7 @@ export default function ReservationPage() {
         Customer_id: 25,
         slots: 'Dinner',
         slots_time: '07:30 PM - 09:00 PM',
-        title: inlineForm.title || 'Walk-in Guest',
+        title: inlineForm.title || t('Walk-in Guest'),
         Floor: 1,
         Capacity_count: Number(inlineForm.people_count) || 4,
         people_count: Number(inlineForm.people_count) || 1,
@@ -487,15 +496,14 @@ export default function ReservationPage() {
 
   const isInlineSubmitting = selectedForInline ? isUpdating : isCreating;
 
-  // Mocking UI states to match Figma exactly (this mapping logic is based on your requirements)
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Confirmed':
-        return <span className="text-xs px-2 py-1 rounded-md border border-green-200 bg-green-50 text-green-700 font-medium">Confirmed</span>;
+        return <span className="text-xs px-2 py-1 rounded-md border border-green-200 bg-green-50 text-green-700 font-medium">{t('Confirmed')}</span>;
       case 'Tomorrow':
-        return <span className="text-xs px-2 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 font-medium">Tomorrow</span>;
+        return <span className="text-xs px-2 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 font-medium">{t('Tomorrow')}</span>;
       default:
-        return <span className="text-xs px-2 py-1 rounded-md border border-orange-200 bg-orange-50 text-orange-700 font-medium">Upcoming</span>;
+        return <span className="text-xs px-2 py-1 rounded-md border border-orange-200 bg-orange-50 text-orange-700 font-medium">{t('Upcoming')}</span>;
     }
   };
 
@@ -503,12 +511,12 @@ export default function ReservationPage() {
     <div className="min-h-screen bg-white p-8 font-sans text-gray-800 relative">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-black tracking-tight">Reservations</h1>
+        <h1 className="text-3xl font-bold text-black tracking-tight">{t('Reservations')}</h1>
         <button
           onClick={() => setIsModalOpen(true)}
           className="bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white px-5 py-2 rounded-md text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
         >
-          + New Reservation
+          + {t('New Reservation')}
         </button>
       </div>
 
@@ -519,7 +527,7 @@ export default function ReservationPage() {
           {/* Reservation Queue */}
           <section>
             <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-              Reservation Queue
+              {t('Reservation Queue')}
             </h2>
             <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2">
               {isLoading ? (
@@ -534,12 +542,11 @@ export default function ReservationPage() {
                 ))
               ) : reservations.length === 0 ? (
                 <div className="border border-dashed border-gray-300 rounded-lg p-8 text-center text-sm text-gray-400">
-                  No reservations yet. Create one to get started.
+                  {t('No reservations yet. Create one to get started.')}
                 </div>
               ) : (
                 reservations.map((res, index) => {
                   const isSelected = selectedForInline?._id === res._id;
-                  // Simulated status for Figma match
                   const mockStatus = index === 0 ? 'Upcoming' : index === 1 ? 'Upcoming' : index === 2 ? 'Tomorrow' : 'Confirmed';
                   
                   return (
@@ -553,7 +560,7 @@ export default function ReservationPage() {
                     >
                       <div className="flex justify-between items-start mb-1">
                         <h3 className="font-bold text-gray-900 text-sm">
-                          {res.title || res.customer_name || 'Guest'} - {res.people_count} guests
+                          {res.title || res.customer_name || t('Guest')} - {res.people_count} {t('guests')}
                         </h3>
                         {getStatusBadge(mockStatus)}
                       </div>
@@ -564,7 +571,7 @@ export default function ReservationPage() {
                           hour: 'numeric',
                           minute: '2-digit',
                         })}{' '}
-                        - Table {res.Table_id} {res.Notes ? `- ${res.Notes}` : ''}
+                        - {t('Table')} {res.Table_id} {res.Notes ? `- ${res.Notes}` : ''}
                       </p>
 
                       <div className="flex gap-2 mt-3">
@@ -572,13 +579,13 @@ export default function ReservationPage() {
                           onClick={() => setEditingReservation(res)}
                           className="text-xs px-3 py-1.5 rounded-md border border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
                         >
-                          Edit
+                          {t('Edit')}
                         </button>
                         <button
                           onClick={() => setDeletingReservation(res)}
                           className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                         >
-                          Delete
+                          {t('Delete')}
                         </button>
                         <button
                           onClick={() => (isSelected ? resetInline() : setSelectedForInline(res))}
@@ -588,7 +595,7 @@ export default function ReservationPage() {
                               : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                           }`}
                         >
-                          {isSelected ? 'Deselect' : 'Quick Edit'}
+                          {isSelected ? t('Deselect') : t('Quick Edit')}
                         </button>
                       </div>
                     </div>
@@ -603,8 +610,8 @@ export default function ReservationPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                 {selectedForInline
-                  ? `Edit Reservation #${selectedForInline.Reservations_id}`
-                  : 'New Reservation'}
+                  ? `${t('Edit Reservation')} #${selectedForInline.Reservations_id}`
+                  : t('New Reservation')}
               </h2>
               {selectedForInline && (
                 <button
@@ -612,7 +619,7 @@ export default function ReservationPage() {
                   onClick={resetInline}
                   className="text-xs text-gray-500 hover:text-gray-700 underline"
                 >
-                  Cancel edit
+                  {t('Cancel edit')}
                 </button>
               )}
             </div>
@@ -620,21 +627,21 @@ export default function ReservationPage() {
             <form onSubmit={handleInlineSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Guest name</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Guest name')}</label>
                   <input
                     type="text"
                     value={inlineForm.title}
                     onChange={(e) => setInlineForm((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="Mohammed Al-Farsi"
+                    placeholder={t('Mohammed Al-Farsi')}
                     disabled={!!selectedForInline}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Phone</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Phone')}</label>
                   <input
                     type="text"
-                    placeholder="+974 55-000-1234"
+                    placeholder={t('+974 55-000-1234')}
                     disabled={!!selectedForInline}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
@@ -643,18 +650,18 @@ export default function ReservationPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Occasion</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Occasion')}</label>
                   <input
                     type="text"
-                    placeholder="Birthday, Business, VIP..."
+                    placeholder={t('Birthday, Business, VIP...')}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Estimated Duration</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Estimated Duration')}</label>
                   <input
                     type="text"
-                    placeholder="__hr __min"
+                    placeholder={t('__hr __min')}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-400 focus:outline-none focus:border-purple-500"
                   />
                 </div>
@@ -662,7 +669,7 @@ export default function ReservationPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Date & Time</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Date & Time')}</label>
                   <input
                     type="datetime-local"
                     value={inlineForm.Date_time ? new Date(inlineForm.Date_time).toISOString().slice(0, 16) : ''}
@@ -672,7 +679,7 @@ export default function ReservationPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Party Size</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Party Size')}</label>
                   <input
                     type="number"
                     min={1}
@@ -685,24 +692,24 @@ export default function ReservationPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Assign Table</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Assign Table')}</label>
                   <select
                     value={inlineForm.Table_id}
                     onChange={(e) => setInlineForm((p) => ({ ...p, Table_id: Number(e.target.value) }))}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 bg-white"
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t) => (
-                      <option key={t} value={t}>Table {t} {t === 2 ? '- Available' : ''}</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((t_item) => (
+                      <option key={t_item} value={t_item}>{t('Table')} {t_item} {t_item === 2 ? `- ${t('Available')}` : ''}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-gray-600 mb-1">Notes</label>
+                  <label className="block text-[11px] font-medium text-gray-600 mb-1">{t('Notes')}</label>
                   <input
                     type="text"
                     value={inlineForm.Notes}
                     onChange={(e) => setInlineForm((p) => ({ ...p, Notes: e.target.value }))}
-                    placeholder="Allergies: nuts"
+                    placeholder={t('Allergies: nuts')}
                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
@@ -713,7 +720,7 @@ export default function ReservationPage() {
                 disabled={isInlineSubmitting}
                 className="mt-4 w-full bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white py-3 rounded-md font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {isInlineSubmitting ? 'Confirming...' : 'Confirm Reservation'}
+                {isInlineSubmitting ? t('Confirming...') : t('Confirm Reservation')}
               </button>
             </form>
           </section>
@@ -722,83 +729,83 @@ export default function ReservationPage() {
         {/* Right Column - Floor Map */}
         <div className="lg:w-[45%] xl:w-[50%]">
           <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-            Floor Map - Reservation View
+            {t('Floor Map - Reservation View')}
           </h2>
 
           <div className="grid grid-cols-4 gap-4">
             {/* T1 */}
             <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T1</span>
-              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">{t('Occupied')}</span>
             </div>
 
             {/* T2 */}
             <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T2</span>
-              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">{t('Free')}</span>
             </div>
 
             {/* T3 */}
             <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T3</span>
-              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">{t('Occupied')}</span>
             </div>
 
             {/* T4 */}
             <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T4</span>
-              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">{t('Reserved')}</span>
               <span className="text-[10px] text-[#2563EB]">7:30 PM</span>
             </div>
 
             {/* T5 */}
             <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T5</span>
-              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">{t('Occupied')}</span>
             </div>
 
             {/* T6 */}
             <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T6</span>
-              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">{t('Free')}</span>
             </div>
 
             {/* T7 */}
             <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T7</span>
-              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">{t('Free')}</span>
             </div>
 
             {/* T8 */}
             <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T8</span>
-              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">{t('Reserved')}</span>
               <span className="text-[10px] text-[#2563EB]">8:30 PM</span>
             </div>
 
             {/* T9 */}
             <div className="bg-[#ECFDF5] border-[1.5px] border-[#86EFAC] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T9</span>
-              <span className="text-[10px] text-[#16A34A] font-medium mt-1">Free</span>
+              <span className="text-[10px] text-[#16A34A] font-medium mt-1">{t('Free')}</span>
             </div>
 
             {/* T10 */}
             <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T10</span>
-              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">{t('Occupied')}</span>
             </div>
 
             {/* T11 */}
             <div className="bg-[#DDEDFF] border-[1.5px] border-[#93C5FD] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T11</span>
-              <span className="text-[10px] text-[#2563EB] font-medium mt-1">Reserved</span>
+              <span className="text-[10px] text-[#2563EB] font-medium mt-1">{t('Reserved')}</span>
               <span className="text-[10px] text-[#2563EB]">10:30 PM</span>
             </div>
 
             {/* T12 */}
             <div className="bg-[#EDE9FE] border-[1.5px] border-[#D8B4FE] rounded-2xl p-2 flex flex-col items-center justify-center w-full aspect-[137/85]">
               <span className="font-bold text-gray-800 text-sm">T12</span>
-              <span className="text-[10px] text-[#9333EA] font-medium mt-1">Occupied</span>
+              <span className="text-[10px] text-[#9333EA] font-medium mt-1">{t('Occupied')}</span>
             </div>
           </div>
         </div>

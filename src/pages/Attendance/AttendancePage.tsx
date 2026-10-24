@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // ✅ Added i18n
 import toast from 'react-hot-toast';
 import {
   useGetAttendanceDashboardQuery,
@@ -12,6 +13,7 @@ import {
   useCancelLeaveRequestMutation,
   useUpdateEmergencyContactMutation,
 } from '../../redux/api/attendanceApi';
+import Loader from '@/components/Loader';
 
 // --- Icons ---
 const ClockIcon = ({ className = 'w-8 h-8' }) => (
@@ -65,6 +67,8 @@ const Pagination: React.FC<PaginationProps> = ({
   pageSize,
   onPageChange,
 }) => {
+  const { t } = useTranslation(); // ✅ Added i18n
+
   if (totalPages <= 1) return null;
 
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -88,8 +92,8 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-white border-t border-gray-100">
       <p className="text-[12px] text-gray-500 order-2 sm:order-1">
-        Showing <span className="font-semibold text-gray-700">{startItem}</span>–
-        <span className="font-semibold text-gray-700">{endItem}</span> of{' '}
+        {t('Showing')} <span className="font-semibold text-gray-700">{startItem}</span>–
+        <span className="font-semibold text-gray-700">{endItem}</span> {t('of')}{' '}
         <span className="font-semibold text-gray-700">{totalItems}</span>
       </p>
 
@@ -98,7 +102,7 @@ const Pagination: React.FC<PaginationProps> = ({
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          aria-label="Previous page"
+          aria-label={t('Previous page')}
         >
           <ChevronLeftIcon />
         </button>
@@ -127,7 +131,7 @@ const Pagination: React.FC<PaginationProps> = ({
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          aria-label="Next page"
+          aria-label={t('Next page')}
         >
           <ChevronRightIcon />
         </button>
@@ -140,6 +144,8 @@ const Pagination: React.FC<PaginationProps> = ({
 // MAIN PAGE
 // ============================================================
 const AttendancePage = () => {
+  const { t } = useTranslation(); // ✅ Added i18n
+
   const [tab, setTab] = useState<'history' | 'leave'>('leave');
 
   // Modal States
@@ -175,7 +181,7 @@ const AttendancePage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Queries (no page params — backend returns everything) ---
+  // --- Queries ---
   const { data: dash, isLoading, isError, refetch: refetchDash } =
     useGetAttendanceDashboardQuery();
 
@@ -224,7 +230,7 @@ const AttendancePage = () => {
     return allLeaves.slice(start, start + PAGE_SIZE);
   }, [allLeaves, leavePage]);
 
-  // Snap back if current page no longer exists (after delete/cancel)
+  // Snap back if current page no longer exists
   useEffect(() => {
     if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
   }, [historyPage, historyTotalPages]);
@@ -236,77 +242,77 @@ const AttendancePage = () => {
   // --- Handlers ---
   const handlePrimaryAction = async () => {
     if (!isClockedIn) {
-      const toastId = toast.loading('Clocking in...');
+      const toastId = toast.loading(t('Clocking in...'));
       try {
         await clockIn().unwrap();
         await refetchDash();
         await refetchHistory();
-        toast.success('Successfully clocked in!', { id: toastId });
+        toast.success(t('Successfully clocked in!'), { id: toastId });
       } catch (error: any) {
-        toast.error(error?.data?.message || 'Failed to clock in', { id: toastId });
+        toast.error(error?.data?.message || t('Failed to clock in'), { id: toastId });
       }
       return;
     }
 
-    const toastId = toast.loading(onBreak ? 'Ending break & clocking out...' : 'Clocking out...');
+    const toastId = toast.loading(onBreak ? t('Ending break & clocking out...') : t('Clocking out...'));
     try {
       if (onBreak) await endBreak().unwrap();
       await clockOut().unwrap();
       await refetchDash();
       await refetchHistory();
-      toast.success('Successfully clocked out!', { id: toastId });
+      toast.success(t('Successfully clocked out!'), { id: toastId });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update attendance', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to update attendance'), { id: toastId });
     }
   };
 
   const handleStartBreakSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!breakForm.break_type) {
-      toast.error('Please select a break type');
+      toast.error(t('Please select a break type'));
       return;
     }
-    const toastId = toast.loading('Starting break...');
+    const toastId = toast.loading(t('Starting break...'));
     try {
       await startBreak({ break_type: breakForm.break_type, note: breakForm.note }).unwrap();
       await refetchDash();
-      toast.success('Break started', { id: toastId });
+      toast.success(t('Break started'), { id: toastId });
       setIsBreakModalOpen(false);
       setBreakForm({ break_type: '', note: '' });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to start break', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to start break'), { id: toastId });
     }
   };
 
   const handleEndBreakClick = async () => {
-    const toastId = toast.loading('Ending break...');
+    const toastId = toast.loading(t('Ending break...'));
     try {
       await endBreak().unwrap();
       await refetchDash();
-      toast.success('Break ended', { id: toastId });
+      toast.success(t('Break ended'), { id: toastId });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to end break', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to end break'), { id: toastId });
     }
   };
 
   const handleLeaveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leaveForm.start_date || !leaveForm.end_date) {
-      toast.error('Please select start and end dates');
+      toast.error(t('Please select start and end dates'));
       return;
     }
-    const toastId = toast.loading('Submitting leave request...');
+    const toastId = toast.loading(t('Submitting leave request...'));
     try {
       await submitLeave({
         ...leaveForm,
         attachment_url: leaveForm.attachment_url || undefined,
       }).unwrap();
 
-      setLeavePage(1); // jump to page 1 so new item is visible
+      setLeavePage(1); 
       await refetchDash();
       await refetchLeaves();
 
-      toast.success('Leave request submitted successfully!', { id: toastId });
+      toast.success(t('Leave request submitted successfully!'), { id: toastId });
       setIsLeaveModalOpen(false);
       setLeaveForm({
         leave_type: 'Sick Leave',
@@ -317,20 +323,20 @@ const AttendancePage = () => {
         attachment_url: '',
       });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to submit leave request', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to submit leave request'), { id: toastId });
     }
   };
 
   const handleCancelLeave = async (id: string | number) => {
-    if (!window.confirm('Are you sure you want to cancel this leave request?')) return;
-    const toastId = toast.loading('Cancelling request...');
+    if (!window.confirm(t('Are you sure you want to cancel this leave request?'))) return;
+    const toastId = toast.loading(t('Cancelling request...'));
     try {
       await cancelLeave(id).unwrap();
       await refetchDash();
       await refetchLeaves();
-      toast.success('Leave request cancelled', { id: toastId });
+      toast.success(t('Leave request cancelled'), { id: toastId });
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to cancel leave', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to cancel leave'), { id: toastId });
     }
   };
 
@@ -338,7 +344,7 @@ const AttendancePage = () => {
     if (!employee) return;
     const newStatus = !employee.emergency_contact.enabled;
     const toastId = toast.loading(
-      newStatus ? 'Enabling emergency contact...' : 'Disabling emergency contact...'
+      newStatus ? t('Enabling emergency contact...') : t('Disabling emergency contact...')
     );
     try {
       await updateEmergencyContact({
@@ -349,11 +355,11 @@ const AttendancePage = () => {
       }).unwrap();
       await refetchDash();
       toast.success(
-        `Emergency contact ${newStatus ? 'enabled' : 'disabled'}`,
+        t('Emergency contact') + ` ${newStatus ? t('enabled') : t('disabled')}`,
         { id: toastId }
       );
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update emergency contact', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to update emergency contact'), { id: toastId });
     }
   };
 
@@ -369,7 +375,7 @@ const AttendancePage = () => {
 
   const handleEditContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const toastId = toast.loading('Saving contact...');
+    const toastId = toast.loading(t('Saving contact...'));
     try {
       await updateEmergencyContact({
         enabled: contactForm.enabled,
@@ -378,10 +384,10 @@ const AttendancePage = () => {
         email: contactForm.email || undefined,
       }).unwrap();
       await refetchDash();
-      toast.success('Emergency contact updated', { id: toastId });
+      toast.success(t('Emergency contact updated'), { id: toastId });
       setIsEditContactOpen(false);
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update contact', { id: toastId });
+      toast.error(error?.data?.message || t('Failed to update contact'), { id: toastId });
     }
   };
 
@@ -389,7 +395,7 @@ const AttendancePage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size exceeds the 5MB limit.');
+      toast.error(t('File size exceeds the 5MB limit.'));
       return;
     }
     setSelectedFile(file);
@@ -398,9 +404,9 @@ const AttendancePage = () => {
   const handleSendFile = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
-    const toastId = toast.loading('Uploading attachment...');
+    const toastId = toast.loading(t('Uploading attachment...'));
     setTimeout(() => {
-      toast.success('Attachment sent successfully!', { id: toastId });
+      toast.success(t('Attachment sent successfully!'), { id: toastId });
       setIsUploading(false);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -409,23 +415,23 @@ const AttendancePage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-800"></div>
-      </div>
+       <div className="flex items-center justify-center w-full min-h-[60vh]">
+                 <Loader />
+            </div>
     );
   }
 
   if (isError || !employee) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-600 font-medium">
-        Failed to load attendance data. Please try again.
+        {t('Failed to load attendance data. Please try again.')}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-gray-800 max-w-[1200px] relative">
-      <h1 className="text-2xl font-bold mb-6">Employee Attendance & Leave</h1>
+      <h1 className="text-2xl font-bold mb-6">{t('Employee Attendance & Leave')}</h1>
 
       {/* --- TOP SECTION --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -444,17 +450,17 @@ const AttendancePage = () => {
             </div>
             <div className="mt-4 md:mt-0 text-left md:text-right">
               <div className="flex items-center md:justify-end gap-2 mb-1">
-                <span className="font-medium text-xs text-gray-700">Current Shift</span>
+                <span className="font-medium text-xs text-gray-700">{t('Current Shift')}</span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
                     isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${isClockedIn ? 'bg-[#1EA35B]' : 'bg-gray-400'}`}></span>
-                  {isClockedIn ? 'On Shift' : 'Off Shift'}
+                  {isClockedIn ? t('On Shift') : t('Off Shift')}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500">Shift {employee.shift_timings}</p>
+              <p className="text-[11px] text-gray-500">{t('Shift')} {employee.shift_timings}</p>
             </div>
           </div>
 
@@ -463,19 +469,19 @@ const AttendancePage = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
               <p className="font-semibold text-sm text-gray-900">{fmtTime(current?.clock_in)}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">Clock in</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">{t('Clock in')}</p>
             </div>
             <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
               <p className="font-semibold text-sm text-gray-900">{current?.total_hours ?? '0h 0m'}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">Worked today</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">{t('Worked today')}</p>
             </div>
             {onBreak ? (
               <button
                 onClick={handleEndBreakClick}
                 className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] text-white rounded-xl p-3 text-center flex flex-col justify-center hover:opacity-90 transition-opacity shadow-sm"
               >
-                <p className="font-semibold text-sm">End</p>
-                <p className="text-[11px] opacity-90">Break</p>
+                <p className="font-semibold text-sm">{t('End')}</p>
+                <p className="text-[11px] opacity-90">{t('Break')}</p>
               </button>
             ) : (
               <button
@@ -483,13 +489,13 @@ const AttendancePage = () => {
                 disabled={!isClockedIn}
                 className="bg-[#9DF89D] border border-[#86E386] text-gray-900 rounded-xl p-3 text-center flex flex-col justify-center hover:bg-[#8cf08c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
-                <p className="font-semibold text-sm">Start</p>
-                <p className="text-[11px] mt-0.5">Break</p>
+                <p className="font-semibold text-sm">{t('Start')}</p>
+                <p className="text-[11px] mt-0.5">{t('Break')}</p>
               </button>
             )}
             <div className="border border-red-200 rounded-xl p-3 text-center flex flex-col justify-center">
               <p className="font-semibold text-sm text-gray-900">{dash?.data.leave_balance ?? 0}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">Leaves Left</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">{t('Leaves Left')}</p>
             </div>
           </div>
         </div>
@@ -509,7 +515,7 @@ const AttendancePage = () => {
             disabled={clockingIn || clockingOut}
             className="w-full py-2.5 rounded-lg bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)] text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            {isClockedIn ? (onBreak ? 'End Break & Clock Out' : 'Clock Out') : 'Clock In'}
+            {isClockedIn ? (onBreak ? t('End Break & Clock Out') : t('Clock Out')) : t('Clock In')}
           </button>
         </div>
       </div>
@@ -523,34 +529,34 @@ const AttendancePage = () => {
                 onClick={() => setTab('history')}
                 className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'history' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                Attendance History
+                {t('Attendance History')}
               </button>
               <button
                 onClick={() => setTab('leave')}
                 className={`px-5 py-2 rounded-full text-[13px] font-medium transition-colors ${tab === 'leave' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                Leave status
+                {t('Leave status')}
               </button>
             </div>
             <button
               onClick={() => setIsLeaveModalOpen(true)}
               className="ml-auto bg-[#40DE53] text-white rounded-full px-6 py-2 text-[13px] font-medium hover:bg-[#36c746] transition-colors"
             >
-              Apply Leave
+              {t('Apply Leave')}
             </button>
           </div>
 
           {/* ============================================================
-              TAB: History — client-side pagination
+              TAB: History
              ============================================================ */}
           {tab === 'history' && (
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-[#fdf1f5] grid grid-cols-5 p-4 text-xs font-semibold text-gray-800">
-                <div>Date</div>
-                <div className="text-center">Check-in</div>
-                <div className="text-center">Check-Out</div>
-                <div className="text-center">Over Time</div>
-                <div className="text-right">Total Login</div>
+                <div>{t('Date')}</div>
+                <div className="text-center">{t('Check-in')}</div>
+                <div className="text-center">{t('Check-Out')}</div>
+                <div className="text-center">{t('Over Time')}</div>
+                <div className="text-right">{t('Total Login')}</div>
               </div>
 
               {pagedHistory.length > 0 ? (
@@ -575,10 +581,9 @@ const AttendancePage = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500 text-sm">No attendance history found.</div>
+                <div className="p-8 text-center text-gray-500 text-sm">{t('No attendance history found.')}</div>
               )}
 
-              {/* ✅ Pagination */}
               <Pagination
                 currentPage={historyPage}
                 totalPages={historyTotalPages}
@@ -590,18 +595,18 @@ const AttendancePage = () => {
           )}
 
           {/* ============================================================
-              TAB: Leave — client-side pagination
+              TAB: Leave
              ============================================================ */}
           {tab === 'leave' && (
             <div className="space-y-6">
               <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="bg-[#fdf1f5] grid grid-cols-6 p-4 text-xs font-semibold text-gray-800">
-                  <div>Date</div>
-                  <div>Type</div>
-                  <div className="text-center">Days</div>
-                  <div className="text-center">Leave Time</div>
-                  <div className="text-center">Status</div>
-                  <div className="text-right">Action</div>
+                  <div>{t('Date')}</div>
+                  <div>{t('Type')}</div>
+                  <div className="text-center">{t('Days')}</div>
+                  <div className="text-center">{t('Leave Time')}</div>
+                  <div className="text-center">{t('Status')}</div>
+                  <div className="text-right">{t('Action')}</div>
                 </div>
 
                 {pagedLeaves.length > 0 ? (
@@ -631,7 +636,7 @@ const AttendancePage = () => {
                               : 'border-[#a78bfa] text-[#a78bfa]'
                           }`}
                         >
-                          {l.status} {l.status === 'pending' && <ClockIcon className="w-3 h-3" />}
+                          {t(l.status)} {l.status === 'pending' && <ClockIcon className="w-3 h-3" />}
                         </span>
                       </div>
                       <div className="text-right">
@@ -640,17 +645,16 @@ const AttendancePage = () => {
                             // onClick={() => handleCancelLeave(l._id)}
                             className="text-gray-600 hover:text-black text-[13px] hover:underline"
                           >
-                            Cancel
+                            {t('Cancel')}
                           </button>
                         )}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-8 text-center text-gray-500 text-sm">No leave requests found.</div>
+                  <div className="p-8 text-center text-gray-500 text-sm">{t('No leave requests found.')}</div>
                 )}
 
-                {/* ✅ Pagination */}
                 <Pagination
                   currentPage={leavePage}
                   totalPages={leaveTotalPages}
@@ -663,8 +667,8 @@ const AttendancePage = () => {
               {/* Attachments + Manager */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col">
-                  <h3 className="font-semibold text-[15px] mb-1">Attachment</h3>
-                  <p className="text-[11px] text-gray-500 mb-4">Upload supporting documents</p>
+                  <h3 className="font-semibold text-[15px] mb-1">{t('Attachment')}</h3>
+                  <p className="text-[11px] text-gray-500 mb-4">{t('Upload supporting documents')}</p>
 
                   <div
                     className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${
@@ -685,13 +689,13 @@ const AttendancePage = () => {
                           }}
                           className="text-xs text-red-500 hover:underline mt-3"
                         >
-                          Remove File
+                          {t('Remove File')}
                         </button>
                       </div>
                     ) : (
                       <>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Drag and drop file here</p>
-                        <p className="text-xs text-gray-400 mb-3">Or</p>
+                        <p className="text-sm font-medium text-gray-700 mb-1">{t('Drag and drop file here')}</p>
+                        <p className="text-xs text-gray-400 mb-3">{t('Or')}</p>
                         <input
                           type="file"
                           accept=".pdf,.jpg,.jpeg,.png"
@@ -703,9 +707,9 @@ const AttendancePage = () => {
                           onClick={() => fileInputRef.current?.click()}
                           className="border border-[#4c1530] text-[#4c1530] text-xs font-semibold px-6 py-1.5 rounded-md hover:bg-gray-50 mb-3 transition-colors"
                         >
-                          Browse File
+                          {t('Browse File')}
                         </button>
-                        <p className="text-[10px] text-gray-400">PDF, JPG, PNG (Max. 5MB)</p>
+                        <p className="text-[10px] text-gray-400">{t('PDF, JPG, PNG (Max. 5MB)')}</p>
                       </>
                     )}
                   </div>
@@ -718,17 +722,17 @@ const AttendancePage = () => {
                     {isUploading ? (
                       <span className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Sending...
+                        {t('Sending...')}
                       </span>
                     ) : (
-                      'Send'
+                      t('Send')
                     )}
                   </button>
                 </div>
 
                 <div className="border border-gray-200 rounded-xl p-5 flex flex-col shadow-sm">
-                  <h3 className="font-semibold text-[15px] mb-1">Manager Approval</h3>
-                  <p className="text-[11px] text-gray-500 mb-4">Needs the manager's approval</p>
+                  <h3 className="font-semibold text-[15px] mb-1">{t('Manager Approval')}</h3>
+                  <p className="text-[11px] text-gray-500 mb-4">{t("Needs the manager's approval")}</p>
                   <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-3 mb-4">
                     <img
                       src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
@@ -737,13 +741,13 @@ const AttendancePage = () => {
                     />
                     <div>
                       <p className="text-[13px] font-semibold">Michael Brown</p>
-                      <p className="text-[11px] text-gray-500">Restaurant Manager</p>
+                      <p className="text-[11px] text-gray-500">{t('Restaurant Manager')}</p>
                     </div>
                   </div>
                   <div className="bg-[#EBFAEB] border border-[#D1F2D1] rounded-xl p-4 flex-1 flex flex-col justify-center">
-                    <p className="text-[13px] font-semibold text-gray-800 mb-1">Pending Approval</p>
+                    <p className="text-[13px] font-semibold text-gray-800 mb-1">{t('Pending Approval')}</p>
                     <p className="text-[11px] text-gray-600">
-                      Requests are reviewed within 24–48 hours.
+                      {t('Requests are reviewed within 24–48 hours.')}
                     </p>
                   </div>
                 </div>
@@ -760,11 +764,11 @@ const AttendancePage = () => {
                 <CalendarIcon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[13px] font-semibold text-gray-800">Leave Balance</p>
-                <p className="text-[11px] text-gray-500">Annual Leave Remaining</p>
+                <p className="text-[13px] font-semibold text-gray-800">{t('Leave Balance')}</p>
+                <p className="text-[11px] text-gray-500">{t('Annual Leave Remaining')}</p>
               </div>
             </div>
-            <h2 className="text-xl font-bold mb-2 mt-4">{dash?.data.leave_balance ?? 0} days</h2>
+            <h2 className="text-xl font-bold mb-2 mt-4">{dash?.data.leave_balance ?? 0} {t('days')}</h2>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-gradient-to-r from-[#8b2252] to-[#cc246d] h-2 rounded-full"
@@ -784,7 +788,7 @@ const AttendancePage = () => {
                 <div className="bg-[#fdf1f5] p-2 rounded-lg text-[#cc246d]">
                   <CalendarIcon className="w-5 h-5" />
                 </div>
-                <p className="text-[13px] font-semibold text-gray-800">Emergency Contact</p>
+                <p className="text-[13px] font-semibold text-gray-800">{t('Emergency Contact')}</p>
               </div>
               <button
                 onClick={handleToggleEmergencyContact}
@@ -792,7 +796,7 @@ const AttendancePage = () => {
                 className={`w-9 h-5 rounded-full relative transition-colors disabled:opacity-60 ${
                   employee.emergency_contact.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
                 }`}
-                aria-label="Toggle emergency contact"
+                aria-label={t('Toggle emergency contact')}
               >
                 <div
                   className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
@@ -805,25 +809,25 @@ const AttendancePage = () => {
               <div className="flex items-center gap-4">
                 <PhoneIcon />
                 <span className="text-[13px] font-medium text-gray-800">
-                  {employee.emergency_contact.phone ?? 'No phone saved'}
+                  {employee.emergency_contact.phone ?? t('No phone saved')}
                 </span>
               </div>
               <div className="pl-8 text-gray-500 text-[11px] -mt-3">
-                {employee.emergency_contact.name ?? 'No name saved'}
+                {employee.emergency_contact.name ?? t('No name saved')}
               </div>
               <div className="flex items-center gap-4">
                 <MailIcon />
                 <span className="text-[13px] font-medium text-gray-800 break-all">
-                  {employee.emergency_contact.email ?? 'No email saved'}
+                  {employee.emergency_contact.email ?? t('No email saved')}
                 </span>
               </div>
-              <div className="pl-8 text-gray-500 text-[11px] -mt-3">Email</div>
+              <div className="pl-8 text-gray-500 text-[11px] -mt-3">{t('Email')}</div>
             </div>
             <button
               onClick={openEditContact}
               className="w-full mt-6 border border-[#4c1530] text-[#4c1530] py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
             >
-              Edit Contact
+              {t('Edit Contact')}
             </button>
           </div>
         </div>
@@ -834,27 +838,27 @@ const AttendancePage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl w-full max-w-[500px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Start Break</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t('Start Break')}</h2>
               <button onClick={() => setIsBreakModalOpen(false)} className="text-gray-500 hover:text-gray-800">
                 <CloseIcon />
               </button>
             </div>
             <form onSubmit={handleStartBreakSubmit}>
               <div className="mb-5">
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Break Type</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Break Type')}</label>
                 <select
                   value={breakForm.break_type}
                   onChange={(e) => setBreakForm({ ...breakForm, break_type: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
                 >
-                  <option value="" disabled>Select Break Type</option>
-                  <option value="Lunch Break">Lunch Break</option>
-                  <option value="Tea Break">Tea Break</option>
-                  <option value="Personal Break">Personal Break</option>
+                  <option value="" disabled>{t('Select Break Type')}</option>
+                  <option value="Lunch Break">{t('Lunch Break')}</option>
+                  <option value="Tea Break">{t('Tea Break')}</option>
+                  <option value="Personal Break">{t('Personal Break')}</option>
                 </select>
               </div>
               <div className="mb-8">
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Note (optional)</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Note (optional)')}</label>
                 <textarea
                   value={breakForm.note}
                   onChange={(e) => setBreakForm({ ...breakForm, note: e.target.value })}
@@ -865,7 +869,7 @@ const AttendancePage = () => {
               </div>
               <div className="flex justify-center">
                 <button type="submit" className="bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white px-12 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity">
-                  Start Break
+                  {t('Start Break')}
                 </button>
               </div>
             </form>
@@ -878,27 +882,27 @@ const AttendancePage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl w-full max-w-[550px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Requesting Time Off</h2>
+              <h2 className="text-xl font-bold text-gray-800">{t('Requesting Time Off')}</h2>
               <button onClick={() => setIsLeaveModalOpen(false)} className="text-gray-500 hover:text-gray-800">
                 <CloseIcon />
               </button>
             </div>
             <form onSubmit={handleLeaveSubmit} className="space-y-5">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Type</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Type')}</label>
                 <select
                   value={leaveForm.leave_type}
                   onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-600 outline-none focus:border-[#d9467b]"
                 >
-                  <option>Sick Leave</option>
-                  <option>Annual Leave</option>
-                  <option>Casual Leave</option>
+                  <option value="Sick Leave">{t('Sick Leave')}</option>
+                  <option value="Annual Leave">{t('Annual Leave')}</option>
+                  <option value="Casual Leave">{t('Casual Leave')}</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Start Date</label>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Start Date')}</label>
                   <input
                     type="date"
                     required
@@ -908,7 +912,7 @@ const AttendancePage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">End Date</label>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('End Date')}</label>
                   <input
                     type="date"
                     required
@@ -919,7 +923,7 @@ const AttendancePage = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Reason</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Reason')}</label>
                 <input
                   type="text"
                   required
@@ -930,10 +934,10 @@ const AttendancePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-3">Leave Time</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-3">{t('Leave Time')}</label>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-[120px] bg-white border border-gray-200 rounded-full py-2 text-center text-[13px] font-medium text-gray-700 shadow-sm">
-                    Selected Dates
+                    {t('Selected Dates')}
                   </div>
                   <div className="w-[1px] h-6 bg-gray-300"></div>
                   <button
@@ -945,7 +949,7 @@ const AttendancePage = () => {
                         : 'bg-white border border-gray-200 text-gray-600'
                     }`}
                   >
-                    Half Day
+                    {t('Half Day')}
                   </button>
                   <button
                     type="button"
@@ -956,7 +960,7 @@ const AttendancePage = () => {
                         : 'bg-white border border-gray-200 text-gray-600'
                     }`}
                   >
-                    Full Day
+                    {t('Full Day')}
                   </button>
                 </div>
               </div>
@@ -966,7 +970,7 @@ const AttendancePage = () => {
                   disabled={submittingLeave}
                   className="w-full md:w-auto mx-auto block bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white px-10 py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {submittingLeave ? 'Applying...' : 'Apply Leave'}
+                  {submittingLeave ? t('Applying...') : t('Apply Leave')}
                 </button>
               </div>
             </form>
@@ -979,14 +983,14 @@ const AttendancePage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Edit Emergency Contact</h2>
+              <h2 className="text-xl font-bold text-gray-800">{t('Edit Emergency Contact')}</h2>
               <button onClick={() => setIsEditContactOpen(false)} className="text-gray-500 hover:text-gray-800">
                 <CloseIcon />
               </button>
             </div>
             <form onSubmit={handleEditContactSubmit} className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Full Name</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Full Name')}</label>
                 <input
                   type="text"
                   value={contactForm.name}
@@ -996,7 +1000,7 @@ const AttendancePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Phone</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Phone')}</label>
                 <input
                   type="tel"
                   value={contactForm.phone}
@@ -1006,7 +1010,7 @@ const AttendancePage = () => {
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Email</label>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{t('Email')}</label>
                 <input
                   type="email"
                   value={contactForm.email}
@@ -1016,7 +1020,7 @@ const AttendancePage = () => {
                 />
               </div>
               <div className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
-                <span className="text-[13px] font-medium text-gray-700">Enable emergency contact</span>
+                <span className="text-[13px] font-medium text-gray-700">{t('Enable emergency contact')}</span>
                 <button
                   type="button"
                   onClick={() => setContactForm({ ...contactForm, enabled: !contactForm.enabled })}
@@ -1037,7 +1041,7 @@ const AttendancePage = () => {
                   disabled={savingContact}
                   className="w-full bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
                 >
-                  {savingContact ? 'Saving...' : 'Save Changes'}
+                  {savingContact ? t('Saving...') : t('Save Changes')}
                 </button>
               </div>
             </form>

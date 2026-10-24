@@ -1,6 +1,7 @@
 // src/pages/Setting/Settings.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next'; // ✅ Added i18n
 import accountIcon from '@/assets/setting/account_card.svg';
 import notificationIcon from '@/assets/setting/Notification.svg';
 import changePasswordIcon from '@/assets/setting/Unlock.svg';
@@ -9,6 +10,8 @@ import headphoneIcon from '@/assets/setting/suppport_tickets.svg';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
 
 const Settings: React.FC = () => {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+  
   const [clockedIn, setClockedIn] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,11 +42,12 @@ const Settings: React.FC = () => {
     [isActive, steps, currentStep, setSettingsHighlight, next]
   );
 
+  // ✅ Moved inside the component so labels update when language changes
   const cardData = [
     {
       icon: accountIcon,
-      title: 'Personal info',
-      desc: 'You can check you all personal Information here.',
+      title: t('Personal info'),
+      desc: t('You can check you all personal Information here.'),
       selector: '.settings-personal-info',
       highlightKey: 'profile',
       onClick: () => {
@@ -53,8 +57,8 @@ const Settings: React.FC = () => {
     },
     {
       icon: notificationIcon,
-      title: 'Notifications',
-      desc: 'Choose the notification preferences accordingly.',
+      title: t('Notifications'),
+      desc: t('Choose the notification preferences accordingly.'),
       selector: '.settings-notifications',
       highlightKey: 'notifications',
       onClick: () => {
@@ -64,8 +68,8 @@ const Settings: React.FC = () => {
     },
     {
       icon: changePasswordIcon,
-      title: 'Login & Security',
-      desc: 'Change the password and email address.',
+      title: t('Login & Security'),
+      desc: t('Change the password and email address.'),
       selector: '.settings-login-security',
       highlightKey: 'security',
       onClick: () => {
@@ -75,8 +79,8 @@ const Settings: React.FC = () => {
     },
     {
       icon: workSummaryIcon,
-      title: 'Work Summary',
-      desc: 'The work done and the money earned can be monitored here.',
+      title: t('Work Summary'),
+      desc: t('The work done and the money earned can be monitored here.'),
       selector: '.settings-work-summary',
       highlightKey: 'work',
       onClick: () => {
@@ -86,8 +90,8 @@ const Settings: React.FC = () => {
     },
     {
       icon: headphoneIcon,
-      title: 'Support Tickets',
-      desc: 'The work done and the money earned can be monitored here.',
+      title: t('Support Tickets'),
+      desc: t('The work done and the money earned can be monitored here.'),
       selector: '.settings-contact-support',
       highlightKey: 'contact-support',
       onClick: () => {
@@ -111,7 +115,7 @@ const Settings: React.FC = () => {
 
   return (
     <div className="p-8 min-h-screen bg-white">
-      <h1 className="text-2xl font-bold mb-8">Settings</h1>
+      <h1 className="text-2xl font-bold mb-8">{t('Settings')}</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {cardData.map((card) => (
           <div
@@ -152,8 +156,8 @@ const Settings: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="font-bold text-lg">Clock in / out</div>
-          <div className="text-[#00000099] text-sm">Change the password and email address.</div>
+          <div className="font-bold text-lg">{t('Clock in / out')}</div>
+          <div className="text-[#00000099] text-sm">{t('Change the password and email address.')}</div>
         </div>
       </div>
     </div>

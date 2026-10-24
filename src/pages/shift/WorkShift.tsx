@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next'; // ✅ Added i18n
 import {
   FiUsers, FiClock, FiRepeat, FiX, FiChevronDown,
   FiCheckCircle, FiLogOut,
@@ -13,6 +14,8 @@ import {
 } from '../../redux/api/shiftApiSlice';
 
 export default function WorkShift() {
+  const { t } = useTranslation(); // ✅ Added i18n hook
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [selectedCoworker, setSelectedCoworker] = useState<string>('');
@@ -20,7 +23,7 @@ export default function WorkShift() {
   const [selectedShiftToSwap, setSelectedShiftToSwap] = useState<any | null>(null);
   const [selectedTargetShiftId, setSelectedTargetShiftId] = useState<string>('');
 
-  // ✅ Per-request responding state (fixes "all buttons selecting" bug)
+  // ✅ Per-request responding state
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [respondingAction, setRespondingAction] = useState<'accepted' | 'rejected' | null>(null);
 
@@ -59,28 +62,28 @@ export default function WorkShift() {
   };
 
   const calculateWorkedTime = (startIso: string) => {
-    if (!startIso) return '0hr 0min';
+    if (!startIso) return `0 ${t('hr')} 0 ${t('min')}`;
     const diffMins = Math.floor((Date.now() - new Date(startIso).getTime()) / 60000);
-    return `${Math.floor(diffMins / 60)}hr ${diffMins % 60}min`;
+    return `${Math.floor(diffMins / 60)} ${t('hr')} ${diffMins % 60} ${t('min')}`;
   };
 
   // ✅ Status styling helper for outgoing cards
   const getStatusStyle = (status: string) => {
     switch ((status || '').toLowerCase()) {
       case 'accepted':
-        return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500', label: 'Accepted' };
+        return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500', label: t('Accepted') };
       case 'rejected':
-        return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: 'Rejected' };
+        return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: t('Rejected') };
       case 'pending':
       default:
-        return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500', label: 'Pending' };
+        return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500', label: t('Pending') };
     }
   };
 
   // ---------- Handlers ----------
   const handleRequestSwap = async () => {
     if (!selectedCoworker || !reason.trim() || !selectedShiftToSwap) {
-      toast.error('Please select a coworker, a target shift, and enter a reason.');
+      toast.error(t('Please select a coworker, a target shift, and enter a reason.'));
       return;
     }
 
@@ -90,16 +93,16 @@ export default function WorkShift() {
       selectedShiftToSwap.id;
 
     if (requesterShiftId == null) {
-      toast.error('This shift has no employee_shift_id — cannot request a swap.');
+      toast.error(t('This shift has no employee_shift_id — cannot request a swap.'));
       return;
     }
 
     if (!selectedTargetShiftId) {
-      toast.error('Please select a target shift for your coworker.');
+      toast.error(t('Please select a target shift for your coworker.'));
       return;
     }
 
-    const loadingToast = toast.loading('Sending swap request…');
+    const loadingToast = toast.loading(t('Sending swap request…'));
     try {
       const payload = {
         requester_shift_id: Number(requesterShiftId),
@@ -115,37 +118,36 @@ export default function WorkShift() {
       const swapId = result?.data?.shift_swap_id ?? result?.shift_swap_id ?? result?.data?.id;
       console.log('🆔 Created swap request ID:', swapId);
 
-      toast.success('Swap request sent successfully!', { id: loadingToast });
+      toast.success(t('Swap request sent successfully!'), { id: loadingToast });
       closeModal();
     } catch (error: any) {
       console.error('❌ Error requesting swap:', error);
-      toast.error(error?.data?.message || 'Failed to send swap request.', { id: loadingToast });
+      toast.error(error?.data?.message || t('Failed to send swap request.'), { id: loadingToast });
     }
   };
 
   const handleRespondToSwap = async (swapId: string, status: 'accepted' | 'rejected') => {
-    // ✅ Guard against invalid IDs before hitting the network
     if (
       !swapId ||
       swapId === 'undefined' ||
       swapId === 'null' ||
       swapId.trim() === ''
     ) {
-      toast.error('Invalid swap ID — cannot respond.');
+      toast.error(t('Invalid swap ID — cannot respond.'));
       return;
     }
 
     setRespondingId(swapId);
     setRespondingAction(status);
 
-    const loadingToast = toast.loading(status === 'accepted' ? 'Accepting swap…' : 'Rejecting swap…');
+    const loadingToast = toast.loading(status === 'accepted' ? t('Accepting swap…') : t('Rejecting swap…'));
     try {
       console.log(`📤 Responding to swap ${swapId} with status: ${status}`);
       await respondToSwap({ swapId, status }).unwrap();
-      toast.success(`Swap ${status} successfully!`, { id: loadingToast });
+      toast.success(`${t('Swap')} ${t(status)} ${t('successfully!')}`, { id: loadingToast });
     } catch (error: any) {
       console.error('❌ Error responding to swap:', error);
-      toast.error(error?.data?.message || `Failed to ${status} swap.`, { id: loadingToast });
+      toast.error(error?.data?.message || `${t('Failed to')} ${t(status)} ${t('swap.')}`, { id: loadingToast });
     } finally {
       setRespondingId(null);
       setRespondingAction(null);
@@ -153,13 +155,13 @@ export default function WorkShift() {
   };
 
   const handleClockOut = async () => {
-    const loadingToast = toast.loading('Clocking out…');
+    const loadingToast = toast.loading(t('Clocking out…'));
     try {
       await clockOut().unwrap();
-      toast.success('Clocked out successfully!', { id: loadingToast });
+      toast.success(t('Clocked out successfully!'), { id: loadingToast });
     } catch (error: any) {
       console.error('Error clocking out:', error);
-      toast.error(error?.data?.message || 'Failed to clock out.', { id: loadingToast });
+      toast.error(error?.data?.message || t('Failed to clock out.'), { id: loadingToast });
     }
   };
 
@@ -177,8 +179,8 @@ export default function WorkShift() {
   };
 
   // ---------- Loading / Error ----------
-  if (isLoading) return <div className="p-8 text-center text-gray-600">Loading shift dashboard...</div>;
-  if (isError) return <div className="p-8 text-center text-red-500">Failed to load shift data. Please try again.</div>;
+  if (isLoading) return <div className="p-8 text-center text-gray-600">{t('Loading shift dashboard...')}</div>;
+  if (isError) return <div className="p-8 text-center text-red-500">{t('Failed to load shift data. Please try again.')}</div>;
 
   const currentShift = dashboardData?.current_shift ?? null;
   const upcomingShifts = dashboardData?.upcoming_shifts ?? [];
@@ -193,7 +195,7 @@ export default function WorkShift() {
 
   const getEmployeeInfo = (employeeId: number) => {
     return coworkers.find((c: any) => c.employee_id === employeeId) || {
-      full_name: `Employee #${employeeId}`,
+      full_name: `${t('Employee')} #${employeeId}`,
       profile_image: '',
     };
   };
@@ -216,7 +218,7 @@ export default function WorkShift() {
       `}</style>
 
       <div className="min-h-screen bg-[#FAFAFA] p-8 font-sans text-gray-800 relative">
-        <h1 className="text-3xl font-bold mb-6">Shift Management</h1>
+        <h1 className="text-3xl font-bold mb-6">{t('Shift Management')}</h1>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Left Column */}
@@ -224,20 +226,20 @@ export default function WorkShift() {
 
             {/* Today Card */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <h2 className="text-xl font-extrabold text-black mb-4">Today</h2>
+              <h2 className="text-xl font-extrabold text-black mb-4">{t('Today')}</h2>
 
               <div className="border-[3px] border-[#f8e1e6] rounded-xl p-5 relative bg-white shadow-[0_4px_15px_-3px_rgba(0,0,0,0.05)]">
                 {currentShift ? (
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="inline-flex items-center gap-1.5 bg-[#2ecc71] text-white px-3 py-1.5 rounded-full text-sm font-medium mb-3">
-                        <FiCheckCircle /> Shift Active
+                        <FiCheckCircle /> {t('Shift Active')}
                       </span>
                       <p className="text-[#555555] mb-1 text-[15px]">
-                        Started: <span className="text-black font-bold">{formatTime(currentShift.start_at)}</span>
+                        {t('Started:')} <span className="text-black font-bold">{formatTime(currentShift.start_at)}</span>
                       </p>
                       <p className="text-[#555555] text-[15px]">
-                        Worked: <span className="text-black font-bold">{calculateWorkedTime(currentShift.start_at)}</span>
+                        {t('Worked:')} <span className="text-black font-bold">{calculateWorkedTime(currentShift.start_at)}</span>
                       </p>
                     </div>
                     <div className="text-right flex flex-col items-end">
@@ -250,19 +252,19 @@ export default function WorkShift() {
                         disabled={isClockingOut}
                         className="flex items-center gap-2 bg-gradient-to-r from-[#b12a68] to-[#7a1c7d] text-white font-medium py-2 px-6 rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
                       >
-                        {isClockingOut ? 'Clocking...' : (<><FiLogOut /> Clock Out</>)}
+                        {isClockingOut ? t('Clocking...') : (<><FiLogOut /> {t('Clock Out')}</>)}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center text-gray-500 py-4 font-medium">No active shift currently.</div>
+                  <div className="text-center text-gray-500 py-4 font-medium">{t('No active shift currently.')}</div>
                 )}
               </div>
             </div>
 
             {/* Upcoming Shift */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <h2 className="text-xl font-extrabold text-black mb-4">Up Coming Shift</h2>
+              <h2 className="text-xl font-extrabold text-black mb-4">{t('Up Coming Shift')}</h2>
 
               <div className="flex overflow-x-auto gap-4 pb-2 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                 {upcomingShifts.length > 0 ? (
@@ -278,7 +280,7 @@ export default function WorkShift() {
                           {new Date(shift.start_at).toLocaleDateString('en-US', { weekday: 'long' })}
                         </h3>
                         <span className="bg-[#fdf2f4] text-[#c9516b] px-3 py-1 rounded-full text-xs font-medium w-fit">
-                          {shift.role || 'Shift'}
+                          {shift.role || t('Shift')}
                         </span>
                         <p className="text-sm text-gray-500">
                           {formatTime(shift.start_at)} - {formatTime(shift.end_at)}
@@ -289,22 +291,22 @@ export default function WorkShift() {
                           disabled={!isScheduled || shiftEmpId == null}
                           className="mt-1 w-full border border-[#f8b4c4] text-[#c9516b] font-medium py-1.5 rounded-lg text-sm hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          Request Swap
+                          {t('Request Swap')}
                         </button>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-gray-500 py-2 font-medium">No upcoming shifts scheduled.</div>
+                  <div className="text-gray-500 py-2 font-medium">{t('No upcoming shifts scheduled.')}</div>
                 )}
               </div>
             </div>
 
-            {/* Incoming Shift Swap Requests — ✅ FIXED per-card isolation */}
+            {/* Incoming Shift Swap Requests */}
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-2">
               <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
                 <FiRepeat className="w-5 h-5 text-gray-800" />
-                <h2 className="text-lg font-bold">Shift Swap Requests (Incoming)</h2>
+                <h2 className="text-lg font-bold">{t('Shift Swap Requests (Incoming)')}</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -312,7 +314,6 @@ export default function WorkShift() {
                   swapRequests.map((req: any, index: number) => {
                     const requester = getEmployeeInfo(req.requester_employee_id);
 
-                    // ✅ Bulletproof ID resolution
                     const rawSwapId =
                       req.shift_swap_id ??
                       req.swap_id ??
@@ -329,18 +330,14 @@ export default function WorkShift() {
 
                     const swapIdToSend = isValidId ? String(rawSwapId) : null;
 
-                    // ✅ Stable unique key — never collides
                     const cardKey = swapIdToSend ?? `req-${index}-${req.requester_employee_id ?? 'x'}`;
 
-                    // ✅ Responding state scoped to THIS exact card
                     const isThisCardResponding =
                       swapIdToSend !== null && respondingId === swapIdToSend;
                     const isAccepting = isThisCardResponding && respondingAction === 'accepted';
                     const isRejecting = isThisCardResponding && respondingAction === 'rejected';
                     const anyOtherCardResponding =
                       respondingId !== null && respondingId !== swapIdToSend;
-
-                    console.log('🃏 Card', index, '| cardKey:', cardKey, '| swapIdToSend:', swapIdToSend, '| respondingId:', respondingId);
 
                     return (
                       <div key={cardKey} className="border border-gray-100 rounded-xl p-5 shadow-sm bg-white">
@@ -355,7 +352,7 @@ export default function WorkShift() {
 
                         <div className="flex items-center gap-4 mb-4">
                           <span className="text-xs text-gray-500 flex items-center gap-1.5">
-                            <FiClock className="w-3.5 h-3.5" /> Shift #{req.requester_shift_id ?? '—'}
+                            <FiClock className="w-3.5 h-3.5" /> {t('Shift')} #{req.requester_shift_id ?? '—'}
                           </span>
                           {req.target_shift_id && (
                             <span className="text-xs text-gray-500 flex items-center gap-1.5">
@@ -363,17 +360,17 @@ export default function WorkShift() {
                             </span>
                           )}
                           <span className="bg-[#fdf2f4] text-[#c9516b] px-4 py-1 rounded-full text-xs font-medium">
-                            {requester.role || 'Role'}
+                            {requester.role || t('Role')}
                           </span>
                         </div>
 
                         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                          {req.reason || 'No reason provided.'}
+                          {req.reason || t('No reason provided.')}
                         </p>
 
                         {!isValidId && (
                           <p className="text-xs text-red-500 mb-3 font-medium">
-                            ⚠️ This request has no valid swap ID — cannot respond.
+                            ⚠️ {t('This request has no valid swap ID — cannot respond.')}
                           </p>
                         )}
 
@@ -383,26 +380,26 @@ export default function WorkShift() {
                             disabled={!isValidId || isThisCardResponding || anyOtherCardResponding}
                             className="flex-1 border border-[#f8b4c4] text-[#c9516b] font-medium py-2 rounded-lg text-sm hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isRejecting ? 'Rejecting…' : 'Reject'}
+                            {isRejecting ? t('Rejecting…') : t('Reject')}
                           </button>
                           <button
                             onClick={() => swapIdToSend && handleRespondToSwap(swapIdToSend, 'accepted')}
                             disabled={!isValidId || isThisCardResponding || anyOtherCardResponding}
                             className="flex-1 bg-[#2ecc71] text-white font-medium py-2 rounded-lg text-sm hover:bg-green-600 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isAccepting ? 'Accepting…' : 'Accept'}
+                            {isAccepting ? t('Accepting…') : t('Accept')}
                           </button>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-gray-500 font-medium">No pending swap requests.</div>
+                  <div className="text-gray-500 font-medium">{t('No pending swap requests.')}</div>
                 )}
               </div>
             </div>
 
-            {/* ✅ Outgoing Swap Requests — Polished UI */}
+            {/* Outgoing Swap Requests */}
             {outgoingSwapRequests.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-2 overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -412,15 +409,15 @@ export default function WorkShift() {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-gray-900 leading-tight">
-                        Outgoing Swap Requests
+                        {t('Outgoing Swap Requests')}
                       </h2>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        Requests you've sent to coworkers
+                        {t("Requests you've sent to coworkers")}
                       </p>
                     </div>
                   </div>
                   <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    {outgoingSwapRequests.length} total
+                    {outgoingSwapRequests.length} {t('total')}
                   </span>
                 </div>
 
@@ -460,12 +457,12 @@ export default function WorkShift() {
                               <div className="flex items-center gap-2 mt-2 text-xs text-gray-600 flex-wrap">
                                 <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 px-2 py-1 rounded-md font-medium">
                                   <FiClock className="w-3 h-3 text-gray-400" />
-                                  Shift #{req.requester_shift_id ?? '—'}
+                                  {t('Shift')} #{req.requester_shift_id ?? '—'}
                                 </span>
                                 <FiRepeat className="w-3.5 h-3.5 text-[#c9516b]" />
                                 <span className="inline-flex items-center gap-1 bg-[#fdf2f4] border border-[#f8e1e6] px-2 py-1 rounded-md font-medium text-[#c9516b]">
                                   <FiClock className="w-3 h-3" />
-                                  Shift #{req.target_shift_id ?? '—'}
+                                  {t('Shift')} #{req.target_shift_id ?? '—'}
                                 </span>
                               </div>
 
@@ -479,7 +476,7 @@ export default function WorkShift() {
 
                           <div className="text-right shrink-0 flex flex-col items-end gap-1">
                             <span className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
-                              Swap ID
+                              {t('Swap ID')}
                             </span>
                             <span className="text-xs font-mono font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                               #{swapId ?? '—'}
@@ -506,7 +503,7 @@ export default function WorkShift() {
           <div className="w-full lg:w-[350px] bg-white rounded-2xl p-5 border border-gray-100 shadow-sm shrink-0 flex flex-col max-h-[calc(100vh-140px)]">
             <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-4 shrink-0">
               <FiUsers className="w-5 h-5 text-gray-700" />
-              <h2 className="text-lg font-bold">Team Scheduled</h2>
+              <h2 className="text-lg font-bold">{t('Team Scheduled')}</h2>
             </div>
 
             <div className="flex flex-col gap-3 overflow-y-auto custom-vertical-scroll pr-3 flex-1">
@@ -532,13 +529,13 @@ export default function WorkShift() {
                         </div>
                       </div>
                       <span className="bg-[#fdf2f4] text-[#c9516b] px-3 py-1.5 rounded-full text-xs font-medium">
-                        {member.role || 'Role'}
+                        {member.role || t('Role')}
                       </span>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-gray-500 text-sm font-medium">No team members scheduled.</div>
+                <div className="text-gray-500 text-sm font-medium">{t('No team members scheduled.')}</div>
               )}
             </div>
           </div>
@@ -549,14 +546,14 @@ export default function WorkShift() {
           <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl w-full max-w-[560px] p-6 shadow-2xl relative">
               <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                <h2 className="text-[22px] font-bold text-black">Request Shift Swap</h2>
+                <h2 className="text-[22px] font-bold text-black">{t('Request Shift Swap')}</h2>
                 <button onClick={closeModal} className="text-gray-500 hover:text-gray-800 transition">
                   <FiX className="w-6 h-6" />
                 </button>
               </div>
 
               <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4 shadow-sm">
-                <p className="font-bold text-sm mb-4">Your Shift</p>
+                <p className="font-bold text-sm mb-4">{t('Your Shift')}</p>
                 <div className="flex justify-between items-center">
                   <p className="text-gray-800 font-medium text-[15px]">
                     {selectedShiftToSwap?.start_at
@@ -564,7 +561,7 @@ export default function WorkShift() {
                       : '—'}
                   </p>
                   <span className="bg-[#fdf2f4] text-[#c9516b] px-4 py-1.5 rounded-full text-xs font-medium">
-                    {selectedShiftToSwap?.role || 'Shift'}
+                    {selectedShiftToSwap?.role || t('Shift')}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
@@ -574,14 +571,14 @@ export default function WorkShift() {
 
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Swap With</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Swap With')}</label>
                   <div className="relative">
                     <select
                       value={selectedCoworker}
                       onChange={(e) => { setSelectedCoworker(e.target.value); setSelectedTargetShiftId(''); }}
                       className="w-full appearance-none border border-gray-300 rounded-lg py-2.5 px-3 text-sm text-gray-600 focus:outline-none focus:border-purple-500 bg-white"
                     >
-                      <option value="">Select Coworker</option>
+                      <option value="">{t('Select Coworker')}</option>
                       {coworkers.map((c: any) => (
                         <option key={c.employee_id} value={c.employee_id}>
                           {c.full_name} (ID: {c.employee_id})
@@ -594,7 +591,7 @@ export default function WorkShift() {
 
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Their Shift <span className="text-red-500">*</span>
+                    {t('Their Shift')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -604,7 +601,7 @@ export default function WorkShift() {
                       className="w-full appearance-none border border-gray-300 rounded-lg py-2.5 px-3 text-sm text-gray-600 focus:outline-none focus:border-purple-500 bg-white disabled:bg-gray-50 disabled:text-gray-400"
                     >
                       <option value="">
-                        {isFetchingCoworkerShifts ? 'Loading…' : selectedCoworker ? 'Select their shift' : 'Select coworker first'}
+                        {isFetchingCoworkerShifts ? t('Loading…') : selectedCoworker ? t('Select their shift') : t('Select coworker first')}
                       </option>
                       {coworkerShifts.map((s: any, i: number) => {
                         const id = s.employee_shift_id ?? s.shift_id ?? s.id ?? i;
@@ -618,18 +615,18 @@ export default function WorkShift() {
                     <FiChevronDown className="w-4 h-4 absolute right-3 top-3 text-gray-400 pointer-events-none" />
                   </div>
                   {selectedCoworker && !isFetchingCoworkerShifts && coworkerShifts.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">This coworker has no available shifts. Pick another coworker.</p>
+                    <p className="text-xs text-red-500 mt-1">{t('This coworker has no available shifts. Pick another coworker.')}</p>
                   )}
                 </div>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('Reason')}</label>
                 <input
                   type="text"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Medical appointment on Friday"
+                  placeholder={t('e.g. Medical appointment on Friday')}
                   className="w-full border border-gray-300 rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-purple-500"
                 />
               </div>
@@ -640,7 +637,7 @@ export default function WorkShift() {
                   disabled={isRequesting || !selectedTargetShiftId}
                   className="bg-gradient-to-r from-[#b12a68] to-[#7a1c7d] text-white font-medium py-2.5 px-10 rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isRequesting ? 'Requesting...' : 'Request Swap'}
+                  {isRequesting ? t('Requesting...') : t('Request Swap')}
                 </button>
               </div>
             </div>

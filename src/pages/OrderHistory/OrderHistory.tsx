@@ -298,7 +298,10 @@ const OrderHistory = () => {
       ) : (
         <>
           {isLoading ? (
-            <Loader />
+            <div className="flex items-center justify-center w-full min-h-[60vh]">
+                 <Loader />
+            </div>
+           
           ) : isError || orders.length === 0 ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">

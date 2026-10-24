@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next"; // ✅ Added i18n
 import {
   useGetAllFloorsQuery,
   useGetFloorWithTablesQuery,
@@ -11,6 +12,7 @@ import WaitlistDrawer from "@/components/common/WaitlistDrawer";
 import ReserveTableModal from "@/components/common/ReserveTableModal";
 import EditFloorPlan from "@/components/common/EditFloorPlan";
 import { TableIcon } from "@/icons/TableIcon";
+import Loader from "@/components/Loader";
 
 /* -------------------------------------------------------------------------- */
 /*  Types & Constants                                                         */
@@ -18,21 +20,14 @@ import { TableIcon } from "@/icons/TableIcon";
 
 type StatusValue = "All" | "Served" | "Waiting" | "Reserved";
 
-const STATUS_TABS: { label: string; value: StatusValue }[] = [
-  { label: "All Tables", value: "All" },
-  { label: "Served", value: "Served" },
-  { label: "Waiting", value: "Waiting" },
-  { label: "Reserved", value: "Reserved" },
-];
-
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
 
-const tableLabel = (t: any): string =>
-  (t["Table-code"] as string | undefined) ??
-  (t.Title as string | undefined) ??
-  `t-${t.Table_id}`;
+const tableLabel = (t_item: any): string =>
+  (t_item["Table-code"] as string | undefined) ??
+  (t_item.Title as string | undefined) ??
+  `t-${t_item.Table_id}`;
 
 const mapBookingStatus = (id: number | undefined | null): string => {
   switch (id) {
@@ -133,49 +128,53 @@ const FloorPlanCanvas: React.FC<{
   activeStatus: StatusValue;
   onSelect: (t: any) => void;
   busyId: number | null;
-}> = ({ tables, floorWidth, floorHeight, activeStatus, onSelect, busyId }) => (
-  <div
-    className="relative mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm overflow-auto"
-    style={{
-      width: floorWidth,
-      height: floorHeight,
-      minWidth: 320,
-      minHeight: 320,
-    }}
-  >
-    {tables.map((t) => {
-      const { x = 0, y = 0, width = 120, height = 90, rotation = 0 } =
-        t.layout ?? {};
-      const status = resolveStatus(t, activeStatus);
-      const capacity = t.Capacity ?? 2;
-      const busy = busyId === t.Table_id;
+}> = ({ tables, floorWidth, floorHeight, activeStatus, onSelect, busyId }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook for tooltips
 
-      return (
-        <button
-          key={t.Table_id}
-          onClick={() => onSelect(t)}
-          disabled={busy}
-          className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${statusBorder(
-            status
-          )} ${busy ? "opacity-50 pointer-events-none" : ""}`}
-          style={{
-            left: x,
-            top: y,
-            width,
-            height,
-            transform: `rotate(${rotation}deg)`,
-          }}
-          title={`${tableLabel(t)} · Cap ${capacity}`}
-        >
-          <span className="text-[11px] font-bold text-gray-800">
-            {t["Table-code"] ?? tableLabel(t)}
-          </span>
-          <span className="text-[9px] text-gray-500">Cap {capacity}</span>
-        </button>
-      );
-    })}
-  </div>
-);
+  return (
+    <div
+      className="relative mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm overflow-auto"
+      style={{
+        width: floorWidth,
+        height: floorHeight,
+        minWidth: 320,
+        minHeight: 320,
+      }}
+    >
+      {tables.map((t_item) => {
+        const { x = 0, y = 0, width = 120, height = 90, rotation = 0 } =
+          t_item.layout ?? {};
+        const status = resolveStatus(t_item, activeStatus);
+        const capacity = t_item.Capacity ?? 2;
+        const busy = busyId === t_item.Table_id;
+
+        return (
+          <button
+            key={t_item.Table_id}
+            onClick={() => onSelect(t_item)}
+            disabled={busy}
+            className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${statusBorder(
+              status
+            )} ${busy ? "opacity-50 pointer-events-none" : ""}`}
+            style={{
+              left: x,
+              top: y,
+              width,
+              height,
+              transform: `rotate(${rotation}deg)`,
+            }}
+            title={`${tableLabel(t_item)} · ${t('Cap')} ${capacity}`}
+          >
+            <span className="text-[11px] font-bold text-gray-800">
+              {t_item["Table-code"] ?? tableLabel(t_item)}
+            </span>
+            <span className="text-[9px] text-gray-500">{t('Cap')} {capacity}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /*  Table Slot                                                                */
@@ -186,6 +185,8 @@ const TableSlot: React.FC<{
   size: "small" | "medium" | "long";
   status: string;
 }> = ({ label, size, status }) => {
+  const { t } = useTranslation(); // ✅ Added i18n hook to translate status badges
+
   const badgeClass =
     status === "Served"
       ? "bg-green-100 text-green-700"
@@ -211,7 +212,7 @@ const TableSlot: React.FC<{
         >
           {status === "Served" && "✓ "}
           {status === "Ready" && "🔔 "}
-          {status}
+          {t(status)}
         </div>
       )}
     </div>
@@ -224,7 +225,16 @@ const TableSlot: React.FC<{
 
 const TablePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(); // ✅ Added i18n hook
   const [activeStatus, setActiveStatus] = useState<StatusValue>("All");
+
+  // ✅ Moved inside component so it re-renders on language change
+  const STATUS_TABS: { label: string; value: StatusValue }[] = [
+    { label: t("All Tables"), value: "All" },
+    { label: t("Served"), value: "Served" },
+    { label: t("Waiting"), value: "Waiting" },
+    { label: t("Reserved"), value: "Reserved" },
+  ];
 
   const {
     floor: globalFloor,
@@ -255,7 +265,7 @@ const TablePage: React.FC = () => {
   }, [floors, globalFloor, globalFloorId]);
 
   /* ------------------------------------------------------------------ */
-  /*  API QUERY — Bypasses TS errors from the old slice type definition */
+  /*  API QUERY                                                         */
   /* ------------------------------------------------------------------ */
 
   const {
@@ -269,8 +279,6 @@ const TablePage: React.FC = () => {
     { skip: !floorId }
   );
 
-  // Force TypeScript to treat the response as 'any' so the .data check works
-  // regardless of what FloorWithTablesResponse is currently defined as.
   const response = floorTablesRes as any;
   
   const tables: any[] = response?.data?.tables ?? response?.tables ?? [];
@@ -279,7 +287,7 @@ const TablePage: React.FC = () => {
   const hasLayoutPositions = useMemo(
     () =>
       tables.some(
-        (t: any) => (t.layout?.x ?? 0) !== 0 || (t.layout?.y ?? 0) !== 0
+        (t_item: any) => (t_item.layout?.x ?? 0) !== 0 || (t_item.layout?.y ?? 0) !== 0
       ),
     [tables]
   );
@@ -312,9 +320,9 @@ const TablePage: React.FC = () => {
     if (!waitlistDraft) return;
     setCreatingForTableId(table.Table_id);
     try {
-      const name = window.prompt("Guest name?");
+      const name = window.prompt(t("Guest name?"));
       if (!name) return;
-      const phone = window.prompt("Guest phone?") || "";
+      const phone = window.prompt(t("Guest phone?")) || "";
       if (!phone) return;
 
       await createWaitlist({
@@ -331,7 +339,7 @@ const TablePage: React.FC = () => {
       setShowWaitlist(true);
     } catch (err) {
       console.error("Failed to create waitlist", err);
-      alert("Failed to add guest. Please try again.");
+      alert(t("Failed to add guest. Please try again."));
     } finally {
       setCreatingForTableId(null);
     }
@@ -351,12 +359,12 @@ const TablePage: React.FC = () => {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold whitespace-nowrap">
-            Table <span className="text-gray-400">(Floor Plan)</span>
+            {t('Table')} <span className="text-gray-400">({t('Floor Plan')})</span>
           </h1>
           {floorMeta && (
             <p className="text-xs text-gray-500 mt-1">
-              {floorMeta.Floor_Name} · {floorMeta.Total_Table_Count} tables ·{" "}
-              {floorMeta["Seating-Persons_Count"]} seats
+              {floorMeta.Floor_Name} · {floorMeta.Total_Table_Count} {t('tables')} ·{" "}
+              {floorMeta["Seating-Persons_Count"]} {t('seats')}
             </p>
           )}
         </div>
@@ -388,39 +396,32 @@ const TablePage: React.FC = () => {
               disabled={!floorId}
               className="flex items-center gap-2 bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Edit Tables
+              {t('Edit Tables')}
             </button>
             <button
               onClick={() => setShowWaitlist(true)}
               className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
             >
-              Add Waitlist
+              {t('Add Waitlist')}
             </button>
             <button
               onClick={() => setShowReserve(true)}
               disabled={!floorId}
               className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 disabled:opacity-50"
             >
-              Reserve
+              {t('Reserve')}
             </button>
           </div>
         </div>
       </div>
 
-      {/* DEBUG BANNER (Remove this once tabs are working) */}
-      {/* <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-mono text-amber-900">
-        <div>Tab: <b>{activeStatus}</b> | isLoading: {String(isLoading)} | isFetching: {String(isFetching)}</div>
-        <div>Raw Response has data: {String(!!response)} | Raw tables length: <b>{response?.data?.tables?.length ?? response?.tables?.length ?? "—"}</b></div>
-        {error && <div className="text-red-600 font-bold">Error: {JSON.stringify(error)}</div>}
-      </div> */}
-
       {/* GUEST SELECTION BANNER */}
       {isSelectingTableForGuest && waitlistDraft && (
         <div className="mb-4 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
           <p className="text-sm text-purple-900 font-semibold">
-            Pick a table for{" "}
-            <span className="font-bold">{waitlistDraft.persons}</span> guest(s)
-            on <span className="font-bold">{waitlistDraft.floorName}</span>
+            {t('Pick a table for')}{" "}
+            <span className="font-bold">{waitlistDraft.persons}</span> {t('guest(s) on')}{" "}
+            <span className="font-bold">{waitlistDraft.floorName}</span>
           </p>
           <button
             onClick={() => {
@@ -429,7 +430,7 @@ const TablePage: React.FC = () => {
             }}
             className="text-xs font-bold text-purple-700 underline"
           >
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       )}
@@ -451,17 +452,19 @@ const TablePage: React.FC = () => {
         <>
           {!floorId ? (
             <div className="text-center py-20 text-gray-500">
-              Select a floor to view tables.
+              {t('Select a floor to view tables.')}
             </div>
           ) : isLoading && tables.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
-              Loading tables...
+               <div className="flex items-center justify-center w-full min-h-[60vh]">
+                               <Loader />
+                          </div>
             </div>
           ) : tables.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
               {activeStatus === "All"
-                ? "No tables available on this floor."
-                : `No tables are currently ${activeStatus.toLowerCase()} on this floor.`}
+                ? t("No tables available on this floor.")
+                : `${t('No tables are currently')} ${t(activeStatus).toLowerCase()} ${t('on this floor.')}`}
             </div>
           ) : hasLayoutPositions ? (
             <FloorPlanCanvas
@@ -489,7 +492,7 @@ const TablePage: React.FC = () => {
                         className={`cursor-pointer transition-transform hover:scale-105 snap-start ${
                           busy ? "opacity-50 pointer-events-none" : ""
                         }`}
-                        title={`${tableLabel(table)} · Cap ${capacity}`}
+                        title={`${tableLabel(table)} · ${t('Cap')} ${capacity}`}
                       >
                         <TableSlot
                           label={tableLabel(table)}

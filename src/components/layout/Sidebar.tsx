@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next'; // <-- Added i18n
 import { FiUserCheck } from 'react-icons/fi';
 
 // Sidebar PNG icons
@@ -16,25 +17,7 @@ import saleperfomance from '@/assets/sidebar/sp.png';
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
 
-const navItems = [
-  { label: 'Quick order', icon: quickOrder, path: '/orders', isSvg: false },
-  { label: 'Table', icon: table, path: '/table', isSvg: false },
-  { label: 'Order History', icon: OrderHistoryIcon, path: '/order-history', isSvg: true },
-  { label: 'Reservations', icon: reservation, path: '/reservations', isSvg: false },
-];
-
-const trainingItems = [
-  { label: 'Training', icon: training, path: '/training', isSvg: false },
-  { label: 'Team chats', icon: chat, path: '/team-chats', isSvg: false },
-  { label: 'Attendance', icon: FiUserCheck, path: '/attendance', isSvg: false },
-  { label: 'Sales Performance', icon: saleperfomance, path: '/sales-performance', isSvg: false },
-  { label: 'Work Shifts', icon: shift, path: '/work-shifts', isSvg: false },
-];
-
-const bottomItems = [
-  { label: 'Setting', icon: setting, path: '/settings', isSvg: false },
-  { label: 'sign out', icon: logoutIcon, path: '/logout', isSvg: false },
-];
+// NOTE: Removed the static arrays from here and moved them inside the component
 
 interface SidebarProps {
   onLogoutClick: () => void;
@@ -42,6 +25,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const location = useLocation();
+  const { t } = useTranslation(); // <-- Initialize translation hook
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   // Selected (active) button style
@@ -49,6 +33,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
     'text-white shadow-md bg-[linear-gradient(180deg,#6A1B9A_0%,#D32F2F_100%)]';
   // Default (unselected) button style
   const defaultClasses = 'text-gray-700 hover:bg-[#F3E5F5]';
+
+  // Moved inside component so they re-render when language changes
+  const navItems = [
+    { label: t('Quick order'), icon: quickOrder, path: '/orders', isSvg: false },
+    { label: t('Table'), icon: table, path: '/table', isSvg: false },
+    { label: t('Order History'), icon: OrderHistoryIcon, path: '/order-history', isSvg: true },
+    { label: t('Reservations'), icon: reservation, path: '/reservations', isSvg: false },
+  ];
+
+  const trainingItems = [
+    { label: t('Training'), icon: training, path: '/training', isSvg: false },
+    { label: t('Team chats'), icon: chat, path: '/team-chats', isSvg: false },
+    { label: t('Attendance'), icon: FiUserCheck, path: '/attendance', isSvg: false },
+    { label: t('Sales Performance'), icon: saleperfomance, path: '/sales-performance', isSvg: false },
+    { label: t('Work Shifts'), icon: shift, path: '/work-shifts', isSvg: false },
+  ];
+
+  const bottomItems = [
+    { label: t('Setting'), icon: setting, path: '/settings', isSvg: false },
+    { label: t('sign out'), icon: logoutIcon, path: '/logout', isSvg: false },
+  ];
 
   const renderIcon = (item: any, active: boolean) => {
     if (item.isSvg || typeof item.icon === 'string') {
@@ -83,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
         <nav className="flex flex-col gap-1 mb-6">
           {navItems.map((item) => (
             <Link
-              key={item.label}
+              key={item.path} // <-- Changed key to path to avoid issues if translations duplicate
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses
@@ -96,12 +101,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
         </nav>
 
         <div className="mb-2 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
-          Training
+          {t('Training')}
         </div>
         <nav className="flex flex-col gap-1 mb-6">
           {trainingItems.map((item) => (
             <Link
-              key={item.label}
+              key={item.path} // <-- Changed key to path
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses
@@ -116,10 +121,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
 
       <div className="shrink-0 px-4 pb-6 pt-2 flex flex-col gap-1">
         {bottomItems.map((item) => {
-          if (item.label === 'sign out') {
+          if (item.label === t('sign out')) { // <-- Check against translated string
             return (
               <button
-                key={item.label}
+                key={item.path}
                 onClick={onLogoutClick}
                 className={`flex w-full items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${defaultClasses}`}
               >
@@ -128,13 +133,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
                   alt={item.label}
                   className="h-5 w-5 shrink-0 opacity-70"
                 />
-                <span className="text-sm">Sign out</span>
+                <span className="text-sm">{t('Sign out')}</span>
               </button>
             );
           }
           return (
             <Link
-              key={item.label}
+              key={item.path}
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses

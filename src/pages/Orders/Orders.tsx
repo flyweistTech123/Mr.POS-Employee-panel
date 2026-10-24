@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useOrderFlowStore, useWalkthroughUIStore } from "@/store/zustandStores";
 import type { OrderItem } from "@/types/order";
 
@@ -26,6 +27,10 @@ import CancelOrderModal from "@/components/common/CancelOrderModal";
 import { FiMinus, FiPlus } from "react-icons/fi";
 import { LuTrash2 } from "react-icons/lu";
 
+// ✅ ADDED IMPORTS FOR READY TO PAY MODAL
+import Loader from "@/components/Loader";
+import GradientButton from "@/components/common/GradientButton";
+
 import successIcon from "@/assets/order/success_icon_large.svg";
 
 // ✅ 1st Modal: Payment Received Success (Green Buttons)
@@ -42,12 +47,26 @@ const PaymentReceivedModal = ({
   total: number;
   orderId?: string;
 }) => {
+  const { t } = useTranslation();
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
-        <div className="relative mb-6">
+      {/* ✅ ADDED relative HERE FOR THE CLOSE BUTTON */}
+      <div className="relative bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* ✅ NEW: CLOSE BUTTON */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-5 right-5 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+          aria-label="Close"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div className="relative mb-6 mt-2">
           <div className="w-20 h-20 rounded-full bg-[#E8F5E9] flex items-center justify-center">
             <div className="w-14 h-14 rounded-full bg-[#00C853] flex items-center justify-center">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -57,34 +76,34 @@ const PaymentReceivedModal = ({
           </div>
         </div>
 
-        <h2 className="text-[22px] font-bold text-[#00C853] mb-3">Payment Received Successful !</h2>
+        <h2 className="text-[22px] font-bold text-[#00C853] mb-3">{t("Payment Received Successful !")}</h2>
 
         <p className="text-[13px] text-gray-600 text-center leading-relaxed mb-6 px-4">
-          Your Dish ahs been created and will be updated in the menu in couple of minutes
+          {t("Your Dish has been created and will be updated in the menu in couple of minutes")}
         </p>
 
         <div className="flex flex-col items-center gap-2 mb-8">
           <p className="text-[15px] font-semibold text-gray-800">
-            Amount: {total.toLocaleString()} XOF
+            {t("Amount")}: {total.toLocaleString()} XOF
           </p>
-          <p className="text-[15px] font-semibold text-gray-800">Method: Mobile Money</p>
+          <p className="text-[15px] font-semibold text-gray-800">{t("Method")}: Mobile Money</p>
           <p className="text-[15px] font-semibold text-gray-800">
-            Reference: MOMO-{orderId?.slice(-6) || "889322"}
+            {t("Reference")}: MOMO-{orderId?.slice(-6) || "889322"}
           </p>
         </div>
 
         <div className="flex gap-4 w-full">
           <button
-            onClick={onClose}
+            onClick={onClose} // This triggers the Success Panel in the background
             className="flex-1 py-3.5 rounded-xl text-white font-bold bg-[#00C853] hover:bg-[#00A844] transition-all shadow-md"
           >
-            Start new Order
+            {t("Start new Order")}
           </button>
           <button
             onClick={onPrint}
             className="flex-1 py-3.5 rounded-xl font-bold text-[#00C853] bg-white border-2 border-[#00C853] hover:bg-[#E8F5E9] transition-all"
           >
-            Print Receipt
+            {t("Print Receipt")}
           </button>
         </div>
       </div>
@@ -106,6 +125,7 @@ const ReceiptModal = ({
   orderId?: string;
   onPrint: () => void;
 }) => {
+  const { t } = useTranslation();
   if (!open) return null;
 
   const currentDate = new Date()
@@ -122,7 +142,7 @@ const ReceiptModal = ({
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-[420px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-5 flex justify-between items-center border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t("Order Summary")}</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -141,27 +161,27 @@ const ReceiptModal = ({
                 </div>
               </div>
 
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Payment Success!</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">{t("Payment Success!")}</h3>
               <p className="text-xs text-gray-500 mb-6 text-center">
-                Your payment has been successfully done.
+                {t("Your payment has been successfully done.")}
               </p>
 
               <div className="text-center mb-6">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                  Total Payment
+                  {t("Total Payment")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">{total.toLocaleString()} XOF</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 w-full px-2">
                 <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
-                  <p className="text-[10px] text-gray-400 mb-0.5">Order Number</p>
+                  <p className="text-[10px] text-gray-400 mb-0.5">{t("Order Number")}</p>
                   <p className="text-xs font-bold text-gray-800">
                     {orderId || "000085752257"}
                   </p>
                 </div>
                 <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
-                  <p className="text-[10px] text-gray-400 mb-0.5">Date & Time</p>
+                  <p className="text-[10px] text-gray-400 mb-0.5">{t("Date & Time")}</p>
                   <p className="text-xs font-bold text-gray-800">{currentDate}</p>
                 </div>
               </div>
@@ -172,14 +192,14 @@ const ReceiptModal = ({
             onClick={onPrint}
             className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-6 transition-colors"
           >
-            Print Receipt
+            {t("Print Receipt")}
           </button>
 
           <button
             onClick={onClose}
             className="w-full py-3.5 rounded-xl text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all shadow-md"
           >
-            Start New Order
+            {t("Start New Order")}
           </button>
         </div>
       </div>
@@ -190,6 +210,7 @@ const ReceiptModal = ({
 const Orders: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const [activeMode, setActiveMode] = useState<"Food" | "Bar">("Food");
   const [showBarTabScreen, setShowBarTabScreen] = useState(false);
@@ -240,15 +261,9 @@ const Orders: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ✅ API Hooks (added isFetching to catch refetches)
   const { data: itemTypesData, isFetching: isFetchingTypes } = useGetAllItemTypesQuery({ type: activeMode });
   const { data: itemsData, isLoading: isLoadingItems, isFetching: isFetchingItems } = useGetAllItemsQuery({ type: activeMode });
   const { data: floorsData } = useGetAllFloorsQuery();
-
-  // ✅ FIX: Reset category when switching between Food and Bar
-  useEffect(() => {
-    setSelectedCategory("all");
-  }, [activeMode, setSelectedCategory]);
 
   const [createOrder] = useCreateOrderMutation();
   const [sendToKitchen] = useSendToKitchenMutation();
@@ -262,13 +277,25 @@ const Orders: React.FC = () => {
 
   const categories = useMemo(() => {
     const apiCats =
-      itemTypesData?.data?.map((t: any) => ({
-        label: t.Name,
-        value: t.Items_types_id.toString(),
-        icon: t.emozi,
+      itemTypesData?.data?.map((t_item: any) => ({
+        label: t(t_item.Name), 
+        value: t_item.Items_types_id.toString(),
+        icon: t_item.emozi,
       })) || [];
-    return [{ label: "All Items", value: "all", icon: null }, ...apiCats];
-  }, [itemTypesData]);
+    return [{ label: t("All Items"), value: "all", icon: null }, ...apiCats];
+  }, [itemTypesData, t]);
+
+  useEffect(() => {
+    if (isFetchingTypes || isFetchingItems) return;
+
+    const availableValues = categories.map(c => c.value);
+    
+    if (selectedCategory === "all") return;
+
+    if (!availableValues.includes(selectedCategory)) {
+      setSelectedCategory(categories.length > 1 ? categories[1].value : "all");
+    }
+  }, [activeMode, categories, selectedCategory, setSelectedCategory, isFetchingTypes, isFetchingItems]);
 
   const menuItems = useMemo(() => {
     return (itemsData?.data || []).map((item: any) => ({
@@ -308,7 +335,6 @@ const Orders: React.FC = () => {
   const showOrderSummary =
     !isOrderPaid && panelMode === "order" && currentOrder && items.length > 0;
 
-  // ✅ Group items by Category for the UI
   const groupedItems = useMemo(() => {
     const groups: Record<string, OrderItem[]> = {};
     items.forEach((item: any) => { 
@@ -323,9 +349,9 @@ const Orders: React.FC = () => {
     if (pendingCustomizedItem && currentOrder) {
       addItemToOrder(pendingCustomizedItem);
       clearPendingCustomizedItem();
-      showToast(`Added ${pendingCustomizedItem.name} to order!`, "success");
+      showToast(`${t("Added")} ${pendingCustomizedItem.name} ${t("to order!")}`, "success");
     }
-  }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem]);
+  }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem, t]);
 
   useEffect(() => {
     const navState = location.state as { tableId?: number; floor?: string; persons?: number };
@@ -350,8 +376,8 @@ const Orders: React.FC = () => {
     if (isOrderLocked) {
       showToast(
         isOrderPaid
-          ? "Order is paid — start a new order."
-          : "Order already sent to kitchen — start a new order to add items.",
+          ? t("Order is paid — start a new order.")
+          : t("Order already sent to kitchen — start a new order to add items."),
         "info"
       );
       return;
@@ -379,14 +405,14 @@ const Orders: React.FC = () => {
     
     addItemToOrder(customizedItem);
     setShowAddonModal(false);
-    showToast(`${modalItem.name} added to order!`, "success");
+    showToast(`${modalItem.name} ${t("added to order!")}`, "success");
   };
 
   const handleBack = () => {
     if (isOrderLocked) {
       resetOrder();
       setPanelMode("idle");
-      showToast("Order cleared from screen.", "info");
+      showToast(t("Order cleared from screen."), "info");
       return;
     }
     if (items.length === 0) {
@@ -414,9 +440,9 @@ const Orders: React.FC = () => {
       setShowCancelModal(false);
       setPanelMode("idle");
       setPersons(1);
-      showToast("Order cancelled successfully", "info");
+      showToast(t("Order cancelled successfully"), "info");
     } catch (err: any) {
-      showToast(err?.data?.message || err?.message || "Failed to cancel order.", "error");
+      showToast(err?.data?.message || err?.message || t("Failed to cancel order."), "error");
     } finally {
       setIsCancelling(false);
     }
@@ -455,18 +481,18 @@ const Orders: React.FC = () => {
           total: res.data.Total,
         });
       }
-      showToast("Order created successfully!", "success");
+      showToast(t("Order created successfully!"), "success");
       return orderId;
     } catch (err: any) {
-      showToast(err?.data?.message || err?.message || "Failed to create order on server.", "error");
+      showToast(err?.data?.message || err?.message || t("Failed to create order on server."), "error");
       return null;
     }
   };
 
   const handleSendToKitchen = async () => {
-    if (isOrderPaid) return showToast("This order is already paid.", "error");
-    if (isOrderSentToKitchen) return showToast("This order has already been sent.", "info");
-    if (items.length === 0) return showToast("Add items before sending.", "error");
+    if (isOrderPaid) return showToast(t("This order is already paid."), "error");
+    if (isOrderSentToKitchen) return showToast(t("This order has already been sent."), "info");
+    if (items.length === 0) return showToast(t("Add items before sending."), "error");
     if (isSendingKitchen) return;
 
     setIsSendingKitchen(true);
@@ -492,17 +518,17 @@ const Orders: React.FC = () => {
       });
 
       setShowKitchenSuccess(true);
-      showToast("Order sent to kitchen successfully!", "success");
+      showToast(t("Order sent to kitchen successfully!"), "success");
     } catch (err: any) {
-      showToast(err?.data?.message || err?.message || "Failed to send order.", "error");
+      showToast(err?.data?.message || err?.message || t("Failed to send order."), "error");
     } finally {
       setIsSendingKitchen(false);
     }
   };
 
   const handlePaymentInitiation = async () => {
-    if (isOrderPaid) return showToast("This order is already paid.", "info");
-    if (items.length === 0) return showToast("Add items before paying.", "error");
+    if (isOrderPaid) return showToast(t("This order is already paid."), "info");
+    if (items.length === 0) return showToast(t("Add items before paying."), "error");
     if (isProcessingPayment) return;
 
     setIsProcessingPayment(true);
@@ -511,7 +537,7 @@ const Orders: React.FC = () => {
       if (!id) return;
       setShowPaymentModal(true);
     } catch (err: any) {
-      showToast("Failed to open payment options", "error");
+      showToast(t("Failed to open payment options"), "error");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -547,7 +573,7 @@ const Orders: React.FC = () => {
         setShowPaymentReceivedModal(true);
       } catch (err: any) {
         setShowReadyToPayModal(false);
-        showToast(err?.data?.message || err?.message || "Payment update failed.", "error");
+        showToast(err?.data?.message || err?.message || t("Payment update failed."), "error");
       }
     }, 2000);
   };
@@ -555,15 +581,31 @@ const Orders: React.FC = () => {
   const handlePrintClick = () => {
     setShowPaymentReceivedModal(false);
     setShowReceiptModal(true);
-    showToast("Generating receipt...", "info");
+    showToast(t("Generating receipt..."), "info");
   };
 
   const handleActualPrint = () => {
-    showToast("Sending receipt to printer...", "info");
-    setTimeout(() => showToast("Receipt printed successfully!", "success"), 1500);
+    showToast(t("Sending receipt to printer..."), "info");
+    setTimeout(() => showToast(t("Receipt printed successfully!"), "success"), 1500);
   };
 
+  // ✅ FIXED: Only hide the modal. Keeps the Success Panel (Image 2) visible in the background.
   const handleNextOrder = () => {
+    setShowKitchenSuccess(false);
+    setShowPaymentReceivedModal(false);
+    setShowReceiptModal(false);
+    
+    // We DO NOT call resetOrder() here so the Success Panel stays visible.
+    // If the order is not paid (e.g. closed from Kitchen Modal), then we reset.
+    if (!currentOrder || currentOrder.orderStatus !== "Completed") {
+      resetOrder();
+      setPanelMode("idle");
+      setPersons(1);
+    }
+  };
+
+  // ✅ NEW: Triggered ONLY when clicking "Next Order" on the background Success Panel
+  const handleBackgroundNextOrder = () => {
     resetOrder();
     setShowKitchenSuccess(false);
     setShowPaymentReceivedModal(false);
@@ -581,7 +623,7 @@ const Orders: React.FC = () => {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">
-          {activeMode === "Food" ? "Quick Orders" : "Bar Management"}
+          {activeMode === "Food" ? t("Quick Orders") : t("Bar Management")}
         </h1>
         <div className="flex items-center gap-4">
           {activeMode === "Bar" && (
@@ -589,7 +631,7 @@ const Orders: React.FC = () => {
               onClick={() => setShowBarTabScreen(true)}
               className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white font-semibold text-sm shadow-md hover:opacity-90 transition-all"
             >
-              <span className="text-lg leading-none">+</span> Open Bar Tab
+              <span className="text-lg leading-none">+</span> {t("Open Bar Tab")}
             </button>
           )}
           <div className="flex gap-1 bg-white rounded-lg p-1 shadow-sm border-[#D32F2F] border">
@@ -601,7 +643,7 @@ const Orders: React.FC = () => {
                   : "text-gray-500 hover:bg-gray-50"
               }`}
             >
-              Food
+              {t("Food")}
             </button>
             <button
               onClick={() => setActiveMode("Bar")}
@@ -611,7 +653,7 @@ const Orders: React.FC = () => {
                   : "text-gray-500 hover:bg-gray-50"
               }`}
             >
-              Bar
+              {t("Bar")}
             </button>
           </div>
         </div>
@@ -620,6 +662,8 @@ const Orders: React.FC = () => {
       <div className="flex gap-6 h-[calc(100vh-140px)]">
         {/* LEFT PANEL */}
         <div className="flex-1 bg-white shadow-[0px_0px_15px_8.5px_#0000001A] rounded-[32px] p-6 flex flex-col overflow-hidden">
+          
+          {/* Categories */}
           <div className="bg-[#F1F1F1] rounded-full px-2 py-1.5 flex items-center gap-1 mb-6 overflow-x-auto no-scrollbar w-fit max-w-full">
             {categories.map((c) => {
               const isActive = selectedCategory === c.value;
@@ -640,8 +684,9 @@ const Orders: React.FC = () => {
             })}
           </div>
 
+          {/* Items Grid Area */}
           <div className="flex-1 overflow-y-auto">
-            {/* ✅ Updated loader to handle refetching too */}
+            {/* ✅ Loading state ONLY for the grid */}
             {isLoadingItems || isFetchingItems || isFetchingTypes ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {[...Array(10)].map((_, i) => (
@@ -662,7 +707,7 @@ const Orders: React.FC = () => {
                       isOrderLocked ? "opacity-60 cursor-not-allowed" : ""
                     }`}
                   >
-                    <img src={item.image} alt={item.name} className="w-20 h-20 object-contain mb-2" />
+                    <img src={item.image} alt={item.name} className="w-20 h-20 rounded-[12px] object-contain mb-2" />
                     <div className="text-sm font-bold text-center line-clamp-1">{item.name}</div>
                     <div className="text-xs text-gray-500">{item.price} XOF</div>
                   </div>
@@ -673,16 +718,16 @@ const Orders: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-[340px] bg-white rounded-[28px] shadow-sm overflow-hidden relative flex flex-col">
+        <div className="w-[340px]  bg-white rounded-[28px] shadow-sm overflow-hidden relative flex flex-col">
           {/* SUCCESS PANEL */}
           {showSuccessPanel && (
-            <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
+            <div className="w-full h-full  flex flex-col justify-between bg-white rounded-[28px]">
               <div className="bg-[#F5F5F5] rounded-t-[28px] p-6 w-full text-left">
                 <div className="text-2xl font-bold text-gray-800"># {currentOrder?.orderId || "108"}</div>
                 <div className="flex justify-between mt-1">
-                  <div className="text-xs font-medium text-gray-500">Order Created</div>
+                  <div className="text-xs font-medium text-gray-500">{t("Order Created")}</div>
                   <div className="text-xs font-medium text-gray-500 text-right">
-                    Table - {currentOrder?.tableId?.replace("t-", "") || "04"}
+                    {t("Table")} - {currentOrder?.tableId?.replace("t-", "") || "04"}
                   </div>
                 </div>
               </div>
@@ -693,22 +738,22 @@ const Orders: React.FC = () => {
               </div>
               <button
                 className="w-full py-4 text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#E53935] hover:opacity-90 transition-all rounded-b-[28px]"
-                onClick={handleNextOrder}
+                onClick={handleBackgroundNextOrder} // ✅ Updated this line
               >
-                Next Order
+                {t("Next Order")}
               </button>
             </div>
           )}
 
           {/* FLOOR MAP */}
           {!showSuccessPanel && panelMode === "floor" && (
-            <div className="w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
+            <div className="w-full h-full flex  flex-col bg-white rounded-[28px] overflow-hidden">
               <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6 flex-shrink-0">
-                <div className="text-xl font-bold">Floor Map</div>
+                <div className="text-xl font-bold">{t("Floor Map")}</div>
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="mb-8 text-center">
-                  <div className="font-semibold mb-3 text-left">Select Persons:</div>
+                  <div className="font-semibold mb-3 text-left">{t("Select Persons:")}</div>
                   <div className="flex justify-center items-center gap-4">
                     <button onClick={() => { setPersons(p => Math.max(1, p - 1)); setPersonsGlobal(persons - 1); }} className="w-10 h-10 bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white rounded-lg text-xl">-</button>
                     <div className="w-16 h-10 border rounded-lg flex items-center justify-center font-bold">{persons}</div>
@@ -716,7 +761,7 @@ const Orders: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold mb-3">Select Floor:</div>
+                  <div className="font-semibold mb-3">{t("Select Floor:")}</div>
                   <div className="grid grid-cols-3 gap-2">
                     {floorsWithIds.map(f => (
                       <button key={f.id} onClick={() => setSelectedFloor(f.name)} className={`py-2 rounded-lg text-sm font-medium transition-colors ${selectedFloor === f.name ? 'bg-gradient-to-r from-[#8E24AA] to-[#E53935] text-white' : 'bg-gray-50 hover:bg-gray-100'}`}>
@@ -728,10 +773,10 @@ const Orders: React.FC = () => {
               </div>
               <div className="flex flex-shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
                 <button onClick={() => navigate("/table", { state: { persons, floor: selectedFloor, floorId: floorsWithIds.find(f => f.name === selectedFloor)?.id } })} className="flex-1 py-4 text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] rounded-bl-[28px] hover:opacity-90 transition-opacity">
-                  Select Table
+                  {t("Select Table")}
                 </button>
                 <button onClick={() => { startOrder({ tableId: "Quick-Table", floor: selectedFloor, persons }); setPanelMode("order"); }} className="flex-1 py-4 text-[#8E24AA] font-bold bg-white border-l hover:bg-gray-50 transition-colors rounded-br-[28px]">
-                  Quick Order
+                  {t("Quick Order")}
                 </button>
               </div>
             </div>
@@ -743,9 +788,9 @@ const Orders: React.FC = () => {
               {/* Header */}
               <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] p-5 flex justify-between items-center flex-shrink-0">
                 <div>
-                  <div className="text-xl font-bold text-gray-900">Order Summary</div>
+                  <div className="text-xl font-bold text-gray-900">{t("Order Summary")}</div>
                   <div className="text-xs font-semibold text-gray-700">
-                    Table - {currentOrder.tableId?.replace("t-", "")}
+                    {t("Table")} - {currentOrder.tableId?.replace("t-", "")}
                   </div>
                 </div>
                 <button
@@ -755,16 +800,16 @@ const Orders: React.FC = () => {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
-                  {isOrderLocked ? "Close" : "Back"}
+                  {isOrderLocked ? t("Close") : t("Back")}
                 </button>
               </div>
 
               {/* Column Headers */}
               <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 text-[11px] font-bold text-gray-800 flex-shrink-0">
-                <div className="w-8 text-left">Qty</div>
-                <div className="flex-1 text-left pl-2">Item</div>
-                <div className="w-10 text-center">Size</div>
-                <div className="w-16 text-right pr-2">Total</div>
+                <div className="w-8 text-left">{t("Qty")}</div>
+                <div className="flex-1 text-left pl-2">{t("Item")}</div>
+                <div className="w-10 text-center">{t("Size")}</div>
+                <div className="w-16 text-right pr-2">{t("Total")}</div>
               </div>
 
               {/* Items List */}
@@ -815,7 +860,7 @@ const Orders: React.FC = () => {
                         <div className="flex justify-end items-center gap-2 mt-2">
                           
                           {/* "Allergy" Tag placeholder for visual match */}
-                          <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex-1 max-w-fit">Allergy</span>
+                          <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 flex-1 max-w-fit">{t("Allergy")}</span>
 
                           <div className="flex items-center border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm h-7">
                             <button
@@ -851,12 +896,12 @@ const Orders: React.FC = () => {
               {/* Footer Summary */}
               <div className="bg-[#FDF8FA] border-t border-dashed border-gray-300 px-4 py-3 flex-shrink-0">
                 <div className="flex justify-between text-[12px] text-gray-500 mb-1">
-                  <span>Tax 6%</span>
+                  <span>{t("Tax")} 6%</span>
                   <span>{tax.toFixed(2)} XOF</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="text-[14px] font-bold text-gray-900">
-                    Subtotal <span className="text-[11px] font-medium text-gray-500">(Incl. tax)</span>
+                    {t("Subtotal")} <span className="text-[11px] font-medium text-gray-500">({t("Incl. tax")})</span>
                   </div>
                   <div className="text-[14px] font-bold text-gray-900">
                     {total.toLocaleString()} XOF
@@ -872,7 +917,7 @@ const Orders: React.FC = () => {
                     disabled={isCancelling}
                     className="w-full py-2.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-60 transition-colors border-t border-red-100"
                   >
-                    Cancel Order
+                    {t("Cancel Order")}
                   </button>
                 )}
 
@@ -881,7 +926,7 @@ const Orders: React.FC = () => {
                   disabled={!canSendToKitchen}
                   className="w-full py-3.5 text-[14px] text-white font-bold bg-[#00C853] hover:bg-[#00A844] disabled:opacity-50 transition-colors"
                 >
-                  {isSendingKitchen ? "Sending..." : isOrderSentToKitchen ? "Sent to Kitchen" : "Send to Kitchen"}
+                  {isSendingKitchen ? t("Sending...") : isOrderSentToKitchen ? t("Sent to Kitchen") : t("Send to Kitchen")}
                 </button>
 
                 <button
@@ -889,7 +934,7 @@ const Orders: React.FC = () => {
                   disabled={!canPay}
                   className="w-full py-3.5 text-[14px] text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-50 transition-opacity"
                 >
-                  {isProcessingPayment ? "Processing..." : isOrderPaid ? "Paid" : "Select Payment Option"}
+                  {isProcessingPayment ? t("Processing...") : isOrderPaid ? t("Paid") : t("Select Payment Option")}
                 </button>
               </div>
             </div>
@@ -897,19 +942,19 @@ const Orders: React.FC = () => {
 
           {/* EMPTY ORDER */}
           {!showSuccessPanel && panelMode === "order" && currentOrder && items.length === 0 && (
-            <div className="w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
+            <div className="w-full h-full shadow-[0px_0px_15px_8.5px_#0000001A] flex flex-col justify-between bg-white rounded-[28px]">
               <div className="bg-gradient-to-b from-[#8E24AA]/20 to-[#E53935]/20 p-6">
-                <div className="text-xl font-bold text-gray-800">Start Order</div>
-                <div className="text-sm text-gray-600">Table - {currentOrder.tableId?.replace("t-", "")}</div>
+                <div className="text-xl font-bold text-gray-800">{t("Start Order")}</div>
+                <div className="text-sm text-gray-600">{t("Table")} - {currentOrder.tableId?.replace("t-", "")}</div>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                <p className="text-lg">Tap items on the left to add them.</p>
+                <p className="text-lg">{t("Tap items on the left to add them.")}</p>
               </div>
               <button
                 onClick={handleBack}
                 className="w-full py-3 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border-t border-red-100"
               >
-                Cancel Order
+                {t("Cancel Order")}
               </button>
             </div>
           )}
@@ -918,12 +963,12 @@ const Orders: React.FC = () => {
           {!showSuccessPanel && panelMode === "idle" && (
             <div
               onClick={() => setPanelMode("floor")}
-              className="absolute inset-0 w-full h-full flex flex-col items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors rounded-[28px]"
+              className="absolute inset-0 w-full h-full flex flex-col shadow-[0px_0px_15px_8.5px_#0000001A] items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors rounded-[28px]"
             >
               <div className="text-2xl font-bold text-gray-400 text-center leading-relaxed pointer-events-none">
-                Tap to Select Table
+                {t("Tap to Select Table")}
                 <br />&<br />
-                Start Order
+                {t("Start Order")}
               </div>
             </div>
           )}
@@ -955,16 +1000,26 @@ const Orders: React.FC = () => {
         onConfirm={handlePaymentConfirm}
       />
 
+      {/* ✅ UPDATED READY TO PAY MODAL WITH LOADER AND GRADIENT BUTTON */}
       {showReadyToPayModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-3xl p-8 w-[400px] text-center shadow-2xl">
-            <h2 className="text-xl font-bold mb-2">Ready to Pay</h2>
-            <p className="text-sm text-gray-500 mb-6">Place the card at the payment terminal</p>
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-4 border-[#8E24AA] flex items-center justify-center text-3xl">💳</div>
-            <button onClick={() => setShowReadyToPayModal(false)} className="w-full py-3 rounded-xl bg-gray-100 font-semibold">Cancel</button>
+          <div className="bg-white rounded-3xl p-8 w-[400px] text-center shadow-2xl flex flex-col items-center">
+            <h2 className="text-xl font-bold mb-2">{t("Ready to Pay")}</h2>
+            <p className="text-sm text-gray-500 mb-8">{t("Place the card at the payment terminal")}</p>
+            
+            {/* Custom Loader */}
+            <div className="mb-8">
+              <Loader size={64} thickness={8} />
+            </div>
+
+            {/* Gradient Button replacing the gray cancel button */}
+            <GradientButton onClick={() => setShowReadyToPayModal(false)}>
+              {t("Cancel")}
+            </GradientButton>
           </div>
         </div>
       )}
+      {/* ------------------------------------------------------- */}
 
       <PaymentReceivedModal
         open={showPaymentReceivedModal}
