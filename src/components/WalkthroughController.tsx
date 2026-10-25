@@ -12,14 +12,16 @@ const driverObj = driver({
   prevBtnText: 'Back',
   doneBtnText: 'Done',
   allowKeyboardControl: true,
+  showProgress: true,
 });
 
 export const WalkthroughController: React.FC = () => {
-  const { steps, currentStep, isActive, next, back, skip, complete, trainingInstanceId } = useWalkthroughStore();
+  const { steps, currentStep, isActive, activeTraining, next, back, skip, complete, trainingInstanceId } = useWalkthroughStore();
   const location = useLocation();
   const navigate = useNavigate();
   const prevStep = useRef<number>(-1);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastInstanceIdRef = useRef<number>(trainingInstanceId);
 
   useEffect(() => {
@@ -29,15 +31,44 @@ export const WalkthroughController: React.FC = () => {
         clearTimeout(pollingTimeoutRef.current);
         pollingTimeoutRef.current = null;
       }
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
+      }
       driverObj.destroy();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isActive || steps.length === 0) return;
+
+    let animationFrame = 0;
+    const refreshPopover = () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        driverObj.refresh();
+        animationFrame = 0;
+      });
+    };
+
+    window.addEventListener('scroll', refreshPopover, true);
+    window.addEventListener('resize', refreshPopover);
+    return () => {
+      window.removeEventListener('scroll', refreshPopover, true);
+      window.removeEventListener('resize', refreshPopover);
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+    };
+  }, [isActive, steps.length, currentStep]);
 
   useEffect(() => {
     // Always clear polling before starting new one
     if (pollingTimeoutRef.current) {
       clearTimeout(pollingTimeoutRef.current);
       pollingTimeoutRef.current = null;
+    }
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
     }
     driverObj.destroy();
 
@@ -69,10 +100,36 @@ export const WalkthroughController: React.FC = () => {
       const el = document.querySelector(step.selector);
       console.log('[Walkthrough Debug] Looking for selector:', step.selector, 'Found:', !!el, 'On page:', location.pathname);
       if (el) {
-        setTimeout(() => {
+        const bounds = el.getBoundingClientRect();
+        const viewportMargin = 180;
+        if (bounds.top < viewportMargin || bounds.bottom > window.innerHeight - viewportMargin) {
+          el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+        }
+        if (step.setCategory) {
+          const categoryButton = Array.from(
+            document.querySelectorAll<HTMLElement>("[data-walkthrough-category]"),
+          ).find(
+            (button) =>
+              button.dataset.walkthroughCategory === step.setCategory,
+          );
+          const categoryValue = categoryButton?.dataset.categoryValue;
+          if (categoryValue) {
+            useWalkthroughUIStore.getState().setSelectedCategory(categoryValue);
+          }
+        }
+        highlightTimeoutRef.current = setTimeout(() => {
           console.log('[Walkthrough Debug] showStep: highlighting selector:', step.selector);
           driverObj.highlight({
             element: step.selector,
+            disableActiveInteraction:
+              activeTraining === "order" &&
+              step.selector !== ".quick-order-btn" &&
+              step.selector !== ".table-btn" &&
+              step.selector !== ".table-available" &&
+              step.selector !== ".order-history-btn" &&
+              step.selector !== ".team-chats-btn" &&
+              step.selector !== ".settings-btn" &&
+              step.selector !== ".profile-btn",
             ...(step.stageRadius !== undefined ? { stageRadius: step.stageRadius } : {}),
             ...(step.stagePadding !== undefined ? { stagePadding: step.stagePadding } : {}),
             popover: {
@@ -81,32 +138,24 @@ export const WalkthroughController: React.FC = () => {
               side: step.placement || 'bottom',
               align: step.align || 'start', // Pass align to driver.js
               popoverClass: 'driverjs-custom-popover',
+              onNextClick: () => next(),
+              onPrevClick: () => back(),
               onPopoverRender: (popover) => {
-                if (popover.description) {
-                  popover.description.onclick = null;
-                  if (!step.advanceOn || step.advanceOn === 'both' || step.advanceOn === 'description') {
-                    popover.description.style.cursor = "pointer";
-                    popover.description.onclick = () => {
-                      if (step.setCategory) {
-                        useWalkthroughUIStore.getState().setSelectedCategory(step.setCategory);
-                      }
-                      const win = window as Window & typeof globalThis & { handleSelectTable?: () => void, handleRightPanelClick?: () => void };
-                      if (step.selector === ".select-table-prompt" && typeof win.handleRightPanelClick === 'function') {
-                        win.handleRightPanelClick();
-                        useWalkthroughStore.getState().next();
-                      } else if (step.selector === ".select-table" && typeof win.handleSelectTable === 'function') {
-                        win.handleSelectTable();
-                      } else if (step.selector === ".table-btn") {
-                        navigate("/table");
-                        useWalkthroughStore.getState().next(); // Advance to next step after navigating
-                      } else {
-                        useWalkthroughStore.getState().next();
-                      }
-                    };
-                  } else {
-                    popover.description.style.cursor = "default";
+                popover.description.tabIndex = 0;
+                popover.description.setAttribute('role', 'button');
+                popover.description.setAttribute(
+                  'aria-label',
+                  'Continue walkthrough. Click, or press Enter or Space.',
+                );
+                popover.description.style.cursor = 'pointer';
+                popover.description.onclick = () => next();
+                popover.description.onkeydown = (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    next();
                   }
-                }
+                };
+                popover.nextButton.focus({ preventScroll: true });
               }
             }
           });
@@ -124,6 +173,10 @@ export const WalkthroughController: React.FC = () => {
       if (pollingTimeoutRef.current) {
         clearTimeout(pollingTimeoutRef.current);
         pollingTimeoutRef.current = null;
+      }
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = null;
       }
       driverObj.destroy();
     };

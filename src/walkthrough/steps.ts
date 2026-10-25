@@ -1,181 +1,230 @@
 import { type WalkthroughStep } from "@/store/walkthroughStore";
 
-export const trainingSteps: WalkthroughStep[] = [
-  // "click to start noting the orders"
+export const orderHistoryTrainingSteps: WalkthroughStep[] = [
+  {
+    selector: ".order-history-btn",
+    content: "Click Order History in the sidebar to review previous orders. The training tour will not create or change an order.",
+    page: "/orders",
+    placement: "right",
+    advanceOn: "ui",
+  },
+  {
+    selector: ".order-history-date-filter",
+    content: "Use the date filter to narrow the history. Click Next to see the available date ranges.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".order-history-date-dropdown",
+    content: "Choose Today, Last Week, or Last Month to review orders from that period.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".order-history-tab-all",
+    content: "All Orders shows the complete order list.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".order-history-tab-waiting",
+    content: "Preparing shows orders that are still being prepared.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".order-history-tab-served",
+    content: "Served shows orders that have been completed.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".order-history-tab-cancelled",
+    content: "Cancelled shows orders that were cancelled.",
+    page: "/order-history",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+];
+
+const orderAndHistoryTrainingSteps: WalkthroughStep[] = [
   {
     selector: ".quick-order-btn",
-    content: "click to start noting the orders",
-    page: "/",
+    content: "Quick Order is where you browse menu items and learn the order workflow.",
+    page: "/orders",
     placement: "right",
-    align: "start", // Arrow at the top-left corner
+    align: "start",
     stageRadius: 8,
     stagePadding: 0,
-    advanceOn: "ui",
-
+    advanceOn: "description",
   },
-  // "All items of bar & restaurant are here!"
   {
     selector: ".all-items-tab",
-    content: "All items of bar & restaurant are here!",
+    content: "Browse all available food and drinks here. Click Next to continue to the food categories.",
     page: "/orders",
     placement: "bottom",
     align: "start",
     stageRadius: 8,
     stagePadding: 0,
-    advanceOn: 'both',
+    advanceOn: "description",
     setCategory: 'all',
   },
   {
     selector: ".burgers-tab",
-    content: "Only Main Courses are listed here",
+    content: "Menu tabs filter the list. This tab shows burger items.",
     page: "/orders",
     placement: "bottom",
     align: "start",
     stageRadius: 8,
     stagePadding: 0,
-    advanceOn: 'both',
-    setCategory: 'Burger',
-  },
-
-  // {
-  //   selector: ".crispy-tab",
-  //   content: "All Crispy items are listed here",
-  //   page: "/orders",
-  //   placement: "bottom",
-  //   align: "start",
-  //   stageRadius: 8,
-  //   stagePadding: 0,
-  //   advanceOn: 'both',
-  //   setCategory: 'Crispy',
-  // },
-  {
-    selector: ".nuggets-tab",
-    content: "All Nuggets are listed here",
-    page: "/orders",
-    placement: "bottom",
-    align: "start",
-    stageRadius: 8,
-    stagePadding: 0,
-    advanceOn: 'both',
-    setCategory: 'Nugget',
+    advanceOn: "description",
+    setCategory: "burger",
   },
   {
     selector: ".beverages-tab",
-    content: "All Beverages are listed here",
+    content: "Use the category tabs to browse beverages and other menu items.",
     page: "/orders",
     placement: "bottom",
     align: "start",
     stageRadius: 8,
     stagePadding: 0,
-    advanceOn: 'both',
-    setCategory: 'Beverage',
+    advanceOn: "description",
+    setCategory: "beverage",
   },
-  // "Tap to Select Table & Start Order"
   {
     selector: ".select-table-prompt",
-    content: "Tap to Select Table & Start Order",
+    content: "In a real order, choose this area to select a table. Click Next to view the table screen; training will not create an order.",
     page: "/orders",
-    placement: "top",
-    advanceOn: "both"
-  },
-  {
-    selector: ".person-floor-panel",
-    content: "Select number of people & the floor",
-    page: "/orders",
-    placement: "top",
-    advanceOn: "ui"
+    placement: "left",
+    align: "center",
+    advanceOn: "description",
   },
   {
     selector: ".table-available",
-    content: "Select the table based on the availability!",
+    content: "Click this table, click Next, or press Enter to continue. Training will not select or change a real table.",
     page: "/table",
     placement: "top",
-    advanceOn: "ui"
+    align: "center",
+    advanceOn: "ui",
+  },
+  {
+    selector: ".table-btn",
+    content: "Use Table in the sidebar to manage tables and reservations. Click it to continue.",
+    page: "/table",
+    placement: "right",
+    align: "start",
+    advanceOn: "description",
+  },
+  {
+    selector: ".table-tab-all",
+    content: "All restaurant tables are listed here.",
+    page: "/table",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".table-tab-served",
+    content: "View tables that have been served.",
+    page: "/table",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".table-tab-waiting",
+    content: "View tables that are waiting.",
+    page: "/table",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".table-tab-reserved",
+    content: "View reserved tables. The training tour will not select or change any table.",
+    page: "/table",
+    placement: "bottom",
+    advanceOn: "description",
   },
   {
     selector: ".order-item-first",
-    content: "Select an item from Customers choice",
+    content: "In a real order, choosing a menu item adds it to the order summary. This preview uses sample data only.",
     page: "/orders",
     placement: "bottom",
-    advanceOn: "ui"
+    advanceOn: "description",
   },
   {
     selector: ".order-item-second",
-    content: "Add more items by selecting the customers choice",
+    content: "You can add more items to the same order. Continue the tour to see another example.",
     page: "/orders",
     placement: "bottom",
-    advanceOn: "ui"
+    advanceOn: "description",
   },
   {
     selector: ".order-item-third",
-    content: "Add more items by selecting the customers choice",
+    content: "The selected items appear together in the order summary.",
     page: "/orders",
     placement: "bottom",
-    advanceOn: "ui"
+    advanceOn: "description",
   },
   {
-    selector: ".order-summary-panel",// this is the order summary panel in right side of the screen
-    content: "Check the Order Summary, add items on customer wish",
+    selector: ".order-summary-panel",
+    content: "Review the items and total here before proceeding.",
     page: "/orders",
     placement: "left",
-    advanceOn: "description"
+    advanceOn: "description",
   },
   {
     selector: ".select-payment-btn",
-    content: "Click here to initiate Payment",
+    content: "This button opens the payment choices in a real order. In training, use Next to preview them.",
     page: "/orders",
-    placement: "bottom",
-    advanceOn: "ui"
+    placement: "top",
+    advanceOn: "description",
   },
   {
-    selector: ".order-summary-modal", // this is the order summary modal open in the center of the screen when the payment is initiated
-    content: "choose payment option",
+    selector: ".order-summary-modal",
+    content: "Choose from the available payment methods. These are sample options only.",
     page: "/orders",
-    placement: "bottom",
-    advanceOn: "description"
+    placement: "left",
+    advanceOn: "description",
   },
   {
     selector: ".choose-payment-btn",
-    content: "Select the Payment Method",
-    page: "/orders",
-    placement: "bottom",
-    advanceOn: "ui"
-  },
-  {
-    selector: ".ready-to-scan-modal",
-    content: "Display this scanner & Wait until they Pay",
+    content: "After choosing a method, this is where payment would be confirmed. No payment is made in training.",
     page: "/orders",
     placement: "top",
-    advanceOn: "ui"
+    advanceOn: "description",
   },
   {
     selector: ".ready-to-pay-modal",
-    content: "Display the Machine & Wait until they Pay",
+    content: "A real order would wait for payment here. This is a training-only preview.",
     page: "/orders",
-    placement: "top",
-    advanceOn: "ui"
+    placement: "bottom",
+    advanceOn: "description",
   },
   {
     selector: ".payment-done-modal",
-    content: "Acknowledgement once payment done",
+    content: "This screen confirms payment in the real workflow. No transaction occurred in this tour.",
     page: "/orders",
-    placement: "top",
-    advanceOn: "ui"
+    placement: "bottom",
+    advanceOn: "description",
   },
   {
     selector: ".order-sent-panel",
-    content: "Order Created & Start new order",
+    content: "This is the final order confirmation screen. The training tour uses sample data and does not create an order.",
     page: "/orders",
-    placement: "top",
-    advanceOn: "ui"
+    placement: "left",
+    advanceOn: "description",
   },
-
+  ...orderHistoryTrainingSteps,
 ];
 
 export const tableTrainingSteps: WalkthroughStep[] = [  {
     selector: ".table-btn",
     content: "click to Manage Tables and Reservations !",
-    page: "/",
+    page: "/orders",
     placement: "right",
     align: "start", // Arrow at the top-left corner
     stageRadius: 8,
@@ -213,63 +262,11 @@ export const tableTrainingSteps: WalkthroughStep[] = [  {
   },
 ];
 
-export const orderHistoryTrainingSteps: WalkthroughStep[] = [
-  {
-    selector: ".order-history-btn",
-    content: "Click to check the Order History !",
-    page: "/",
-    placement: "right",
-    advanceOn: "ui",
-  },
-  {
-    selector: ".order-history-date-filter",
-    content: "Click to open the date filter",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "ui",
-  },
-  {
-    selector: ".order-history-date-dropdown",
-    content: "Filter helps you to check the history of orders",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "description",
-  },
-  {
-    selector: ".order-history-tab-all",
-    content: "Filter helps you to check the status of all orders",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "description",
-  },
-  {
-    selector: ".order-history-tab-served",
-    content: "Filter helps you to check the status of all orders",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "description",
-  },
-  {
-    selector: ".order-history-tab-waiting",
-    content: "Filter helps you to check the status of all orders",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "description",
-  },
-  {
-    selector: ".order-history-tab-reserved",
-    content: "Filter helps you to check the status of all orders",
-    page: "/order-history",
-    placement: "bottom",
-    advanceOn: "description",
-  },
-];
-
 export const teamChatTrainingSteps: WalkthroughStep[] = [
   {
     selector: ".team-chats-btn",
     content: "Communicate with other employee efficiently !",
-    page: "/",
+    page: "/orders",
     placement: "right",
     advanceOn: "ui",
   },
@@ -294,7 +291,7 @@ export const settingsTrainingSteps: WalkthroughStep[] = [
   {
     selector: ".settings-btn",
     content: "Click here to open Settings!",
-    page: "/",
+    page: "/orders",
     placement: "right",
     advanceOn: "ui",
   },
@@ -381,7 +378,7 @@ export const profileTrainingSteps: WalkthroughStep[] = [
   {
     selector: ".profile-btn",
     content: "Click here to open your Profile!",
-    page: "/",
+    page: "/orders",
     placement: "right",
     advanceOn: "ui",
   },
@@ -422,4 +419,57 @@ export const profileTrainingSteps: WalkthroughStep[] = [
     advanceOn: "description",
   },
  
+];
+
+export const trainingSteps: WalkthroughStep[] = [
+  ...orderAndHistoryTrainingSteps,
+  {
+    selector: ".team-chats-btn",
+    content: "Team Chats lets you communicate with your coworkers. Click the sidebar item to continue.",
+    page: "/orders",
+    placement: "right",
+    advanceOn: "ui",
+  },
+  {
+    selector: ".team-chat-left-panel",
+    content: "Your team conversations appear here. This training preview will not open a chat or send a message.",
+    page: "/team-chats",
+    placement: "right",
+    advanceOn: "description",
+  },
+  {
+    selector: ".settings-btn",
+    content: "Open Settings to review your account options.",
+    page: "/orders",
+    placement: "right",
+    advanceOn: "ui",
+  },
+  {
+    selector: ".settings-personal-info",
+    content: "Personal Info is where you can review your employee profile details.",
+    page: "/settings",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".settings-notifications",
+    content: "Notification settings help you choose which updates you receive.",
+    page: "/settings",
+    placement: "bottom",
+    advanceOn: "description",
+  },
+  {
+    selector: ".profile-btn",
+    content: "Click your profile menu to continue to your Profile.",
+    page: "/orders",
+    placement: "bottom",
+    advanceOn: "ui",
+  },
+  {
+    selector: ".profile-highlight",
+    content: "This is your Profile, where you can review your personal and work information. Click Done to finish training.",
+    page: "/profile",
+    placement: "top",
+    advanceOn: "description",
+  },
 ];

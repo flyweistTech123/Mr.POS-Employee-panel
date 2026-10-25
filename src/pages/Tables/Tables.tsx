@@ -8,6 +8,7 @@ import {
 } from "@/redux/api/quickOrderSlice";
 import { useCreateWaitlistMutation } from "@/redux/api/waitlistSlice";
 import { useOrderFlowStore } from "@/store/zustandStores";
+import { useWalkthroughStore } from "@/store/walkthroughStore";
 import WaitlistDrawer from "@/components/common/WaitlistDrawer";
 import ReserveTableModal from "@/components/common/ReserveTableModal";
 import EditFloorPlan from "@/components/common/EditFloorPlan";
@@ -141,7 +142,7 @@ const FloorPlanCanvas: React.FC<{
         minHeight: 320,
       }}
     >
-      {tables.map((t_item) => {
+      {tables.map((t_item, index) => {
         const { x = 0, y = 0, width = 120, height = 90, rotation = 0 } =
           t_item.layout ?? {};
         const status = resolveStatus(t_item, activeStatus);
@@ -153,7 +154,7 @@ const FloorPlanCanvas: React.FC<{
             key={t_item.Table_id}
             onClick={() => onSelect(t_item)}
             disabled={busy}
-            className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${statusBorder(
+            className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${index === 0 ? "table-available" : ""} ${statusBorder(
               status
             )} ${busy ? "opacity-50 pointer-events-none" : ""}`}
             style={{
@@ -226,6 +227,9 @@ const TableSlot: React.FC<{
 const TablePage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation(); // ✅ Added i18n hook
+  const isOrderTraining = useWalkthroughStore(
+    (state) => state.isActive && state.activeTraining === "order",
+  );
   const [activeStatus, setActiveStatus] = useState<StatusValue>("All");
 
   // ✅ Moved inside component so it re-renders on language change
@@ -311,6 +315,13 @@ const TablePage: React.FC = () => {
   /* ------------------------------------------------------------------ */
 
   const handleTableSelect = (table: any) => {
+    if (isOrderTraining) {
+      const walkthrough = useWalkthroughStore.getState();
+      if (walkthrough.steps[walkthrough.currentStep]?.selector === ".table-available") {
+        walkthrough.next();
+      }
+      return;
+    }
     navigate("/orders", {
       state: { tableId: table.Table_id, floor: globalFloor },
     });
@@ -383,6 +394,14 @@ const TablePage: React.FC = () => {
                   activeStatus === value
                     ? "bg-white text-black shadow-sm"
                     : "text-gray-500 hover:text-gray-800"
+                } ${
+                  value === "All"
+                    ? "table-tab-all"
+                    : value === "Served"
+                      ? "table-tab-served"
+                      : value === "Waiting"
+                        ? "table-tab-waiting"
+                        : "table-tab-reserved"
                 }`}
               >
                 {label}
@@ -479,7 +498,7 @@ const TablePage: React.FC = () => {
             <div className="flex flex-col gap-0 items-center w-full min-w-0">
               {groupedRows.map((rowTables, rowIndex) => (
                 <AutoScrollRow key={rowIndex}>
-                  {rowTables.map((table: any) => {
+                  {rowTables.map((table: any, tableIndex) => {
                     const status = resolveStatus(table, activeStatus);
                     const capacity = table.Capacity ?? 2;
                     const size = getSizeFromCapacity(capacity);
@@ -490,6 +509,8 @@ const TablePage: React.FC = () => {
                         key={table.Table_id}
                         onClick={() => onSelect(table)}
                         className={`cursor-pointer transition-transform hover:scale-105 snap-start ${
+                          rowIndex === 0 && tableIndex === 0 ? "table-available" : ""
+                        } ${
                           busy ? "opacity-50 pointer-events-none" : ""
                         }`}
                         title={`${tableLabel(table)} · ${t('Cap')} ${capacity}`}

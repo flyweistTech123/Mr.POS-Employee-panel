@@ -16,6 +16,7 @@ import saleperfomance from '@/assets/sidebar/sp.png';
 
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
+import { useWalkthroughStore } from '@/store/walkthroughStore';
 
 // NOTE: Removed the static arrays from here and moved them inside the component
 
@@ -26,6 +27,15 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const location = useLocation();
   const { t } = useTranslation(); // <-- Initialize translation hook
+  const { isActive: isWalkthroughActive, activeTraining, steps, currentStep, next } =
+    useWalkthroughStore();
+  const isOrderTraining = isWalkthroughActive && activeTraining === 'order';
+  const isTableTrainingStep =
+    isOrderTraining && steps[currentStep]?.selector === '.table-btn';
+  const isOrderHistoryTrainingStep =
+    isOrderTraining && steps[currentStep]?.selector === '.order-history-btn';
+  const isCurrentTrainingStep = (selector: string) =>
+    isWalkthroughActive && steps[currentStep]?.selector === selector;
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   // Selected (active) button style
@@ -90,8 +100,32 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
             <Link
               key={item.path} // <-- Changed key to path to avoid issues if translations duplicate
               to={item.path}
+              onClick={(event) => {
+                if (
+                  item.path === '/orders' &&
+                  isOrderTraining &&
+                  steps[currentStep]?.selector === '.quick-order-btn'
+                ) {
+                  event.preventDefault();
+                  next();
+                } else if (item.path === '/table' && isTableTrainingStep) {
+                  event.preventDefault();
+                  next();
+                } else if (item.path === '/order-history' && isOrderHistoryTrainingStep) {
+                  event.preventDefault();
+                  next();
+                }
+              }}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses
+              } ${
+                isOrderTraining && item.path === '/orders'
+                  ? 'quick-order-btn'
+                  : isTableTrainingStep && item.path === '/table'
+                    ? 'table-btn'
+                    : isOrderHistoryTrainingStep && item.path === '/order-history'
+                      ? 'order-history-btn'
+                    : ''
               }`}
             >
               {renderIcon(item, isActive(item.path))}
@@ -108,9 +142,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
             <Link
               key={item.path} // <-- Changed key to path
               to={item.path}
+              onClick={(event) => {
+                if (item.path === '/team-chats' && isCurrentTrainingStep('.team-chats-btn')) {
+                  event.preventDefault();
+                  next();
+                }
+              }}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses
-              }`}
+              } ${isCurrentTrainingStep('.team-chats-btn') && item.path === '/team-chats' ? 'team-chats-btn' : ''}`}
             >
               {renderIcon(item, isActive(item.path))}
               <span className="text-sm leading-tight">{item.label}</span>
@@ -141,9 +181,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={(event) => {
+                if (item.path === '/settings' && isCurrentTrainingStep('.settings-btn')) {
+                  event.preventDefault();
+                  next();
+                }
+              }}
               className={`flex items-center gap-4 px-4 py-3 rounded-full font-medium transition-all duration-200 ${
                 isActive(item.path) ? selectedClasses : defaultClasses
-              }`}
+              } ${item.path === '/settings' && isCurrentTrainingStep('.settings-btn') ? 'settings-btn' : ''}`}
             >
               {renderIcon(item, isActive(item.path))}
               <span className="text-sm">{item.label}</span>

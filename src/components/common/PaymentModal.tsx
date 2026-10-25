@@ -31,7 +31,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose, onConfirm, t
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white rounded-2xl w-[420px] max-w-full shadow-xl overflow-hidden relative z-10 flex flex-col">
+      <div className="order-summary-modal bg-white rounded-2xl w-[420px] max-w-full shadow-xl overflow-hidden relative z-10 flex flex-col">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <div className="text-2xl font-bold text-left">Payment Options</div>
           <button className="text-2xl font-bold text-gray-500" onClick={onClose}>&times;</button>
@@ -72,7 +72,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose, onConfirm, t
         
         <div className="flex flex-col gap-3 px-6 pb-6 pt-2 border-t">
           <button
-            className="w-full py-3 rounded-xl text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#D32F2F] shadow-md hover:opacity-90 transition-all disabled:opacity-50"
+            className="choose-payment-btn w-full py-3 rounded-xl text-lg font-semibold text-white bg-gradient-to-r from-[#8E24AA] to-[#D32F2F] shadow-md hover:opacity-90 transition-all disabled:opacity-50"
             disabled={!selectedId}
             onClick={() => {
               if (selectedId) {

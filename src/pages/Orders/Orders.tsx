@@ -30,6 +30,7 @@ import { LuTrash2 } from "react-icons/lu";
 // ✅ ADDED IMPORTS FOR READY TO PAY MODAL
 import Loader from "@/components/Loader";
 import GradientButton from "@/components/common/GradientButton";
+import { useWalkthroughStore } from "@/store/walkthroughStore";
 
 import successIcon from "@/assets/order/success_icon_large.svg";
 
@@ -51,7 +52,7 @@ const PaymentReceivedModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="payment-done-modal fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       {/* ✅ ADDED relative HERE FOR THE CLOSE BUTTON */}
       <div className="relative bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
         
@@ -211,6 +212,11 @@ const Orders: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const trainingPreviewSelector = useWalkthroughStore((state) =>
+    state.isActive && state.activeTraining === "order"
+      ? state.steps[state.currentStep]?.selector
+      : undefined,
+  );
 
   const [activeMode, setActiveMode] = useState<"Food" | "Bar">("Food");
   const [showBarTabScreen, setShowBarTabScreen] = useState(false);
@@ -277,12 +283,42 @@ const Orders: React.FC = () => {
 
   const categories = useMemo(() => {
     const apiCats =
-      itemTypesData?.data?.map((t_item: any) => ({
-        label: t(t_item.Name), 
-        value: t_item.Items_types_id.toString(),
-        icon: t_item.emozi,
-      })) || [];
-    return [{ label: t("All Items"), value: "all", icon: null }, ...apiCats];
+      itemTypesData?.data?.map((t_item: any, index: number) => {
+        const name = String(t_item.Name ?? "").toLowerCase();
+        const walkthroughCategory = name.includes("burger") || name.includes("main course")
+          ? "burger"
+          : name.includes("nugget")
+            ? "nugget"
+            : name.includes("beverage") || name.includes("drink")
+              ? "beverage"
+              : index === 0
+                ? "burger"
+                : index === 1
+                  ? "beverage"
+                  : "";
+
+        return {
+          label: t(t_item.Name),
+          value: t_item.Items_types_id.toString(),
+          icon: t_item.emozi,
+          walkthroughCategory,
+          walkthroughClass:
+            walkthroughCategory === "burger"
+              ? "burgers-tab"
+              : walkthroughCategory === "nugget"
+                ? "nuggets-tab"
+                : walkthroughCategory === "beverage"
+                  ? "beverages-tab"
+                  : "",
+        };
+      }) || [];
+    return [{
+      label: t("All Items"),
+      value: "all",
+      icon: null,
+      walkthroughCategory: "all",
+      walkthroughClass: "all-items-tab",
+    }, ...apiCats];
   }, [itemTypesData, t]);
 
   useEffect(() => {
@@ -313,27 +349,66 @@ const Orders: React.FC = () => {
     return menuItems.filter((i: any) => i.itemType === selectedCategory);
   }, [selectedCategory, menuItems]);
 
-  const items = currentOrder?.items || [];
+  const isOrderTrainingPreview = [
+    ".order-item-first",
+    ".order-item-second",
+    ".order-item-third",
+    ".order-summary-panel",
+    ".select-payment-btn",
+    ".order-summary-modal",
+    ".choose-payment-btn",
+    ".ready-to-pay-modal",
+    ".payment-done-modal",
+    ".order-sent-panel",
+  ].includes(trainingPreviewSelector ?? "");
+  const showTrainingSampleItems =
+    trainingPreviewSelector !== ".order-item-first" &&
+    isOrderTrainingPreview;
+  const trainingItems = useMemo(
+    () =>
+      menuItems.slice(0, showTrainingSampleItems ? 3 : 0).map(
+        (item: any) => ({
+          itemId: item.itemId,
+          name: item.name,
+          price: Number(item.price) || 0,
+          quantity: 1,
+          size: "M",
+          itemType: item.itemTypeName,
+          categoryName: item.itemTypeName,
+          image: item.image,
+        }),
+      ),
+    [menuItems, showTrainingSampleItems],
+  );
+  const items = isOrderTrainingPreview
+    ? trainingItems
+    : currentOrder?.items || [];
   const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = Math.round(subTotal * 0.06);
   const total = currentOrder?.serverTotal ?? subTotal + tax;
 
   const isOrderPaid =
-    currentOrder?.orderStatus === "Completed" || currentOrder?.paymentStatus === "Success";
+    !isOrderTrainingPreview &&
+    (currentOrder?.orderStatus === "Completed" ||
+      currentOrder?.paymentStatus === "Success");
   const isOrderSentToKitchen =
-    currentOrder?.orderStatus === "In_Kitchen" ||
-    currentOrder?.orderStatus === "Cooking" ||
-    currentOrder?.orderStatus === "Ready";
+    !isOrderTrainingPreview &&
+    (currentOrder?.orderStatus === "In_Kitchen" ||
+      currentOrder?.orderStatus === "Cooking" ||
+      currentOrder?.orderStatus === "Ready");
 
   const isOrderLocked = isOrderSentToKitchen || isOrderPaid;
-  const canCancel = !!currentOrder && items.length > 0 && !isOrderPaid && !isCancelling;
+  const canCancel = !isOrderTrainingPreview && !!currentOrder && items.length > 0 && !isOrderPaid && !isCancelling;
   const canSendToKitchen =
-    !!currentOrder && items.length > 0 && !isOrderLocked && !isSendingKitchen;
-  const canPay = !!currentOrder && items.length > 0 && !isOrderPaid && !isProcessingPayment;
+    !isOrderTrainingPreview && !!currentOrder && items.length > 0 && !isOrderLocked && !isSendingKitchen;
+  const canPay = !isOrderTrainingPreview && !!currentOrder && items.length > 0 && !isOrderPaid && !isProcessingPayment;
 
-  const showSuccessPanel = isOrderPaid;
+  const showSuccessPanel =
+    isOrderPaid || trainingPreviewSelector === ".order-sent-panel";
   const showOrderSummary =
-    !isOrderPaid && panelMode === "order" && currentOrder && items.length > 0;
+    !isOrderPaid &&
+    (isOrderTrainingPreview || (panelMode === "order" && currentOrder)) &&
+    items.length > 0;
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, OrderItem[]> = {};
@@ -352,6 +427,17 @@ const Orders: React.FC = () => {
       showToast(`${t("Added")} ${pendingCustomizedItem.name} ${t("to order!")}`, "success");
     }
   }, [pendingCustomizedItem, currentOrder, addItemToOrder, clearPendingCustomizedItem, t]);
+
+  useEffect(() => {
+    setShowPaymentModal(
+      trainingPreviewSelector === ".order-summary-modal" ||
+        trainingPreviewSelector === ".choose-payment-btn",
+    );
+    setShowReadyToPayModal(trainingPreviewSelector === ".ready-to-pay-modal");
+    setShowPaymentReceivedModal(
+      trainingPreviewSelector === ".payment-done-modal",
+    );
+  }, [trainingPreviewSelector]);
 
   useEffect(() => {
     const navState = location.state as { tableId?: number; floor?: string; persons?: number };
@@ -373,6 +459,7 @@ const Orders: React.FC = () => {
   }, [location.state]);
 
   const handleAddToCart = (item: any) => {
+    if (isOrderTrainingPreview) return;
     if (isOrderLocked) {
       showToast(
         isOrderPaid
@@ -490,6 +577,7 @@ const Orders: React.FC = () => {
   };
 
   const handleSendToKitchen = async () => {
+    if (isOrderTrainingPreview) return;
     if (isOrderPaid) return showToast(t("This order is already paid."), "error");
     if (isOrderSentToKitchen) return showToast(t("This order has already been sent."), "info");
     if (items.length === 0) return showToast(t("Add items before sending."), "error");
@@ -527,6 +615,7 @@ const Orders: React.FC = () => {
   };
 
   const handlePaymentInitiation = async () => {
+    if (isOrderTrainingPreview) return;
     if (isOrderPaid) return showToast(t("This order is already paid."), "info");
     if (items.length === 0) return showToast(t("Add items before paying."), "error");
     if (isProcessingPayment) return;
@@ -544,6 +633,7 @@ const Orders: React.FC = () => {
   };
 
   const handlePaymentConfirm = async (result: { option: string; paymentOptionId: number }) => {
+    if (isOrderTrainingPreview) return;
     setShowPaymentModal(false);
     setShowReadyToPayModal(true);
 
@@ -591,6 +681,7 @@ const Orders: React.FC = () => {
 
   // ✅ FIXED: Only hide the modal. Keeps the Success Panel (Image 2) visible in the background.
   const handleNextOrder = () => {
+    if (isOrderTrainingPreview) return;
     setShowKitchenSuccess(false);
     setShowPaymentReceivedModal(false);
     setShowReceiptModal(false);
@@ -606,6 +697,7 @@ const Orders: React.FC = () => {
 
   // ✅ NEW: Triggered ONLY when clicking "Next Order" on the background Success Panel
   const handleBackgroundNextOrder = () => {
+    if (isOrderTrainingPreview) return;
     resetOrder();
     setShowKitchenSuccess(false);
     setShowPaymentReceivedModal(false);
@@ -671,11 +763,13 @@ const Orders: React.FC = () => {
                 <button
                   key={c.value}
                   onClick={() => setSelectedCategory(c.value)}
+                  data-walkthrough-category={c.walkthroughCategory}
+                  data-category-value={c.value}
                   className={`flex items-center gap-2 px-5 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-all duration-200 ${
                     isActive
                       ? "bg-white text-gray-900 shadow-sm border border-gray-100/50"
                       : "text-gray-500 hover:bg-gray-200/50"
-                  }`}
+                  } ${c.walkthroughClass}`}
                 >
                   {c.icon && <span className="text-base leading-none">{c.icon}</span>}
                   <span>{c.label}</span>
@@ -699,12 +793,20 @@ const Orders: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {filteredItems.map((item: any) => (
+                {filteredItems.map((item: any, index: number) => (
                   <div
                     key={item.itemId}
                     onClick={() => handleAddToCart(item)}
                     className={`bg-white shadow-lg rounded-2xl p-3 flex flex-col items-center cursor-pointer hover:shadow-md transition-shadow ${
                       isOrderLocked ? "opacity-60 cursor-not-allowed" : ""
+                    } ${
+                      isOrderTrainingPreview && index === 0
+                        ? "order-item-first"
+                        : isOrderTrainingPreview && index === 1
+                          ? "order-item-second"
+                          : isOrderTrainingPreview && index === 2
+                            ? "order-item-third"
+                            : ""
                     }`}
                   >
                     <img src={item.image} alt={item.name} className="w-20 h-20 rounded-[12px] object-contain mb-2" />
@@ -721,7 +823,7 @@ const Orders: React.FC = () => {
         <div className="w-[340px]  bg-white rounded-[28px] shadow-sm overflow-hidden relative flex flex-col">
           {/* SUCCESS PANEL */}
           {showSuccessPanel && (
-            <div className="w-full h-full  flex flex-col justify-between bg-white rounded-[28px]">
+            <div className="order-sent-panel w-full h-full flex flex-col justify-between bg-white rounded-[28px]">
               <div className="bg-[#F5F5F5] rounded-t-[28px] p-6 w-full text-left">
                 <div className="text-2xl font-bold text-gray-800"># {currentOrder?.orderId || "108"}</div>
                 <div className="flex justify-between mt-1">
@@ -784,13 +886,13 @@ const Orders: React.FC = () => {
 
           {/* EXACT ORDER SUMMARY MATCHING THE IMAGE */}
           {showOrderSummary && (
-            <div className="w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
+            <div className="order-summary-panel w-full h-full flex flex-col bg-white rounded-[28px] overflow-hidden">
               {/* Header */}
               <div className="bg-gradient-to-r from-[#D8B4E2] to-[#F4A2A2] p-5 flex justify-between items-center flex-shrink-0">
                 <div>
                   <div className="text-xl font-bold text-gray-900">{t("Order Summary")}</div>
                   <div className="text-xs font-semibold text-gray-700">
-                    {t("Table")} - {currentOrder.tableId?.replace("t-", "")}
+                    {t("Table")} - {currentOrder?.tableId?.replace("t-", "") || (isOrderTrainingPreview ? "04" : "")}
                   </div>
                 </div>
                 <button
@@ -932,7 +1034,7 @@ const Orders: React.FC = () => {
                 <button
                   onClick={handlePaymentInitiation}
                   disabled={!canPay}
-                  className="w-full py-3.5 text-[14px] text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-50 transition-opacity"
+                  className="select-payment-btn w-full py-3.5 text-[14px] text-white font-bold bg-gradient-to-r from-[#8E24AA] to-[#E53935] disabled:opacity-50 transition-opacity"
                 >
                   {isProcessingPayment ? t("Processing...") : isOrderPaid ? t("Paid") : t("Select Payment Option")}
                 </button>
@@ -960,10 +1062,10 @@ const Orders: React.FC = () => {
           )}
 
           {/* IDLE */}
-          {!showSuccessPanel && panelMode === "idle" && (
+          {!showSuccessPanel && panelMode === "idle" && !isOrderTrainingPreview && (
             <div
               onClick={() => setPanelMode("floor")}
-              className="absolute inset-0 w-full h-full flex flex-col shadow-[0px_0px_15px_8.5px_#0000001A] items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors rounded-[28px]"
+              className="select-table-prompt absolute inset-0 w-full h-full flex flex-col shadow-[0px_0px_15px_8.5px_#0000001A] items-center justify-center cursor-pointer bg-white z-50 hover:bg-gray-50 transition-colors rounded-[28px]"
             >
               <div className="text-2xl font-bold text-gray-400 text-center leading-relaxed pointer-events-none">
                 {t("Tap to Select Table")}
@@ -1002,7 +1104,7 @@ const Orders: React.FC = () => {
 
       {/* ✅ UPDATED READY TO PAY MODAL WITH LOADER AND GRADIENT BUTTON */}
       {showReadyToPayModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="ready-to-pay-modal fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-white rounded-3xl p-8 w-[400px] text-center shadow-2xl flex flex-col items-center">
             <h2 className="text-xl font-bold mb-2">{t("Ready to Pay")}</h2>
             <p className="text-sm text-gray-500 mb-8">{t("Place the card at the payment terminal")}</p>

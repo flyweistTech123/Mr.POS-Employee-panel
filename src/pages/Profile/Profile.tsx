@@ -12,7 +12,14 @@ const Profile: React.FC = () => {
   const { t } = useTranslation(); // ✅ Added i18n hook
 
   const isMobile = useMediaQuery('(max-width: 1023px)');
-  const { settingsHighlight, setSettingsHighlight } = useWalkthroughStore();
+  const {
+    settingsHighlight,
+    setSettingsHighlight,
+    isActive: isWalkthroughActive,
+    activeTraining,
+    steps,
+    currentStep,
+  } = useWalkthroughStore();
   const navigate = useNavigate();
   
   // Fetch the data from the API
@@ -31,6 +38,10 @@ const Profile: React.FC = () => {
 
   const forceSecurityTab = settingsHighlight === 'security';
   const forceWorkTab = settingsHighlight === 'work';
+  const isTrainingProfileStep =
+    isWalkthroughActive &&
+    activeTraining === 'order' &&
+    steps[currentStep]?.selector === '.profile-highlight';
 
   if (isLoading) {
     return <Loader />;
@@ -79,15 +90,15 @@ const Profile: React.FC = () => {
 
   return (
     <div 
-      className={
-        settingsHighlight === 'profile'
+      className={[
+        settingsHighlight === 'profile' || isTrainingProfileStep
           ? 'profile-highlight'
           : settingsHighlight === 'security'
-          ? 'security-highlight'
-          : settingsHighlight === 'work'
-          ? 'work-highlight'
-          : ''
-      }
+            ? 'security-highlight'
+            : settingsHighlight === 'work'
+              ? 'work-highlight'
+              : '',
+      ].filter(Boolean).join(' ')}
     >
       {isMobile ? (
         <ProfileMobile 

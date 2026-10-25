@@ -61,7 +61,14 @@ const OrderHistory = () => {
     activeTraining,
     completedTrainings,
     startTraining,
+    isActive: isWalkthroughActive,
+    steps: walkthroughSteps,
+    currentStep: walkthroughStep,
   } = useWalkthroughStore();
+  const showTrainingDateDropdown =
+    isWalkthroughActive &&
+    activeTraining === 'order' &&
+    walkthroughSteps[walkthroughStep]?.selector === '.order-history-date-dropdown';
 
   const dateRange = getDateRange(dateFilter);
   const page = 1;
@@ -196,7 +203,7 @@ const OrderHistory = () => {
           {/* 1. Date Filter Dropdown */}
           <div className="relative">
             <div
-              className="bg-[#F3F4F6] rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer min-w-[110px] justify-between transition-colors hover:bg-gray-200"
+              className="order-history-date-filter bg-[#F3F4F6] rounded-full px-5 py-2 flex items-center gap-3 cursor-pointer min-w-[110px] justify-between transition-colors hover:bg-gray-200"
               onClick={() => setShowDateDropdown(!showDateDropdown)}
             >
               <span className="text-[13px] font-medium text-black">
@@ -216,8 +223,8 @@ const OrderHistory = () => {
                 />
               </svg>
             </div>
-            {showDateDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg z-20 p-1 border border-gray-100">
+            {(showDateDropdown || showTrainingDateDropdown) && (
+              <div className="order-history-date-dropdown absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg z-20 p-1 border border-gray-100">
                 {['Today', 'Last Week', 'Last Month', 'Reset'].map((option) => (
                   <button
                     key={option}
@@ -241,10 +248,18 @@ const OrderHistory = () => {
               const isActive =
                 (option === 'All Orders' && statusFilter === '') ||
                 (option !== 'All Orders' && statusFilter === option);
+              const walkthroughStatusClass =
+                option === 'All Orders'
+                  ? 'order-history-tab-all'
+                  : option === 'Preparing'
+                    ? 'order-history-tab-waiting'
+                    : option === 'Served'
+                      ? 'order-history-tab-served'
+                        : 'order-history-tab-cancelled';
               return (
                 <button
                   key={option}
-                  className={`px-5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200 ${
+                  className={`${walkthroughStatusClass} px-5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-white text-black shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'

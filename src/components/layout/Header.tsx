@@ -123,6 +123,9 @@ const Header: React.FC = () => {
     (s: RootState) => s.auth.user as HeaderUser | null,
   );
   const nextWalkthroughStep = useWalkthroughStore((s) => s.next);
+  const isProfileWalkthroughStep = useWalkthroughStore(
+    (s) => s.isActive && s.steps[s.currentStep]?.selector === '.profile-btn',
+  );
 
   /* ---------------- Derived user ---------------- */
   const displayName = useMemo(() => {
@@ -190,7 +193,11 @@ const Header: React.FC = () => {
   const profileRef = useClickOutside<HTMLDivElement>(closeProfile, profileOpen);
 
   const handleProfileToggle = useCallback(() => {
-    nextWalkthroughStep();
+    const walkthrough = useWalkthroughStore.getState();
+    if (walkthrough.isActive && walkthrough.steps[walkthrough.currentStep]?.selector === '.profile-btn') {
+      nextWalkthroughStep();
+      return;
+    }
     setProfileOpen((v) => !v);
   }, [nextWalkthroughStep]);
 
@@ -379,7 +386,7 @@ const Header: React.FC = () => {
           <button
             type="button"
             onClick={handleProfileToggle}
-            className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] cursor-pointer hover:opacity-90"
+            className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-full bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] cursor-pointer hover:opacity-90 ${isProfileWalkthroughStep ? 'profile-btn' : ''}`}
           >
             {displayAvatar ? (
               <img src={displayAvatar} alt="avatar" className="h-8 w-8 rounded-full bg-white p-1 object-cover" />
