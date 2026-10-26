@@ -330,7 +330,7 @@ const Header: React.FC = () => {
 
           {notifOpen && (
             // Changed z-50 to z-[60]
-            <div role="menu" className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-[60]">
+            <div role="menu" className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden z-1000">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <span className="font-semibold text-sm">{t('Notifications')}</span>
                 {unreadCount > 0 && (

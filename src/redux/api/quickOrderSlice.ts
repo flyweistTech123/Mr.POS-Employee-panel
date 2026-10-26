@@ -78,8 +78,8 @@ export const quickOrderApi = createApi({
       providesTags: ['TableStatus'],
     }),
 
-       getFloorWithTables: builder.query<
-      FloorWithTablesResponse, // <- Use the fixed type here
+    getFloorWithTables: builder.query<
+      FloorWithTablesResponse,
       { floorId: string; status: "All" | "Served" | "Waiting" | "Reserved" }
     >({
       query: ({ floorId, status }) =>
@@ -175,7 +175,6 @@ export const quickOrderApi = createApi({
       invalidatesTags: (_r, _e, arg) => [{ type: 'Order', id: arg.id }, 'OrderList', 'TableStatus'],
     }),
 
-    // ✅ RESTORED: This is Step 2 of your docs
     createPayment: builder.mutation<any, { Payment_Options_id: number; Order_id: string | number; payment_method: string; paymentStatus: string }>({
       query: (body) => ({
         url: '/api/v1/restaurant/payment_by_restaurant/create-payment',
@@ -190,8 +189,11 @@ export const quickOrderApi = createApi({
       providesTags: (_r, _e, id) => [{ type: 'Order', id }],
     }),
 
-    getOrderPdfUrl: builder.query<string, number | string>({
-      query: (id) => `/api/v1/restaurant/pos_order/getbyid/${id}/pdf`,
+    getOrderPdfUrl: builder.query<any, number | string>({
+      query: (id) => ({
+        url: `/api/v1/restaurant/pos_order/getbyid/${id}/pdf`,
+        responseHandler: (response) => response.blob(), 
+      }),
     }),
 
     getAllOrders: builder.query<ApiResponse<ServerPosOrder[]>, { filter?: string } | void>({
@@ -292,6 +294,8 @@ export const {
   useCreatePaymentMutation,
   useGetOrderByIdQuery,
   useGetOrderPdfUrlQuery,
+  // ✅ ADDED THIS: The missing Lazy Hook
+  useLazyGetOrderPdfUrlQuery, 
   useGetAllOrdersQuery,
   useGetAllBarTabsQuery,
   useGetBarTabByIdQuery,

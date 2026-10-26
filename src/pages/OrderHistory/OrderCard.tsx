@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react';
 import { MdRestaurantMenu } from 'react-icons/md';
 import { FiClock, FiCheck } from 'react-icons/fi';
-import { useCancelOrderMutation } from "@/redux/api/quickOrderSlice";
+import { 
+  useCancelOrderMutation,
+  // ✅ 1. Import the Lazy PDF Hook
+  useLazyGetOrderPdfUrlQuery 
+} from "@/redux/api/quickOrderSlice";
 
 const getMinutesAgo = (isoString: string | undefined) => {
   if (!isoString) return '';
@@ -176,6 +180,9 @@ const OrderCard = ({ order, onClick, onCancelled }: OrderCardProps) => {
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
   const [showCancelModal, setShowCancelModal] = useState(false);
 
+  // ✅ 2. Initialize the PDF Lazy Query
+  const [triggerGetPdf, { isFetching: isFetchingPdf }] = useLazyGetOrderPdfUrlQuery();
+
   // ✅ Self-contained toast (still not an alert — it's a floating banner)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -211,7 +218,42 @@ const OrderCard = ({ order, onClick, onCancelled }: OrderCardProps) => {
         err?.data?.message || err?.message || 'Failed to cancel order',
         'error'
       );
-      // keep the modal open on error so the user can retry / change the reason
+    }
+  };
+
+  // ✅ 3. Handle Print & Download
+  const handlePrint = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await triggerGetPdf(order.POS_Order_id).unwrap();
+      
+      let url = '';
+      if (typeof response === "string") {
+        url = response;
+      } else if (response instanceof Blob) {
+        url = URL.createObjectURL(response);
+      } else if ((response as any)?.url) {
+        url = (response as any).url;
+      }
+
+      if (url) {
+        // Force download with a specific filename
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Order-${order.POS_Order_id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Cleanup memory if it was a Blob
+        if (response instanceof Blob) {
+          URL.revokeObjectURL(url);
+        }
+        showToast('PDF downloaded successfully', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to fetch PDF:', err);
+      showToast('Failed to download PDF', 'error');
     }
   };
 
@@ -221,7 +263,7 @@ const OrderCard = ({ order, onClick, onCancelled }: OrderCardProps) => {
         onClick={onClick}
         className="relative bg-white flex flex-col rounded-[16px] border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden w-full"
       >
-        {/* ✅ Local toast banner (floats over the card, not a browser alert) */}
+        {/* ✅ Local toast banner */}
         {toast && (
           <div
             className={`absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-md ${
@@ -314,7 +356,6 @@ const OrderCard = ({ order, onClick, onCancelled }: OrderCardProps) => {
             View
           </button>
 
-          {/* ✅ Opens the modal (no browser alert) */}
           <button
             onClick={openCancelModal}
             disabled={!canCancel}
@@ -334,11 +375,13 @@ const OrderCard = ({ order, onClick, onCancelled }: OrderCardProps) => {
             {isCancelling ? '...' : isCancelled ? 'Cancelled' : 'Cancel'}
           </button>
 
+          {/* ✅ 4. Connected Print Button to the PDF logic */}
           <button
-            onClick={(e) => e.stopPropagation()}
-            className="flex-1 bg-[#F8BBD0] text-[#880E4F] text-[10px] font-bold py-1.5 rounded-md hover:bg-[#F48FB1] transition-colors"
+            onClick={handlePrint}
+            disabled={isFetchingPdf}
+            className="flex-1 bg-[#F8BBD0] text-[#880E4F] text-[10px] font-bold py-1.5 rounded-md hover:bg-[#F48FB1] transition-colors disabled:opacity-50"
           >
-            Print
+            {isFetchingPdf ? 'Wait...' : 'Print'}
           </button>
         </div>
       </div>

@@ -14,6 +14,7 @@ import {
   useUpdateOrderStatusMutation,
   useCreatePaymentMutation,
   useCancelOrderMutation,
+  useLazyGetOrderPdfUrlQuery,
 } from "@/redux/api/quickOrderSlice";
 
 import PaymentModal from "@/components/common/PaymentModal";
@@ -53,10 +54,8 @@ const PaymentReceivedModal = ({
 
   return (
     <div className="payment-done-modal fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      {/* ✅ ADDED relative HERE FOR THE CLOSE BUTTON */}
       <div className="relative bg-white rounded-3xl w-[460px] shadow-2xl flex flex-col items-center p-8 animate-in fade-in zoom-in-95 duration-200">
         
-        {/* ✅ NEW: CLOSE BUTTON */}
         <button 
           onClick={onClose} 
           className="absolute top-5 right-5 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
@@ -95,7 +94,7 @@ const PaymentReceivedModal = ({
 
         <div className="flex gap-4 w-full">
           <button
-            onClick={onClose} // This triggers the Success Panel in the background
+            onClick={onClose}
             className="flex-1 py-3.5 rounded-xl text-white font-bold bg-[#00C853] hover:bg-[#00A844] transition-all shadow-md"
           >
             {t("Start new Order")}
@@ -127,6 +126,9 @@ const ReceiptModal = ({
   onPrint: () => void;
 }) => {
   const { t } = useTranslation();
+  // ✅ FIXED: Using the Lazy query hook correctly
+  const [triggerPdf, { isFetching }] = useLazyGetOrderPdfUrlQuery();
+
   if (!open) return null;
 
   const currentDate = new Date()
@@ -138,6 +140,30 @@ const ReceiptModal = ({
       minute: "2-digit",
     })
     .replace(",", " ");
+
+  const handlePrintClick = async () => {
+    if (orderId) {
+      try {
+        const response = await triggerPdf(orderId).unwrap();
+        
+        // Handle both standard URL strings and Blob responses
+        if (typeof response === "string") {
+          window.open(response, '_blank');
+        } else if (response instanceof Blob) {
+          const blobUrl = URL.createObjectURL(response);
+          window.open(blobUrl, '_blank');
+        } else {
+          // Fallback if API returns an object with a specific property
+          const url = (response as any)?.url || (response as any)?.data;
+          if (url) window.open(url, '_blank');
+        }
+        return;
+      } catch (err) {
+        console.error("Failed to fetch PDF:", err);
+      }
+    }
+    onPrint(); // Fallback
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
@@ -190,9 +216,19 @@ const ReceiptModal = ({
           </div>
 
           <button
-            onClick={onPrint}
-            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-6 transition-colors"
+            onClick={handlePrintClick}
+            disabled={isFetching}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-6 transition-colors disabled:opacity-50"
           >
+            {isFetching ? (
+              <span className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+            )}
             {t("Print Receipt")}
           </button>
 
@@ -276,6 +312,9 @@ const Orders: React.FC = () => {
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [createPayment] = useCreatePaymentMutation();
   const [cancelOrder] = useCancelOrderMutation();
+  
+  // ✅ FIXED: Used the Lazy trigger correctly
+  const [triggerGetPdf] = useLazyGetOrderPdfUrlQuery();
 
   const floorsWithIds = useMemo(() => {
     return (floorsData?.data || []).map((f: any) => ({ id: f.Floor_id, name: f.Floor_Name }));
@@ -674,7 +713,34 @@ const Orders: React.FC = () => {
     showToast(t("Generating receipt..."), "info");
   };
 
-  const handleActualPrint = () => {
+  // ✅ UPDATED: Uses the Redux Lazy Query to get the PDF URL
+  const handleActualPrint = async () => {
+    const orderId = currentOrder?.orderId;
+    if (orderId) {
+      try {
+        showToast(t("Fetching PDF receipt..."), "info");
+        const response = await triggerGetPdf(orderId).unwrap();
+        
+        // Handle both standard URL strings and Blob responses
+        if (typeof response === "string") {
+          window.open(response, '_blank');
+        } else if (response instanceof Blob) {
+          const blobUrl = URL.createObjectURL(response);
+          window.open(blobUrl, '_blank');
+        } else {
+          const url = (response as any)?.url || (response as any)?.data;
+          if (url) window.open(url, '_blank');
+        }
+        
+        showToast(t("PDF opened successfully!"), "success");
+        return;
+      } catch (err) {
+        console.error("Failed to fetch PDF:", err);
+        showToast(t("Failed to open PDF. Trying standard print."), "error");
+      }
+    }
+    
+    // Fallback
     showToast(t("Sending receipt to printer..."), "info");
     setTimeout(() => showToast(t("Receipt printed successfully!"), "success"), 1500);
   };
