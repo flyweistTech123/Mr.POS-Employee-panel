@@ -192,14 +192,14 @@ export const attendanceApi = apiSlice.injectEndpoints({
       invalidatesTags: ['LeaveRequests', 'AttendanceDashboard'],
     }),
 
-    cancelLeaveRequest: builder.mutation<any, string | number>({
-      query: (leaveRequestId) => ({
-        url: `/api/v1/employee/attendance/leave/${leaveRequestId}/cancel`,
-        method: 'PATCH',
-      }),
-      invalidatesTags: ['LeaveRequests', 'AttendanceDashboard'],
-    }),
 
+cancelLeaveRequest: builder.mutation<{ success: boolean; data: any }, number>({
+  query: (leaveRequestId) => ({
+    url: `/api/v1/employee/attendance/leave/${leaveRequestId}/cancel`,
+    method: 'PATCH',
+  }),
+  invalidatesTags: ['LeaveRequests', 'AttendanceDashboard'],
+}),
     reviewLeaveRequest: builder.mutation<any, ReviewLeaveArgs>({
       query: ({ leaveRequestId, status, manager_note }) => ({
         url: `/api/v1/employee/attendance/leave/${leaveRequestId}/review`,
@@ -209,7 +209,7 @@ export const attendanceApi = apiSlice.injectEndpoints({
       invalidatesTags: ['LeaveRequests', 'AttendanceDashboard'],
     }),
 
-    
+
     updateEmergencyContact: builder.mutation<any, EmergencyContactArgs>({
       query: (body) => ({
         url: '/api/v1/employee/attendance/emergency-contact',

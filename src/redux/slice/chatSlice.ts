@@ -1,25 +1,13 @@
 // src/redux/slice/chatSlice.ts
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
-  getConversations, getConversationById, sendMessage as sendMessageApi,
+  getConversations, getConversationById, getMessages,
+  sendMessage as sendMessageApi,
   type ApiConversation, type ApiMessage, type ConversationParams,
 } from "@/api/chatApi";
 
-// 1. Define the UI types your app actually uses
-export interface UiConversation {
-  id: string;
-  title: string;
-  lastMessage?: {
-    text: string;
-    time: string;
-    senderId: string;
-    unread: boolean;
-  };
-  messages: ApiMessage[];
-}
-
 interface ChatState {
-  conversations: UiConversation[];
+  conversations: ApiConversation[];
   messages: ApiMessage[];
   activeChatId: string | null;
   loadingList: boolean;
@@ -38,19 +26,6 @@ const initialState: ChatState = {
   error: null,
 };
 
-// 2. The Mapper: Converts API shape to UI shape
-const mapApiToUi = (c: ApiConversation): UiConversation => ({
-  id: c._id,
-  title: c.title,
-  lastMessage: c.last_message ? {
-    text: c.last_message.message,
-    time: new Date(c.last_message.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    senderId: String(c.last_message.sender_id),
-    unread: c.unread_count > 0,
-  } : undefined,
-  messages: [],
-});
-
 export const fetchConversations = createAsyncThunk(
   "chat/fetchConversations",
   async (params: ConversationParams | undefined, { rejectWithValue }) => {
@@ -64,7 +39,13 @@ export const fetchConversations = createAsyncThunk(
 export const fetchChatDetails = createAsyncThunk(
   "chat/fetchChatDetails",
   async (id: string, { rejectWithValue }) => {
-    try { return await getConversationById(id); }
+    try {
+      const [conversation, messages] = await Promise.all([
+        getConversationById(id),
+        getMessages(id).catch(() => [] as ApiMessage[]),
+      ]);
+      return { conversation, messages };
+    }
     catch (e: any) {
       return rejectWithValue(e?.response?.data?.message ?? e?.message ?? "Failed to load chat");
     }
@@ -92,22 +73,36 @@ const chatSlice = createSlice({
     },
     receiveMessage: (state, action: PayloadAction<ApiMessage & { conversationId?: string }>) => {
       const msg = action.payload;
-      
-      if (state.activeChatId && (msg as any).conversationId === state.activeChatId) {
+      const convId = msg.conversationId;
+
+      if (state.activeChatId && convId && String(convId) === state.activeChatId) {
         if (!state.messages.some((m) => m.id === msg.id)) {
           state.messages.push(msg);
         }
       }
 
-      const conv = state.conversations.find((c) => c.id === (msg as any).conversationId);
+      const conv = state.conversations.find(
+        (c) => String(c.chat_conversation_id) === String(convId)
+      );
+      
       if (conv) {
-        conv.lastMessage = {
-          text: msg.text,
-          time: new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          senderId: msg.senderId,
-          unread: state.activeChatId !== conv.id,
-        };
-        state.conversations = [conv, ...state.conversations.filter((c) => c.id !== conv.id)];
+        // Enforce that message is a string
+        const safeText = typeof msg.text === "string" ? msg.text : "";
+        
+        conv.last_message = {
+          chat_message_id: Number(msg.id) || 0,
+          message: safeText,
+          message_type: "text",
+          sender_type: "employee",
+          sender_id: Number(msg.senderId) || 0,
+          sender_name: "",
+          sent_at: msg.createdAt || new Date().toISOString(),
+        } as any;
+        
+        if (state.activeChatId !== String(convId)) {
+          conv.unread_count = (conv.unread_count || 0) + 1;
+        }
+        state.conversations = [conv, ...state.conversations.filter((c) => c !== conv)];
       }
     },
     setSendingMessage: (state, action: PayloadAction<boolean>) => {
@@ -130,21 +125,26 @@ const chatSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchConversations.pending, (s) => { s.loadingList = true; s.error = null; })
-      // Map the API array to the UI array here!
-      .addCase(fetchConversations.fulfilled, (s, a) => { 
-        s.loadingList = false; 
-        s.conversations = (a.payload as unknown as ApiConversation[]).map(mapApiToUi); 
+      .addCase(fetchConversations.fulfilled, (s, a) => {
+        s.loadingList = false;
+        s.conversations = a.payload as unknown as ApiConversation[];
       })
-      .addCase(fetchConversations.rejected, (s, a) => { s.loadingList = false; s.error = (a.payload as string) ?? "Error"; })
+      .addCase(fetchConversations.rejected, (s, a) => {
+        s.loadingList = false;
+        s.error = (a.payload as string) ?? "Error";
+      })
 
       .addCase(fetchChatDetails.pending, (s) => { s.loadingChat = true; s.error = null; })
       .addCase(fetchChatDetails.fulfilled, (s, a) => {
         s.loadingChat = false;
-        const details = a.payload as any;
-        s.activeChatId = details.id || details._id;
-        s.messages = details.messages ?? [];
+        const { conversation, messages } = a.payload;
+        s.activeChatId = String(conversation.chat_conversation_id);
+        s.messages = messages;
       })
-      .addCase(fetchChatDetails.rejected, (s, a) => { s.loadingChat = false; s.error = (a.payload as string) ?? "Error"; })
+      .addCase(fetchChatDetails.rejected, (s, a) => {
+        s.loadingChat = false;
+        s.error = (a.payload as string) ?? "Error";
+      })
 
       .addCase(sendMessage.pending, (s) => { s.sendingMessage = true; })
       .addCase(sendMessage.fulfilled, (s, a) => {

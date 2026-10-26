@@ -12,6 +12,7 @@ import {
   useRespondToShiftSwapMutation,
   useClockOutMutation,
 } from '../../redux/api/shiftApiSlice';
+import Loader from '@/components/Loader';
 
 export default function WorkShift() {
   const { t } = useTranslation(); // ✅ Added i18n hook
@@ -179,7 +180,9 @@ export default function WorkShift() {
   };
 
   // ---------- Loading / Error ----------
-  if (isLoading) return <div className="p-8 text-center text-gray-600">{t('Loading shift dashboard...')}</div>;
+  if (isLoading) return <div className="p-8 text-center text-gray-600"> <div className="flex items-center justify-center w-full min-h-[60vh]">
+    <Loader />
+  </div></div>;
   if (isError) return <div className="p-8 text-center text-red-500">{t('Failed to load shift data. Please try again.')}</div>;
 
   const currentShift = dashboardData?.current_shift ?? null;

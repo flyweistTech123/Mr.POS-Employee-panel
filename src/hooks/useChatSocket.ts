@@ -19,7 +19,6 @@ export const useChatSocket = () => {
 
     const onConnect = () => {
       setConnected(true);
-      // Re-join all rooms after a reconnect
       joinedRef.current.forEach((id) => {
         socket.emit("chat:join", { chat_conversation_id: Number(id) });
       });
@@ -27,12 +26,18 @@ export const useChatSocket = () => {
     const onDisconnect = () => setConnected(false);
 
     const onNewMessage = (data: any) => {
+      // Safely extract text in case the backend sends an object
+      const rawText = data?.message ?? data?.text ?? "";
+      const safeText = typeof rawText === "string" ? rawText : (rawText?.text || rawText?.message || "");
+
       const message: ApiMessage & { conversationId?: string } = {
-        id: data?.id ?? data?.message_id ?? crypto.randomUUID(),
-        text: data?.message ?? data?.text ?? "",
-        senderId: data?.senderId ?? data?.sender_id ?? data?.user_id ?? "",
-        createdAt: data?.createdAt ?? data?.created_at ?? new Date().toISOString(),
-        conversationId: data?.chat_conversation_id ?? data?.conversationId ?? data?.conversation_id,
+        id: String(data?.id ?? data?.chat_message_id ?? data?.message_id ?? crypto.randomUUID()),
+        text: safeText,
+        senderId: String(data?.senderId ?? data?.sender_id ?? data?.user_id ?? ""),
+        createdAt: data?.createdAt ?? data?.created_at ?? data?.sent_at ?? new Date().toISOString(),
+        conversationId: String(
+          data?.chat_conversation_id ?? data?.conversationId ?? data?.conversation_id ?? ""
+        ) || undefined,
       };
       dispatch(receiveMessage(message));
     };
@@ -40,8 +45,7 @@ export const useChatSocket = () => {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("chat:message:new", onNewMessage);
-    
-    // Check if already connected on mount
+
     if (socket.connected) onConnect();
 
     return () => {
@@ -65,7 +69,6 @@ export const useChatSocket = () => {
       if (!socket?.connected) {
         return Promise.reject(new Error("Socket not connected"));
       }
-
       const clientMessageId = crypto.randomUUID();
 
       return new Promise((resolve, reject) => {

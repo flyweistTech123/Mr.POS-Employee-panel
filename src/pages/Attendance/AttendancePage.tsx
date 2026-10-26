@@ -116,11 +116,10 @@ const Pagination: React.FC<PaginationProps> = ({
             <button
               key={p}
               onClick={() => onPageChange(p)}
-              className={`min-w-[32px] h-8 px-2 text-[12px] rounded-lg font-medium transition-all active:scale-95 ${
-                p === currentPage
-                  ? 'bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white shadow-sm'
-                  : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`min-w-[32px] h-8 px-2 text-[12px] rounded-lg font-medium transition-all active:scale-95 ${p === currentPage
+                ? 'bg-gradient-to-r from-[#4c1530] to-[#cc246d] text-white shadow-sm'
+                : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
             >
               {p}
             </button>
@@ -175,7 +174,7 @@ const AttendancePage = () => {
     email: '',
     enabled: true,
   });
-
+const [cancellingId, setCancellingId] = useState<number | null>(null);
   // File upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -308,7 +307,7 @@ const AttendancePage = () => {
         attachment_url: leaveForm.attachment_url || undefined,
       }).unwrap();
 
-      setLeavePage(1); 
+      setLeavePage(1);
       await refetchDash();
       await refetchLeaves();
 
@@ -327,18 +326,24 @@ const AttendancePage = () => {
     }
   };
 
-  const handleCancelLeave = async (id: string | number) => {
-    if (!window.confirm(t('Are you sure you want to cancel this leave request?'))) return;
-    const toastId = toast.loading(t('Cancelling request...'));
-    try {
-      await cancelLeave(id).unwrap();
-      await refetchDash();
-      await refetchLeaves();
-      toast.success(t('Leave request cancelled'), { id: toastId });
-    } catch (error: any) {
-      toast.error(error?.data?.message || t('Failed to cancel leave'), { id: toastId });
-    }
-  };
+
+
+ const handleCancelLeave = async (leaveRequestId: number) => {
+  if (!window.confirm(t('Are you sure you want to cancel this leave request?'))) return;
+
+  setCancellingId(leaveRequestId);
+  const toastId = toast.loading(t('Cancelling request...'));
+  try {
+    await cancelLeave(leaveRequestId).unwrap();
+    await refetchDash();
+    await refetchLeaves();
+    toast.success(t('Leave request cancelled'), { id: toastId });
+  } catch (error: any) {
+    toast.error(error?.data?.message || t('Failed to cancel leave'), { id: toastId });
+  } finally {
+    setCancellingId(null);
+  }
+};
 
   const handleToggleEmergencyContact = async () => {
     if (!employee) return;
@@ -415,9 +420,9 @@ const AttendancePage = () => {
 
   if (isLoading) {
     return (
-       <div className="flex items-center justify-center w-full min-h-[60vh]">
-                 <Loader />
-            </div>
+      <div className="flex items-center justify-center w-full min-h-[60vh]">
+        <Loader />
+      </div>
     );
   }
 
@@ -452,9 +457,8 @@ const AttendancePage = () => {
               <div className="flex items-center md:justify-end gap-2 mb-1">
                 <span className="font-medium text-xs text-gray-700">{t('Current Shift')}</span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
-                    isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
-                  }`}
+                  className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${isClockedIn ? 'bg-[#E8F8ED] text-[#1EA35B]' : 'bg-gray-100 text-gray-600'
+                    }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${isClockedIn ? 'bg-[#1EA35B]' : 'bg-gray-400'}`}></span>
                   {isClockedIn ? t('On Shift') : t('Off Shift')}
@@ -620,33 +624,37 @@ const AttendancePage = () => {
                       <div className="text-center">
                         {Math.ceil(
                           (new Date(l.end_date).getTime() - new Date(l.start_date).getTime()) /
-                            (1000 * 3600 * 24)
+                          (1000 * 3600 * 24)
                         ) + 1}
                       </div>
                       <div className="text-center capitalize">{l.leave_time.replace('_', ' ')}</div>
                       <div className="flex justify-center">
                         <span
-                          className={`border px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 capitalize ${
-                            l.status === 'approved'
-                              ? 'border-green-400 text-green-600'
-                              : l.status === 'rejected'
+                          className={`border px-3 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 capitalize ${l.status === 'approved'
+                            ? 'border-green-400 text-green-600'
+                            : l.status === 'rejected'
                               ? 'border-red-400 text-red-600'
                               : l.status === 'cancelled'
-                              ? 'border-gray-400 text-gray-600'
-                              : 'border-[#a78bfa] text-[#a78bfa]'
-                          }`}
+                                ? 'border-gray-400 text-gray-600'
+                                : 'border-[#a78bfa] text-[#a78bfa]'
+                            }`}
                         >
                           {t(l.status)} {l.status === 'pending' && <ClockIcon className="w-3 h-3" />}
                         </span>
                       </div>
                       <div className="text-right">
                         {l.status === 'pending' && (
-                          <button
-                            // onClick={() => handleCancelLeave(l._id)}
-                            className="text-gray-600 hover:text-black text-[13px] hover:underline"
-                          >
-                            {t('Cancel')}
-                          </button>
+                          <div className="text-right">
+                           {l.status === 'pending' && (
+  <button
+    onClick={() => handleCancelLeave(l.leave_request_id)}   // ✅ numeric 9, 8, 7…
+    disabled={cancellingId === l.leave_request_id}
+    className="text-gray-600 hover:text-black text-[13px] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {cancellingId === l.leave_request_id ? t('Cancelling...') : t('Cancel')}
+  </button>
+)}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -671,9 +679,8 @@ const AttendancePage = () => {
                   <p className="text-[11px] text-gray-500 mb-4">{t('Upload supporting documents')}</p>
 
                   <div
-                    className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${
-                      selectedFile ? 'border-[#40DE53] bg-green-50/30' : 'border-gray-200 bg-white'
-                    }`}
+                    className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 flex-1 flex flex-col justify-center transition-colors ${selectedFile ? 'border-[#40DE53] bg-green-50/30' : 'border-gray-200 bg-white'
+                      }`}
                   >
                     {selectedFile ? (
                       <div className="flex flex-col items-center">
@@ -793,15 +800,13 @@ const AttendancePage = () => {
               <button
                 onClick={handleToggleEmergencyContact}
                 disabled={savingContact}
-                className={`w-9 h-5 rounded-full relative transition-colors disabled:opacity-60 ${
-                  employee.emergency_contact.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
-                }`}
+                className={`w-9 h-5 rounded-full relative transition-colors disabled:opacity-60 ${employee.emergency_contact.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
+                  }`}
                 aria-label={t('Toggle emergency contact')}
               >
                 <div
-                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
-                    employee.emergency_contact.enabled ? 'right-0.5' : 'left-0.5'
-                  }`}
+                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${employee.emergency_contact.enabled ? 'right-0.5' : 'left-0.5'
+                    }`}
                 ></div>
               </button>
             </div>
@@ -943,22 +948,20 @@ const AttendancePage = () => {
                   <button
                     type="button"
                     onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'half_day' })}
-                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${
-                      leaveForm.leave_time === 'half_day'
-                        ? 'bg-[#40DE53] text-white'
-                        : 'bg-white border border-gray-200 text-gray-600'
-                    }`}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'half_day'
+                      ? 'bg-[#40DE53] text-white'
+                      : 'bg-white border border-gray-200 text-gray-600'
+                      }`}
                   >
                     {t('Half Day')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setLeaveForm({ ...leaveForm, leave_time: 'full_day' })}
-                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${
-                      leaveForm.leave_time === 'full_day'
-                        ? 'bg-[#40DE53] text-white'
-                        : 'bg-white border border-gray-200 text-gray-600'
-                    }`}
+                    className={`flex-1 rounded-full py-2 text-[13px] font-medium transition-colors ${leaveForm.leave_time === 'full_day'
+                      ? 'bg-[#40DE53] text-white'
+                      : 'bg-white border border-gray-200 text-gray-600'
+                      }`}
                   >
                     {t('Full Day')}
                   </button>
@@ -1024,14 +1027,12 @@ const AttendancePage = () => {
                 <button
                   type="button"
                   onClick={() => setContactForm({ ...contactForm, enabled: !contactForm.enabled })}
-                  className={`w-9 h-5 rounded-full relative transition-colors ${
-                    contactForm.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
-                  }`}
+                  className={`w-9 h-5 rounded-full relative transition-colors ${contactForm.enabled ? 'bg-[#d9467b]' : 'bg-gray-300'
+                    }`}
                 >
                   <div
-                    className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
-                      contactForm.enabled ? 'right-0.5' : 'left-0.5'
-                    }`}
+                    className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${contactForm.enabled ? 'right-0.5' : 'left-0.5'
+                      }`}
                   ></div>
                 </button>
               </div>

@@ -76,7 +76,7 @@ const WaitlistDrawer: React.FC<WaitlistDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-1000 flex justify-end">
       <div className="absolute inset-0 bg-black/20" onClick={onClose} />
 
       <div className="relative w-[360px] h-full bg-white shadow-2xl flex flex-col animate-slide-in">

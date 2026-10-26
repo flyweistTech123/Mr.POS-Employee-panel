@@ -1,12 +1,13 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next'; // ✅ Added i18n
+import { useTranslation } from 'react-i18next'; 
 import { 
   useGetDashboardStatsQuery, 
   useGetRestaurantDashboardQuery 
 } from '../../api/apiSlice';
+import Loader from '@/components/Loader';
 
 const Sale = () => {
-  const { t } = useTranslation(); // ✅ Added i18n hook
+  const { t } = useTranslation(); 
 
   // 1. Fetch Data using RTK Query
   const { data: dashboardRes, isLoading: isLoadingDashboard, isError: isErrorDashboard } = useGetDashboardStatsQuery();
@@ -15,9 +16,9 @@ const Sale = () => {
   // 2. Loading State
   if (isLoadingDashboard || isLoadingWeekly) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div className="flex items-center justify-center w-full min-h-[60vh]">
+                               <Loader />
+                          </div>
     );
   }
 
@@ -47,7 +48,7 @@ const Sale = () => {
   const totalSalesStr = stats.TotalSales.toLocaleString(undefined, { minimumFractionDigits: 2 });
   const totalOrders = stats.TotalOrders;
 
-  // ✅ FIXED: Safe fallback for feedback
+ 
   const feedback = { lovedIt: 0, good: 0, average: 0, bad: 0, worst: 0 };
   const totalFeedback = 0;
   const avgRating = '0.0'; 
