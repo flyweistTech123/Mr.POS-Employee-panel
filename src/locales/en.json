@@ -623,8 +623,28 @@
 
   "Clocked in successfully!": "Clocked in successfully!",
 
-  "Failed to update clock status. Please try again.": "Failed to update clock status. Please try again."
+  "Failed to update clock status. Please try again.": "Failed to update clock status. Please try again.",
+    "Sign in": "Sign in",
+  "Welcome Back!": "Welcome Back!",
+  "Login to access your Triaxx Account": "Login to access your Triaxx Account",
+ 
+  "Password": "Password",
+  "Forget Password?": "Forget Password?",
+  "Remember me": "Remember me",
+  
+  "Don't have an account?": "Don't have an account?",
+  "Sign up": "Sign up",
+  "Or login with": "Or login with",
+  
+  
+  
+  
+  "POS that works as hard as you.": "POS that works as hard as you.",
+  "and Faster than you.": "and Faster than you.",
+  "Grow without limit with": "Grow without limit with",
+  "and Make timely and accurate decision with real-time reports": "and Make timely and accurate decision with real-time reports"
 
+  
 
 
   

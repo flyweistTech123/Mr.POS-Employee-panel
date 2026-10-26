@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next"; // ✅ Added i18n
+import { useTranslation } from "react-i18next";
 import {
   useGetAllFloorsQuery,
   useGetFloorWithTablesQuery,
@@ -32,29 +32,16 @@ const tableLabel = (t_item: any): string =>
 
 const mapBookingStatus = (id: number | undefined | null): string => {
   switch (id) {
-    case 1:
-      return "Available";
-    case 2:
-      return "Occupied";
-    case 3:
-      return "Served";
-    case 4:
-      return "Waiting";
-    case 5:
-      return "Reserved";
-    default:
-      return "Available";
+    case 1: return "Available";
+    case 2: return "Occupied";
+    case 3: return "Served";
+    case 4: return "Waiting";
+    case 5: return "Reserved";
+    default: return "Available";
   }
 };
 
-const resolveStatus = (table: any, tab: StatusValue): string => {
-  if (tab !== "All") return tab;
-  return mapBookingStatus(table["Table-Booking-Status_id"]);
-};
-
-const getSizeFromCapacity = (
-  capacity: number
-): "small" | "medium" | "long" => {
+const getSizeFromCapacity = (capacity: number): "small" | "medium" | "long" => {
   if (capacity >= 8) return "long";
   if (capacity >= 5) return "long";
   if (capacity >= 3) return "medium";
@@ -65,9 +52,7 @@ const getSizeFromCapacity = (
 /*  Auto-Scroll Row                                                           */
 /* -------------------------------------------------------------------------- */
 
-const AutoScrollRow: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const AutoScrollRow: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,18 +92,12 @@ const AutoScrollRow: React.FC<{ children: React.ReactNode }> = ({
 
 const statusBorder = (status: string): string => {
   switch (status) {
-    case "Occupied":
-      return "bg-red-50 border-red-300";
-    case "Reserved":
-      return "bg-purple-50 border-purple-300";
-    case "Waiting":
-      return "bg-blue-50 border-blue-300";
-    case "Served":
-      return "bg-green-50 border-green-300";
-    case "Ready":
-      return "bg-yellow-50 border-yellow-300";
-    default:
-      return "bg-[#FDF0F4] border-pink-200";
+    case "Occupied": return "bg-red-50 border-red-300";
+    case "Reserved": return "bg-purple-50 border-purple-300";
+    case "Waiting": return "bg-blue-50 border-blue-300";
+    case "Served": return "bg-green-50 border-green-300";
+    case "Ready": return "bg-yellow-50 border-yellow-300";
+    default: return "bg-[#FDF0F4] border-pink-200";
   }
 };
 
@@ -130,22 +109,19 @@ const FloorPlanCanvas: React.FC<{
   onSelect: (t: any) => void;
   busyId: number | null;
 }> = ({ tables, floorWidth, floorHeight, activeStatus, onSelect, busyId }) => {
-  const { t } = useTranslation(); // ✅ Added i18n hook for tooltips
+  const { t } = useTranslation();
 
   return (
     <div
       className="relative mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm overflow-auto"
-      style={{
-        width: floorWidth,
-        height: floorHeight,
-        minWidth: 320,
-        minHeight: 320,
-      }}
+      style={{ width: floorWidth, height: floorHeight, minWidth: 320, minHeight: 320 }}
     >
       {tables.map((t_item, index) => {
-        const { x = 0, y = 0, width = 120, height = 90, rotation = 0 } =
-          t_item.layout ?? {};
-        const status = resolveStatus(t_item, activeStatus);
+        const { x = 0, y = 0, width = 120, height = 90, rotation = 0 } = t_item.layout ?? {};
+        
+        const currentStatus = mapBookingStatus(t_item["Table-Booking-Status_id"]);
+        if (activeStatus !== "All" && currentStatus !== activeStatus) return null;
+
         const capacity = t_item.Capacity ?? 2;
         const busy = busyId === t_item.Table_id;
 
@@ -154,16 +130,8 @@ const FloorPlanCanvas: React.FC<{
             key={t_item.Table_id}
             onClick={() => onSelect(t_item)}
             disabled={busy}
-            className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${index === 0 ? "table-available" : ""} ${statusBorder(
-              status
-            )} ${busy ? "opacity-50 pointer-events-none" : ""}`}
-            style={{
-              left: x,
-              top: y,
-              width,
-              height,
-              transform: `rotate(${rotation}deg)`,
-            }}
+            className={`absolute flex flex-col items-center justify-center rounded-xl border-2 shadow transition hover:scale-105 ${index === 0 ? "table-available" : ""} ${statusBorder(currentStatus)} ${busy ? "opacity-50 pointer-events-none" : ""}`}
+            style={{ left: x, top: y, width, height, transform: `rotate(${rotation}deg)` }}
             title={`${tableLabel(t_item)} · ${t('Cap')} ${capacity}`}
           >
             <span className="text-[11px] font-bold text-gray-800">
@@ -186,31 +154,21 @@ const TableSlot: React.FC<{
   size: "small" | "medium" | "long";
   status: string;
 }> = ({ label, size, status }) => {
-  const { t } = useTranslation(); // ✅ Added i18n hook to translate status badges
+  const { t } = useTranslation();
 
   const badgeClass =
-    status === "Served"
-      ? "bg-green-100 text-green-700"
-      : status === "Reserved"
-      ? "bg-purple-100 text-purple-700"
-      : status === "Ready"
-      ? "bg-yellow-100 text-yellow-700"
-      : status === "Occupied"
-      ? "bg-red-100 text-red-700"
-      : status === "Waiting"
-      ? "bg-blue-100 text-blue-700"
-      : "bg-gray-100 text-gray-600";
+    status === "Served" ? "bg-green-100 text-green-700" :
+    status === "Reserved" ? "bg-purple-100 text-purple-700" :
+    status === "Ready" ? "bg-yellow-100 text-yellow-700" :
+    status === "Occupied" ? "bg-red-100 text-red-700" :
+    status === "Waiting" ? "bg-blue-100 text-blue-700" :
+    "bg-gray-100 text-gray-600";
 
   return (
     <div className="relative flex flex-col items-center justify-center min-w-[160px] min-h-[140px]">
-      <TableIcon
-        size={size}
-        label={label.toLowerCase().replace(/\s+/g, "-")}
-      />
+      <TableIcon size={size} label={label.toLowerCase().replace(/\s+/g, "-")} />
       {status && status !== "Available" && (
-        <div
-          className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${badgeClass}`}
-        >
+        <div className={`absolute bottom-1 z-10 px-3 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm ${badgeClass}`}>
           {status === "Served" && "✓ "}
           {status === "Ready" && "🔔 "}
           {t(status)}
@@ -226,19 +184,12 @@ const TableSlot: React.FC<{
 
 const TablePage: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation(); // ✅ Added i18n hook
+  const { t } = useTranslation();
   const isOrderTraining = useWalkthroughStore(
-    (state) => state.isActive && state.activeTraining === "order",
+    (state) => state.isActive && state.activeTraining === "order"
   );
+  
   const [activeStatus, setActiveStatus] = useState<StatusValue>("All");
-
-  // ✅ Moved inside component so it re-renders on language change
-  const STATUS_TABS: { label: string; value: StatusValue }[] = [
-    { label: t("All Tables"), value: "All" },
-    { label: t("Served"), value: "Served" },
-    { label: t("Waiting"), value: "Waiting" },
-    { label: t("Reserved"), value: "Reserved" },
-  ];
 
   const {
     floor: globalFloor,
@@ -250,23 +201,46 @@ const TablePage: React.FC = () => {
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [showReserve, setShowReserve] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSelectingTableForGuest, setIsSelectingTableForGuest] =
-    useState(false);
-  const [creatingForTableId, setCreatingForTableId] = useState<number | null>(
-    null
-  );
+  const [isSelectingTableForGuest, setIsSelectingTableForGuest] = useState(false);
+  const [creatingForTableId, setCreatingForTableId] = useState<number | null>(null);
+
+  // ✅ FIXED: localFloorId type is number | null to match Zustand
+  const [localFloorId, setLocalFloorId] = useState<number | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [createWaitlist] = useCreateWaitlistMutation();
 
   const { data: floorsData } = useGetAllFloorsQuery();
   const floors = floorsData?.data || [];
 
-  const floorId = useMemo<number | undefined>(() => {
-    if (globalFloorId) return globalFloorId;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Sync local floor ID with global
+  useEffect(() => {
+    if (localFloorId !== null) return;
+    if (globalFloorId) {
+      setLocalFloorId(globalFloorId);
+      return;
+    }
     const match = floors.find((f: any) => f.Floor_Name === globalFloor);
-    if (match) return match.Floor_id;
-    return floors[0]?.Floor_id;
-  }, [floors, globalFloor, globalFloorId]);
+    if (match) {
+      setLocalFloorId(match.Floor_id);
+    } else if (floors.length > 0) {
+      setLocalFloorId(floors[0].Floor_id);
+    }
+  }, [floors, globalFloor, globalFloorId, localFloorId]);
+
+  const currentFloorName = floors.find((f: any) => f.Floor_id === localFloorId)?.Floor_Name || "Select Floor";
 
   /* ------------------------------------------------------------------ */
   /*  API QUERY                                                         */
@@ -275,24 +249,34 @@ const TablePage: React.FC = () => {
   const {
     data: floorTablesRes,
     isLoading,
-    isFetching,
     refetch,
-    error,
   } = useGetFloorWithTablesQuery(
-    { floorId: String(floorId ?? ""), status: activeStatus } as any,
-    { skip: !floorId }
+    { floorId: String(localFloorId ?? ""), status: activeStatus } as any,
+    { skip: !localFloorId }
   );
 
   const response = floorTablesRes as any;
   
-  const tables: any[] = response?.data?.tables ?? response?.tables ?? [];
+  const rawTables: any[] = useMemo(() => {
+    if (!response) return [];
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response.data?.tables)) return response.data.tables;
+    if (Array.isArray(response.tables)) return response.tables;
+    return [];
+  }, [response]);
+
   const floorMeta = response?.data?.floor ?? response?.floor;
 
+  const tables = useMemo(() => {
+    if (activeStatus === "All") return rawTables;
+    return rawTables.filter((t_item) => {
+      const status = mapBookingStatus(t_item["Table-Booking-Status_id"]);
+      return status === activeStatus;
+    });
+  }, [rawTables, activeStatus]);
+
   const hasLayoutPositions = useMemo(
-    () =>
-      tables.some(
-        (t_item: any) => (t_item.layout?.x ?? 0) !== 0 || (t_item.layout?.y ?? 0) !== 0
-      ),
+    () => tables.some((t_item: any) => (t_item.layout?.x ?? 0) !== 0 || (t_item.layout?.y ?? 0) !== 0),
     [tables]
   );
 
@@ -340,7 +324,7 @@ const TablePage: React.FC = () => {
         customer_name: name,
         phone,
         persons: waitlistDraft.persons,
-        Floor_id: waitlistDraft.floorId ?? floorId!,
+        Floor_id: waitlistDraft.floorId ?? localFloorId!,
         Table_id: table.Table_id,
         save_customer: false,
       }).unwrap();
@@ -356,9 +340,7 @@ const TablePage: React.FC = () => {
     }
   };
 
-  const onSelect = isSelectingTableForGuest
-    ? handleTableSelectForGuest
-    : handleTableSelect;
+  const onSelect = isSelectingTableForGuest ? handleTableSelectForGuest : handleTableSelect;
 
   /* ------------------------------------------------------------------ */
   /*  Render                                                            */
@@ -366,73 +348,107 @@ const TablePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8F8F8] px-8 py-6 overflow-hidden">
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold whitespace-nowrap">
-            {t('Table')} <span className="text-gray-400">({t('Floor Plan')})</span>
-          </h1>
-          {floorMeta && (
-            <p className="text-xs text-gray-500 mt-1">
-              {floorMeta.Floor_Name} · {floorMeta.Total_Table_Count} {t('tables')} ·{" "}
-              {floorMeta["Seating-Persons_Count"]} {t('seats')}
-            </p>
+      
+      {/* ========================================= */}
+      {/* EXACT HEADER DESIGN FROM SCREENSHOT       */}
+      {/* ========================================= */}
+      <div className="flex flex-wrap items-center gap-3 mb-8">
+        
+        {/* Title */}
+        <h1 className="text-2xl font-bold text-black mr-2 whitespace-nowrap flex items-baseline">
+          {t('Table')}{' '}
+          <span className="text-gray-500 text-lg font-medium ml-1">({t('Floor Plan')})</span>
+        </h1>
+
+        {/* 1. Floor Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center gap-3 bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white pl-3 pr-2 py-1.5 rounded-[6px] text-[13px] font-semibold shadow-sm hover:opacity-90 transition-opacity min-w-[100px] justify-between"
+          >
+            <span>{currentFloorName}</span>
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {isDropdownOpen && (
+            <div className="absolute z-50 mt-1 w-full min-w-[120px] bg-white rounded-md shadow-lg border border-gray-100 py-1 max-h-60 overflow-y-auto">
+              {floors.map((floor: any) => (
+                <button
+                  key={floor.Floor_id}
+                  onClick={() => {
+                    setLocalFloorId(floor.Floor_id);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-[13px] font-medium transition-colors ${
+                    localFloorId === floor.Floor_id
+                      ? "bg-purple-50 text-purple-700"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {floor.Floor_Name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="flex bg-[#F1F1F1] rounded-full p-1.5 shadow-inner">
-            {STATUS_TABS.map(({ label, value }) => (
-              <button
-                key={value}
-                onClick={() => {
-                  setActiveStatus(value);
-                  // Force refetch immediately to bypass RTK cache lag
-                  setTimeout(() => refetch(), 0);
-                }}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  activeStatus === value
-                    ? "bg-white text-black shadow-sm"
-                    : "text-gray-500 hover:text-gray-800"
-                } ${
-                  value === "All"
-                    ? "table-tab-all"
-                    : value === "Served"
-                      ? "table-tab-served"
-                      : value === "Waiting"
-                        ? "table-tab-waiting"
-                        : "table-tab-reserved"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* 2. Status Tabs */}
+        <div className="flex bg-[#F0EBF3] rounded-full p-1 ml-1">
+          {[
+            { label: t("All Tables"), value: "All" },
+            { label: t("Served"), value: "Served" },
+            { label: t("Waiting"), value: "Waiting" },
+            { label: t("Reserved"), value: "Reserved" },
+          ].map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setActiveStatus(value as StatusValue)}
+              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                activeStatus === value
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsEditing(true)}
-              disabled={!floorId}
-              className="flex items-center gap-2 bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {t('Edit Tables')}
-            </button>
-            <button
-              onClick={() => setShowWaitlist(true)}
-              className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90"
-            >
-              {t('Add Waitlist')}
-            </button>
-            <button
-              onClick={() => setShowReserve(true)}
-              disabled={!floorId}
-              className="bg-gradient-to-b from-[#6A1B9A] to-[#D32F2F] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:opacity-90 disabled:opacity-50"
-            >
-              {t('Reserve')}
-            </button>
-          </div>
+        {/* 3. Action Buttons */}
+        <div className="flex gap-2 ml-1">
+          <button
+            onClick={() => setIsEditing(true)}
+            disabled={!localFloorId}
+            className="flex items-center justify-center bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white w-[42px] h-[32px] rounded-[6px] shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            title={t('Edit Tables')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          
+          <button
+            onClick={() => setShowWaitlist(true)}
+            className="bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white px-4 h-[32px] rounded-[6px] text-[13px] font-semibold shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            {t('Add Waitlist')}
+          </button>
+          
+          <button
+            onClick={() => setShowReserve(true)}
+            disabled={!localFloorId}
+            className="bg-gradient-to-r from-[#6A1B9A] to-[#D32F2F] text-white px-5 h-[32px] rounded-[6px] text-[13px] font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+          >
+            {t('Reserve')}
+          </button>
         </div>
       </div>
+      {/* ========================================= */}
 
       {/* GUEST SELECTION BANNER */}
       {isSelectingTableForGuest && waitlistDraft && (
@@ -458,7 +474,7 @@ const TablePage: React.FC = () => {
       {isEditing ? (
         <div className="mt-4">
           <EditFloorPlan
-            floorId={floorId!}
+            floorId={localFloorId!}
             tables={tables}
             onSaved={() => {
               setIsEditing(false);
@@ -469,15 +485,15 @@ const TablePage: React.FC = () => {
         </div>
       ) : (
         <>
-          {!floorId ? (
+          {!localFloorId ? (
             <div className="text-center py-20 text-gray-500">
               {t('Select a floor to view tables.')}
             </div>
           ) : isLoading && tables.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
                <div className="flex items-center justify-center w-full min-h-[60vh]">
-                               <Loader />
-                          </div>
+                 <Loader />
+              </div>
             </div>
           ) : tables.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
@@ -488,8 +504,8 @@ const TablePage: React.FC = () => {
           ) : hasLayoutPositions ? (
             <FloorPlanCanvas
               tables={tables}
-              floorWidth={Number(floorMeta?.floor_width ?? 200)}
-              floorHeight={Number(floorMeta?.floor_height ?? 200)}
+              floorWidth={Number(floorMeta?.floor_width ?? 800)}
+              floorHeight={Number(floorMeta?.floor_height ?? 600)}
               activeStatus={activeStatus}
               onSelect={onSelect}
               busyId={creatingForTableId}
@@ -499,7 +515,7 @@ const TablePage: React.FC = () => {
               {groupedRows.map((rowTables, rowIndex) => (
                 <AutoScrollRow key={rowIndex}>
                   {rowTables.map((table: any, tableIndex) => {
-                    const status = resolveStatus(table, activeStatus);
+                    const currentStatus = mapBookingStatus(table["Table-Booking-Status_id"]);
                     const capacity = table.Capacity ?? 2;
                     const size = getSizeFromCapacity(capacity);
                     const busy = creatingForTableId === table.Table_id;
@@ -510,15 +526,13 @@ const TablePage: React.FC = () => {
                         onClick={() => onSelect(table)}
                         className={`cursor-pointer transition-transform hover:scale-105 snap-start ${
                           rowIndex === 0 && tableIndex === 0 ? "table-available" : ""
-                        } ${
-                          busy ? "opacity-50 pointer-events-none" : ""
-                        }`}
+                        } ${busy ? "opacity-50 pointer-events-none" : ""}`}
                         title={`${tableLabel(table)} · ${t('Cap')} ${capacity}`}
                       >
                         <TableSlot
                           label={tableLabel(table)}
                           size={size}
-                          status={status}
+                          status={currentStatus}
                         />
                       </div>
                     );
@@ -539,12 +553,12 @@ const TablePage: React.FC = () => {
           setIsSelectingTableForGuest(true);
         }}
       />
-      {floorId != null && (
+      {localFloorId != null && (
         <ReserveTableModal
           open={showReserve}
           onClose={() => setShowReserve(false)}
-          floorId={floorId}
-          floorName={globalFloor ?? floorMeta?.Floor_Name}
+          floorId={localFloorId}
+          floorName={currentFloorName}
         />
       )}
     </div>

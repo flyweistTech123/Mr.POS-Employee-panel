@@ -78,12 +78,13 @@ export const quickOrderApi = createApi({
       providesTags: ['TableStatus'],
     }),
 
+    // ✅ UPDATED: Points to the new Admin endpoint provided in your curl
     getFloorWithTables: builder.query<
       FloorWithTablesResponse,
-      { floorId: string; status: "All" | "Served" | "Waiting" | "Reserved" }
+      { floorId: string; status?: "All" | "Served" | "Waiting" | "Reserved" }
     >({
-      query: ({ floorId, status }) =>
-        `/api/v1/employee/table_booking/floor-plan/${floorId}?status=${status}`,
+      query: ({ floorId }) => 
+        `/api/v1/admin/floor/getWithTables/${floorId}`,
       providesTags: (_r, _e, { floorId }) => [
         { type: "FloorTables" as const, id: floorId },
       ],
@@ -294,7 +295,6 @@ export const {
   useCreatePaymentMutation,
   useGetOrderByIdQuery,
   useGetOrderPdfUrlQuery,
-  // ✅ ADDED THIS: The missing Lazy Hook
   useLazyGetOrderPdfUrlQuery, 
   useGetAllOrdersQuery,
   useGetAllBarTabsQuery,

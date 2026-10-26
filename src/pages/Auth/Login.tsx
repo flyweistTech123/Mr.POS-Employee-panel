@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   useLoginEmployeeMutation,
@@ -18,6 +19,17 @@ import AppleIconImg from '@/assets/auth/apple.svg';
 
 type Tab = 'Restaurant' | 'Employee' | 'Admin';
 type Step = 'credentials' | 'otp';
+
+export interface Language {
+  code: 'en' | 'fr';
+  label: string;
+  emoji: string;
+}
+
+const LANGUAGES: Language[] = [
+  { code: 'en', label: 'English', emoji: '🇺🇸' },
+  { code: 'fr', label: 'French', emoji: '🇫🇷' },
+];
 
 const OTP_LENGTH = 8;
 
@@ -41,10 +53,6 @@ const extractErrorMessage = (err: any, fallback: string): string => {
   return fallback;
 };
 
-/**
- * Pulls the access token out of the OTP-verify response regardless of
- * the exact shape the backend uses. Returns null if nothing is found.
- */
 const extractToken = (result: any): string | null => {
   const candidates = [
     result?.data?.access_token,
@@ -78,7 +86,43 @@ const extractRefreshToken = (result: any): string | null => {
   return null;
 };
 
+function useClickOutside<T extends HTMLElement>(
+  onClose: () => void,
+  isOpen: boolean,
+): React.RefObject<T | null> {
+  const ref = useRef<T>(null);
+  const cbRef = useRef(onClose);
+
+  useEffect(() => {
+    cbRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        cbRef.current();
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cbRef.current();
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen]);
+
+  return ref;
+}
+
 const LoginPage: React.FC = () => {
+  const { t, i18n } = useTranslation();
+
   const [activeTab, setActiveTab] = useState<Tab>('Employee');
   const [step, setStep] = useState<Step>('credentials');
 
@@ -105,6 +149,27 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 1023px)');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* ---------------- Language Dropdown State ---------------- */
+  const [langOpen, setLangOpen] = useState(false);
+  const closeLang = useCallback(() => setLangOpen(false), []);
+  const langRef = useClickOutside<HTMLDivElement>(closeLang, langOpen);
+
+  const currentLanguageCode = i18n.resolvedLanguage || 'en';
+  const currentLanguage =
+    LANGUAGES.find((l) => l.code === currentLanguageCode) || LANGUAGES[0];
+
+  const handleSelectLanguage = useCallback(
+    (lang: Language) => {
+      i18n.changeLanguage(lang.code);
+      setLangOpen(false);
+      toast.success(`${t('Language')}: ${t(lang.label)}`, {
+        duration: 2000,
+        position: 'top-right',
+      });
+    },
+    [i18n, t],
+  );
 
   // OTP countdown
   useEffect(() => {
@@ -156,22 +221,18 @@ const LoginPage: React.FC = () => {
           duration: 4000,
         });
       } else {
-        toast.error('Unexpected response from server.', {
-          duration: 4000,
-        });
+        toast.error('Unexpected response from server.', { duration: 4000 });
       }
     } catch (err: any) {
       console.error('Login error:', err?.status, err?.data, err);
-      toast.error(
-        extractErrorMessage(err, 'Login failed. Please try again.'),
-        { duration: 5000 },
-      );
+      toast.error(extractErrorMessage(err, 'Login failed. Please try again.'), {
+        duration: 5000,
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ Stores token in localStorage (or sessionStorage if "remember me" is off)
   const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -195,10 +256,8 @@ const LoginPage: React.FC = () => {
       const refreshToken = extractRefreshToken(result);
 
       if (token) {
-        // Choose storage based on "Remember me"
         const storage = rememberMe ? localStorage : sessionStorage;
 
-        // Clear the other storage so stale tokens don't linger
         if (rememberMe) {
           sessionStorage.removeItem('token');
           sessionStorage.removeItem('refresh_token');
@@ -215,7 +274,6 @@ const LoginPage: React.FC = () => {
         toast.error('Login succeeded but no token was returned.', {
           duration: 5000,
         });
-        // Still not marking succeeded → prevents navigation with missing token
         return;
       }
 
@@ -239,9 +297,7 @@ const LoginPage: React.FC = () => {
   const handleResendOtp = async () => {
     if (resendLoading || expiresIn > 0) return;
     if (!challengeId) {
-      toast.error('Session expired. Please log in again.', {
-        duration: 4000,
-      });
+      toast.error('Session expired. Please log in again.', { duration: 4000 });
       backToCredentials();
       return;
     }
@@ -267,21 +323,24 @@ const LoginPage: React.FC = () => {
       });
     } catch (err: any) {
       console.error('Resend OTP error:', err?.status, err?.data, err);
-      toast.error(
-        extractErrorMessage(err, 'Failed to resend OTP.'),
-        { duration: 5000 },
-      );
+      toast.error(extractErrorMessage(err, 'Failed to resend OTP.'), {
+        duration: 5000,
+      });
     } finally {
       setResendLoading(false);
     }
   };
 
-  const handleSocialLogin = async (provider: 'facebook' | 'google' | 'apple') => {
+  const handleSocialLogin = async (
+    provider: 'facebook' | 'google' | 'apple',
+  ) => {
     setIsLoading(true);
     try {
       toast.success(`${provider} login successful!`, { duration: 4000 });
     } catch {
-      toast.error(`An error occurred during ${provider} login.`, { duration: 4000 });
+      toast.error(`An error occurred during ${provider} login.`, {
+        duration: 4000,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -306,23 +365,46 @@ const LoginPage: React.FC = () => {
         isMobile ? 'gradient-background-mobile' : 'gradient-background'
       } p-4 lg:p-0`}
     >
-      <div className="flex w-full max-w-sm flex-col rounded-3xl bg-white p-6 shadow-2xl lg:h-screen lg:max-w-none lg:flex-row lg:p-0 lg:shadow-none lg:rounded-none">
-        <LeftPanel />
+      <div className="relative flex w-full max-w-sm flex-col rounded-3xl bg-white p-6 shadow-2xl overflow-visible lg:h-screen lg:max-w-none lg:flex-row lg:p-0 lg:shadow-none lg:rounded-none">
+        
+        {/* Pass language logic to LeftPanel */}
+        <LeftPanel 
+          langRef={langRef}
+          langOpen={langOpen}
+          setLangOpen={setLangOpen}
+          currentLanguage={currentLanguage}
+          currentLanguageCode={currentLanguageCode}
+          languages={LANGUAGES}
+          onSelectLanguage={handleSelectLanguage}
+        />
 
-        <div className="w-full lg:w-2/5 lg:p-10 xl:px-20 flex flex-col justify-center">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl lg:text-2xl font-bold">Sign in</h2>
-            <img src={TriaxxLogoImg} alt="TRIAXX Logo" className="h-6 lg:h-8" />
+        {/* Right column */}
+        <div className="relative z-10 w-full lg:w-2/5 lg:p-10 xl:px-20 flex flex-col justify-center">
+          
+          {/* Top bar with Logo */}
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <h2 className="text-xl lg:text-2xl font-bold whitespace-nowrap">
+              {t('Sign in')}
+            </h2>
+
+            <img
+              src={TriaxxLogoImg}
+              alt="TRIAXX Logo"
+              className="h-6 lg:h-8 shrink-0"
+            />
           </div>
 
           <div className="text-center mb-2">
             <h3 className="text-2xl lg:text-[32px] font-bold">
-              {step === 'otp' ? 'Verify OTP' : 'Welcome Back!'}
+              {step === 'otp' ? t('Verify OTP') : t('Welcome Back!')}
             </h3>
             <p className="text-sm text-[#000000CC] mt-1 font-normal">
               {step === 'otp'
-                ? `Enter the ${OTP_LENGTH}-digit code sent to ${maskedEmail}`
-                : 'Login to access your Triaxx Account'}
+                ? t('Enter the {{length}}-digit code sent to {{email}}', {
+                    length: OTP_LENGTH,
+                    email: maskedEmail,
+                  })
+                : t('Login to access your Triaxx Account')}
             </p>
           </div>
 
@@ -340,7 +422,7 @@ const LoginPage: React.FC = () => {
                         : 'text-[#00000099] hover:text-gray-800'
                     }`}
                 >
-                  {tab}
+                  {t(tab)}
                 </button>
               ))}
             </div>
@@ -349,15 +431,18 @@ const LoginPage: React.FC = () => {
           {activeTab === 'Employee' && step === 'credentials' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="employeeId" className="block text-sm font-medium mb-1">
-                  Employee id
+                <label
+                  htmlFor="employeeId"
+                  className="block text-sm font-medium mb-1"
+                >
+                  {t('Employee id')}
                 </label>
                 <input
                   id="employeeId"
                   type="text"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="Enter id"
+                  placeholder={t('Enter Employee id here...')}
                   className="w-full px-4 py-3 bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white text-sm placeholder-gray-400"
                   required
                 />
@@ -365,14 +450,17 @@ const LoginPage: React.FC = () => {
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="password" className="block text-sm font-medium">
-                    Password
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium"
+                  >
+                    {t('Password')}
                   </label>
                   <Link
                     to="/forgot-password"
                     className="text-xs text-[#00000099] hover:cursor-pointer"
                   >
-                    Forget Password?
+                    {t('Forget Password?')}
                   </Link>
                 </div>
                 <div className="relative">
@@ -381,7 +469,7 @@ const LoginPage: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter Password"
+                    placeholder={t('Enter Your Password here...')}
                     className="w-full px-4 py-3 bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white text-sm placeholder-gray-400"
                     required
                   />
@@ -392,7 +480,7 @@ const LoginPage: React.FC = () => {
                   >
                     <img
                       src={showPassword ? EyeSlashIconImg : EyeIconImg}
-                      alt="Toggle password visibility"
+                      alt={t('Toggle password visibility')}
                       className="w-5 h-5"
                     />
                   </button>
@@ -407,8 +495,11 @@ const LoginPage: React.FC = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                 />
-                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
-                  Remember me
+                <label
+                  htmlFor="rememberMe"
+                  className="ml-2 block text-sm text-gray-700"
+                >
+                  {t('Remember me')}
                 </label>
               </div>
 
@@ -417,7 +508,7 @@ const LoginPage: React.FC = () => {
                 disabled={isLoading}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70"
               >
-                {isLoading ? 'Submitting...' : 'Submit'}
+                {isLoading ? t('Submitting...') : t('Submit')}
               </button>
             </form>
           )}
@@ -426,13 +517,16 @@ const LoginPage: React.FC = () => {
             <form onSubmit={handleVerifyOtp} className="space-y-4 mt-6">
               {employeeLoginCode && (
                 <div className="text-center text-xs text-gray-500">
-                  Employee Code: <strong>{employeeLoginCode}</strong>
+                  {t('Employee Code')}: <strong>{employeeLoginCode}</strong>
                 </div>
               )}
 
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium mb-1">
-                  Enter OTP
+                <label
+                  htmlFor="otp"
+                  className="block text-sm font-medium mb-1"
+                >
+                  {t('Enter OTP')}
                 </label>
                 <input
                   id="otp"
@@ -441,14 +535,18 @@ const LoginPage: React.FC = () => {
                   autoComplete="one-time-code"
                   maxLength={OTP_LENGTH}
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                  onChange={(e) =>
+                    setOtp(
+                      e.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH),
+                    )
+                  }
                   placeholder={'-'.repeat(OTP_LENGTH)}
                   className="w-full px-4 py-3 text-center tracking-[0.5em] text-lg bg-[linear-gradient(180deg,rgba(106,27,154,0.1)_0%,rgba(211,47,47,0.1)_100%)] border-transparent rounded-lg focus:ring-1 focus:ring-purple-600 focus:border-purple-600 focus:bg-white placeholder-gray-400"
                   required
                 />
                 <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                   <span>
-                    Expires in:{' '}
+                    {t('Expires in')}:{' '}
                     <strong className={expiresIn < 60 ? 'text-red-500' : ''}>
                       {formatTime(expiresIn)}
                     </strong>
@@ -459,7 +557,7 @@ const LoginPage: React.FC = () => {
                     disabled={expiresIn > 0 || resendLoading}
                     className="text-purple-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
-                    {resendLoading ? 'Sending...' : 'Resend OTP'}
+                    {resendLoading ? t('Sending...') : t('Resend OTP')}
                   </button>
                 </div>
               </div>
@@ -469,7 +567,7 @@ const LoginPage: React.FC = () => {
                 disabled={isLoading || otp.length !== OTP_LENGTH}
                 className="w-full bg-primary text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70"
               >
-                {isLoading ? 'Verifying...' : 'Verify OTP'}
+                {isLoading ? t('Verifying...') : t('Verify OTP')}
               </button>
 
               <button
@@ -477,30 +575,33 @@ const LoginPage: React.FC = () => {
                 onClick={backToCredentials}
                 className="w-full text-sm text-gray-600 hover:underline"
               >
-                ← Back to login
+                ← {t('Back to login')}
               </button>
             </form>
           )}
 
           {activeTab !== 'Employee' && step === 'credentials' && (
             <div className="text-center py-12 text-gray-500">
-              {activeTab} login form will be here.
+              {t('{{tab}} login form will be here.', { tab: t(activeTab) })}
             </div>
           )}
 
           {activeTab === 'Employee' && step === 'credentials' && (
             <>
               <p className="mt-6 text-sm text-center text-gray-700">
-                Don't have an account?{' '}
-                <a href="#" className="font-medium text-[#FF8682] hover:cursor-pointer">
-                  Sign up
+                {t("Don't have an account?")}{' '}
+                <a
+                  href="#"
+                  className="font-medium text-[#FF8682] hover:cursor-pointer"
+                >
+                  {t('Sign up')}
                 </a>
               </p>
 
               <div className="mt-6 flex items-center">
                 <hr className="w-full border-gray-300" />
                 <span className="px-2 text-xs text-gray-500 whitespace-nowrap">
-                  Or login with
+                  {t('Or login with')}
                 </span>
                 <hr className="w-full border-gray-300" />
               </div>
@@ -511,7 +612,11 @@ const LoginPage: React.FC = () => {
                   onClick={() => handleSocialLogin('facebook')}
                   className="w-full flex items-center justify-center py-4 border border-[#515DEF] rounded-lg shadow-sm bg-white hover:bg-gray-50"
                 >
-                  <img src={FacebookIconImg} alt="Facebook" className="w-5 h-5" />
+                  <img
+                    src={FacebookIconImg}
+                    alt="Facebook"
+                    className="w-5 h-5"
+                  />
                 </button>
                 <button
                   type="button"
