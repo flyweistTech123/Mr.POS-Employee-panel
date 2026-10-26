@@ -13,7 +13,8 @@ import logoutIcon from '@/assets/sidebar/logout.png';
 import chat from '@/assets/sidebar/chat.png';
 import setting from '@/assets/sidebar/settings.png';
 import saleperfomance from '@/assets/sidebar/sp.png';
-
+import attendance from '@/assets/sidebar/calendar.png';
+import orderhistory from '@/assets/sidebar/orderhistory.png';
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
@@ -48,14 +49,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
   const navItems = [
     { label: t('Quick order'), icon: quickOrder, path: '/orders', isSvg: false },
     { label: t('Table'), icon: table, path: '/table', isSvg: false },
-    { label: t('Order History'), icon: OrderHistoryIcon, path: '/order-history', isSvg: true },
+    { label: t('Order History'), icon: orderhistory, path: '/order-history', isSvg: true },
     { label: t('Reservations'), icon: reservation, path: '/reservations', isSvg: false },
   ];
 
   const trainingItems = [
     { label: t('Training'), icon: training, path: '/training', isSvg: false },
     { label: t('Team chats'), icon: chat, path: '/team-chats', isSvg: false },
-    { label: t('Attendance'), icon: FiUserCheck, path: '/attendance', isSvg: false },
+    { label: t('Attendance'), icon: attendance, path: '/attendance', isSvg: false },
     { label: t('Sales Performance'), icon: saleperfomance, path: '/sales-performance', isSvg: false },
     { label: t('Work Shifts'), icon: shift, path: '/work-shifts', isSvg: false },
   ];
