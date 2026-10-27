@@ -10,7 +10,7 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import LeftPanel from '@/components/common/LeftPanel';
 
-import TriaxxLogoImg from '@/assets/tiaxx_logo.svg';
+import TriaxxLogoImg from '@/assets/LOGOPlande.svg';
 import EyeIconImg from '@/assets/eye_icon.svg';
 import EyeSlashIconImg from '@/assets/eye-password-hide.svg';
 import FacebookIconImg from '@/assets/auth/facebook.svg';
@@ -390,7 +390,7 @@ const LoginPage: React.FC = () => {
             <img
               src={TriaxxLogoImg}
               alt="TRIAXX Logo"
-              className="h-6 lg:h-8 shrink-0"
+              className="h-24 shrink-0"
             />
           </div>
 

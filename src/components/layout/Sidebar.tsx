@@ -18,7 +18,7 @@ import orderhistory from '@/assets/sidebar/orderhistory.png';
 import TriaxxLogo from '@/assets/tiaxx_logo.svg';
 import OrderHistoryIcon from '@/assets/navbar/table_icon.svg';
 import { useWalkthroughStore } from '@/store/walkthroughStore';
-
+import logoUpdated from '@/assets/LOGOPlande.svg'
 // NOTE: Removed the static arrays from here and moved them inside the component
 
 interface SidebarProps {
@@ -89,9 +89,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogoutClick }) => {
 
   return (
     <aside className="hidden lg:flex flex-col h-screen w-[260px] fixed bg-[#FFF5F9] border-r border-[#0000001A]">
-      <div className="px-6 pt-7 pb-6 shrink-0">
+      <div className="px-6  pb-2 shrink-0">
         <Link to="/">
-          <img src={TriaxxLogo} alt="TRIAXX logo" className="h-8" />
+          <img src={logoUpdated} alt="TRIAXX logo" className="" />
         </Link>
       </div>
 
